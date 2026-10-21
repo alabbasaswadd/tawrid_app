@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/flutter/saydaliati/pharmacy_flutter/**)",
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Format-Table FullName)",
+      "Bash(xargs grep -l \"public class\")",
+      "Bash(dotnet build *)",
+      "Bash(Select-String -Pattern \"error|Error|FAILED|Build succeeded\")",
+      "Bash(Select-Object -Last 30)",
+      "PowerShell(dotnet ef migrations *)",
+      "PowerShell(dotnet tool list *)",
+      "PowerShell(dotnet tool install *)",
+      "PowerShell(dotnet ef database *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(dotnet ef *)",
+      "Bash(Get-ChildItem -Path \"E:\\\\flutter\\\\saydaliati\\\\pharmacy_flutter\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(dart run *)",
+      "Bash(flutter analyze *)",
+      "Bash(Get-ChildItem -Path \"E:\\\\flutter\\\\saydaliati\\\\pharmacy_flutter\\\\lib\\\\features\" -Directory)",
+      "Bash(ls *)",
+      "Bash(find \"E:\\\\\\\\flutter\\\\\\\\saydaliati\\\\\\\\pharmacy_flutter\\\\\\\\lib\\\\\\\\features\\\\\\\\purchases\" -name \"*provider*\" -o -name \"*controller*\")",
+      "Bash(find E:\\\\\\\\flutter\\\\\\\\saydaliati\\\\\\\\pharmacy_flutter\\\\\\\\lib\\\\\\\\shared\\\\\\\\widgets *)",
+      "Bash(find \"E:\\\\\\\\flutter\\\\\\\\saydaliati\\\\\\\\pharmacy_flutter\\\\\\\\lib\\\\\\\\features\" -name \"*remote*data*source*\")",
+      "Bash(grep *)",
+      "Bash(find E:\\\\\\\\flutter\\\\\\\\saydaliati\\\\\\\\pharmacy_flutter\\\\\\\\lib\\\\\\\\core *)",
+      "Bash(head *)",
+      "PowerShell(flutter analyze *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\" | ForEach-Object { $_.Name })",
+      "PowerShell($files = @\\(\\); Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\" -Recurse -Force | ForEach-Object { if \\($_.PSIsContainer\\) { $files += \"[DIR] \" + $_.FullName } else { $files += \"[FILE] \" + $_.FullName } }; $files | Sort-Object)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid.api\" -Directory)",
+      "PowerShell(Get-ChildItem *)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(dir E:\\\\flutter\\\\saydaliati\\\\pharmacy_flutter\\\\lib\\\\features *)"
+    ]
+  }
+}
