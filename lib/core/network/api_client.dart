@@ -21,12 +21,17 @@ class ApiClient {
   final Dio _dio;
 
   static ApiClient _create(Ref ref) {
-    final dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-    ));
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: _baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ),
+    );
 
     dio.interceptors.add(_AuthInterceptor(ref));
     dio.interceptors.add(_LogInterceptor());
@@ -34,7 +39,10 @@ class ApiClient {
     return ApiClient._(dio);
   }
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     final res = await _dio.get(path, queryParameters: queryParameters);
     return _unwrap(res.data);
   }
@@ -70,7 +78,9 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(
-      RequestOptions options, RequestInterceptorHandler handler) async {
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     const store = FlutterSecureStorage();
     final key = _isWarehouseRequest(options)
         ? StorageKeys.warehouseToken
@@ -84,7 +94,9 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onError(
-      DioException err, ErrorInterceptorHandler handler) async {
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     if (err.response?.statusCode == 401) {
       final prefs = await SharedPreferences.getInstance();
       final isWh = _isWarehouseRequest(err.requestOptions);
