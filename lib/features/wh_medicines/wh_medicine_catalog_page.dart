@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/medicine_catalog_models.dart';
@@ -146,7 +146,7 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
     final picked = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -220,11 +220,11 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
                     Container(
                       margin: const EdgeInsetsDirectional.only(end: 6),
                       decoration: BoxDecoration(
-                        color: TawridColors.warehouse.withValues(alpha: 0.1),
+                        color: context.colors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.qr_code_scanner, color: TawridColors.warehouse),
+                        icon: Icon(Icons.qr_code_scanner, color: context.colors.primary),
                         tooltip: 'مسح باركود',
                         onPressed: _scanBarcode,
                       ),
@@ -252,12 +252,12 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _manufacturer != null
-                          ? TawridColors.warehouse
-                          : TawridColors.textSecondary,
+                          ? context.colors.primary
+                          : context.colors.onSurfaceVariant,
                       side: BorderSide(
                         color: _manufacturer != null
-                            ? TawridColors.warehouse
-                            : TawridColors.border,
+                            ? context.colors.primary
+                            : context.colors.outline,
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                     ),
@@ -316,12 +316,12 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
           dosageForm: item.dosageForm,
           strength: item.strength,
           trailing: added
-              ? const Icon(Icons.check_circle, color: TawridColors.success)
+              ? Icon(Icons.check_circle, color: context.tokens.success)
               : adding
                   ? const SizedBox(
                       width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : IconButton(
-                      icon: const Icon(Icons.add_circle_outline, color: TawridColors.warehouse),
+                      icon: Icon(Icons.add_circle_outline, color: context.colors.primary),
                       onPressed: () => _add(item),
                     ),
         );
@@ -412,7 +412,7 @@ class _ManufacturerPickerSheetState extends State<_ManufacturerPickerSheet> {
                     leading: const Icon(Icons.clear_all),
                     title: const Text('كل الشركات'),
                     trailing: widget.selected == null
-                        ? const Icon(Icons.check, color: TawridColors.warehouse)
+                        ? Icon(Icons.check, color: context.colors.primary)
                         : null,
                     onTap: () => Navigator.pop(context, ''),
                   ),
@@ -422,7 +422,7 @@ class _ManufacturerPickerSheetState extends State<_ManufacturerPickerSheet> {
                       dense: true,
                       title: Text(m),
                       trailing: widget.selected == m
-                          ? const Icon(Icons.check, color: TawridColors.warehouse)
+                          ? Icon(Icons.check, color: context.colors.primary)
                           : null,
                       onTap: () => Navigator.pop(context, m),
                     ),

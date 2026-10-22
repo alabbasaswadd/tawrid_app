@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 
+// زر رئيسي متدرّج — موحّد على لون الثيم الأساسي. الوسيط [gradient] مُبقى
+// للتوافق مع مواضع الاستدعاء القديمة لكنه مُهمَل (اللون يُشتقّ من الثيم).
 class TawridButton extends StatelessWidget {
   const TawridButton({
     required this.label,
     required this.onPressed,
     this.loading = false,
-    this.gradient = TawridColors.brandGradient,
+    this.gradient,
     this.icon,
     super.key,
   });
@@ -16,50 +17,48 @@ class TawridButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
-  final Gradient gradient;
+  final Gradient? gradient; // مُهمَل
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final enabled = onPressed != null && !loading;
+    final grad = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.22)!],
+    );
+
     return Container(
       height: 52,
       decoration: BoxDecoration(
-        gradient: onPressed == null ? null : gradient,
-        color: onPressed == null ? TawridColors.hint.withValues(alpha: 0.3) : null,
+        gradient: enabled ? grad : null,
+        color: enabled ? null : cs.onSurface.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-        boxShadow: onPressed == null ? null : [
-          BoxShadow(
-            color: TawridColors.primary.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-          onTap: onPressed,
+          onTap: enabled ? onPressed : null,
           child: Center(
             child: loading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: Colors.white),
+                ? SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: cs.onPrimary),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (icon != null) ...[
-                        Icon(icon, color: Colors.white, size: 20),
+                        Icon(icon, color: cs.onPrimary, size: 20),
                         const SizedBox(width: 8),
                       ],
                       Text(
                         label,
-                        style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontSize: 16,
+                        style: context.text.titleMedium?.copyWith(
+                          color: cs.onPrimary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
