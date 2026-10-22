@@ -21,6 +21,9 @@ class PhRegisterPage extends ConsumerStatefulWidget {
 class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _governorate = TextEditingController();
+  final _city = TextEditingController();
+  final _address = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
@@ -32,6 +35,9 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
   @override
   void dispose() {
     _name.dispose();
+    _governorate.dispose();
+    _city.dispose();
+    _address.dispose();
     _email.dispose();
     _phone.dispose();
     _password.dispose();
@@ -46,6 +52,9 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
       final api = ref.read(apiClientProvider);
       await api.post(ApiEndpoints.phRegister, data: {
         'pharmacyName': _name.text.trim(),
+        'governorate': _governorate.text.trim(),
+        'city': _city.text.trim(),
+        'address': _address.text.trim(),
         'email': _email.text.trim(),
         'phone': _phone.text.trim(),
         'password': _password.text,
@@ -116,6 +125,35 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                             ),
                             validator: (v) =>
                                 (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _governorate,
+                            decoration: const InputDecoration(
+                              labelText: 'المحافظة',
+                              prefixIcon: Icon(Icons.map_outlined),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _city,
+                            decoration: const InputDecoration(
+                              labelText: 'المدينة (اختياري)',
+                              prefixIcon: Icon(Icons.location_city_outlined),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _address,
+                            decoration: const InputDecoration(
+                              labelText: 'العنوان (اختياري)',
+                              prefixIcon: Icon(Icons.home_outlined),
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.md),
 

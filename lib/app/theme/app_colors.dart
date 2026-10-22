@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 
 abstract final class TawridColors {
   // ── Brand ──────────────────────────────────────────────────────────────────
-  static const Color primary       = Color(0xFF0A4FA6);
-  static const Color primaryLight  = Color(0xFF1565C0);
-  static const Color primaryDark   = Color(0xFF003D82);
+  // أخضر زمردي طبي — الهوية البصرية المعتمدة (راجع SUPPLY_CHAIN_PLAN.md الأصلي).
+  static const Color primary       = Color(0xFF0FA06A);
+  static const Color primaryLight  = Color(0xFF3DB889);
+  static const Color primaryDark   = Color(0xFF0C7D53);
   static const Color accent        = Color(0xFF00ACC1);
 
   // ── Gradients ──────────────────────────────────────────────────────────────
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF0A4FA6), Color(0xFF0097A7)],
+    colors: [Color(0xFF0FA06A), Color(0xFF00ACC1)],
   );
 
   static const LinearGradient warehouseGradient = LinearGradient(

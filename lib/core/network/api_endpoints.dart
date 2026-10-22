@@ -1,11 +1,11 @@
 abstract final class ApiEndpoints {
-  static const String _ph  = '/pharmacy-api';
-  static const String _wh  = '/supply-api/warehouse';
+  static const String _ph = '/tawrid-api';
+  static const String _wh = '/tawrid-api/warehouse';
 
   // ── Pharmacy Auth ──────────────────────────────────────────────────────────
-  static const String phLogin    = '$_ph/Auth/login';
-  static const String phRegister = '$_ph/Auth/register';
-  static const String phMe       = '$_ph/Auth/me';
+  static const String phLogin    = '$_ph/auth/login';
+  static const String phRegister = '$_ph/auth/register';
+  static const String phMe       = '$_ph/auth/me';
 
   // ── Warehouse Auth ─────────────────────────────────────────────────────────
   static const String whLogin    = '$_wh/auth/login';
@@ -17,9 +17,10 @@ abstract final class ApiEndpoints {
 
   // ── Pharmacy: Supply Orders ────────────────────────────────────────────────
   static const String phOrders = '$_ph/supply-orders';
-  static String phOrderById(String id)     => '$_ph/supply-orders/$id';
-  static String phOrderCancel(String id)   => '$_ph/supply-orders/$id/cancel';
-  static String phOrderHistory(String id)  => '$_ph/supply-orders/$id/history';
+  static String phOrderById(String id)        => '$_ph/supply-orders/$id';
+  static String phOrderCancel(String id)      => '$_ph/supply-orders/$id/cancel';
+  static String phOrderHistory(String id)     => '$_ph/supply-orders/$id/history';
+  static String phOrderGenerateInvoice(String id) => '$_ph/supply-orders/$id/generate-invoice';
 
   // ── Pharmacy: Tenders ─────────────────────────────────────────────────────
   static const String phTenders = '$_ph/tenders';
@@ -29,16 +30,18 @@ abstract final class ApiEndpoints {
 
   // ── Pharmacy: Browse Offers ───────────────────────────────────────────────
   static const String phOffers = '$_ph/offers';
-  static String phOfferById(String id)    => '$_ph/offers/$id';
-  static String phOfferComments(String id) => '$_ph/offers/$id/comments';
+  static String phOfferById(String id)        => '$_ph/offers/$id';
+  static String phOfferComments(String id)    => '$_ph/offers/$id/comments';
+  static String phOfferCommentById(String id, String commentId) => '$_ph/offers/$id/comments/$commentId';
 
   // ── Pharmacy: Listings ────────────────────────────────────────────────────
-  static const String phMyListings    = '$_ph/listings/mine';
+  static const String phMyListings     = '$_ph/listings/mine';
   static const String phPublicListings = '$_ph/listings';
-  static String phListingById(String id)    => '$_ph/listings/$id';
-  static String phListingSold(String id)    => '$_ph/listings/$id/sold';
-  static String phListingCancel(String id)  => '$_ph/listings/$id/cancel';
-  static String phListingComments(String id) => '$_ph/listings/$id/comments';
+  static String phListingById(String id)       => '$_ph/listings/$id';
+  static String phListingSold(String id)       => '$_ph/listings/$id/sold';
+  static String phListingCancel(String id)     => '$_ph/listings/$id/cancel';
+  static String phListingComments(String id)   => '$_ph/listings/$id/comments';
+  static String phListingCommentById(String id, String commentId) => '$_ph/listings/$id/comments/$commentId';
 
   // ── Warehouse: Orders ─────────────────────────────────────────────────────
   static const String whOrders = '$_wh/orders';
@@ -47,17 +50,22 @@ abstract final class ApiEndpoints {
   static String whOrderHistory(String id)  => '$_wh/orders/$id/history';
 
   // ── Warehouse: Tenders ────────────────────────────────────────────────────
-  static const String whTendersOpen   = '$_wh/tenders/open';
-  static const String whMyOffers      = '$_wh/tenders/my-offers';
-  static String whTenderSubmit(String id)  => '$_wh/tenders/$id/offers';
+  static const String whTendersOpen = '$_wh/tenders/open';
+  static const String whMyOffers    = '$_wh/tenders/my-offers';
+  static String whTenderSubmit(String tenderId) => '$_wh/tenders/$tenderId/offers';
 
   // ── Warehouse: Sales Offers ───────────────────────────────────────────────
   static const String whSalesOffers = '$_wh/offers';
-  static String whSalesOfferById(String id) => '$_wh/offers/$id';
-  static String whSalesOfferCancel(String id) => '$_wh/offers/$id/cancel';
+  static String whSalesOfferById(String id)      => '$_wh/offers/$id';
+  static String whSalesOfferPublish(String id)   => '$_wh/offers/$id/publish';
+  static String whSalesOfferCancel(String id)    => '$_wh/offers/$id/cancel';
+  static String whSalesOfferTargets(String id)   => '$_wh/offers/$id/targets';
+  static String whSalesOfferComments(String id)  => '$_wh/offers/$id/comments';
+  static String whSalesOfferCommentById(String id, String commentId) => '$_wh/offers/$id/comments/$commentId';
 
-  // ── Warehouse: Listings ───────────────────────────────────────────────────
+  // ── Warehouse: Listings (browse pharmacy listings) ────────────────────────
   static const String whListings = '$_wh/listings';
-  static String whListingById(String id) => '$_wh/listings/$id';
+  static String whListingById(String id)     => '$_wh/listings/$id';
   static String whListingComments(String id) => '$_wh/listings/$id/comments';
+  static String whListingCommentById(String id, String commentId) => '$_wh/listings/$id/comments/$commentId';
 }

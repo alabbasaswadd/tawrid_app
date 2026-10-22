@@ -21,7 +21,13 @@ class WhRegisterPage extends ConsumerStatefulWidget {
 class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
-  final _login = TextEditingController();
+  final _code = TextEditingController();
+  final _governorate = TextEditingController();
+  final _city = TextEditingController();
+  final _address = TextEditingController();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _userName = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
@@ -33,7 +39,13 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
   @override
   void dispose() {
     _name.dispose();
-    _login.dispose();
+    _code.dispose();
+    _governorate.dispose();
+    _city.dispose();
+    _address.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
+    _userName.dispose();
     _email.dispose();
     _phone.dispose();
     _password.dispose();
@@ -48,7 +60,13 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
       final api = ref.read(apiClientProvider);
       await api.post(ApiEndpoints.whRegister, data: {
         'warehouseName': _name.text.trim(),
-        'login': _login.text.trim(),
+        'code': _code.text.trim(),
+        'governorate': _governorate.text.trim(),
+        'city': _city.text.trim(),
+        'address': _address.text.trim(),
+        'firstName': _firstName.text.trim(),
+        'lastName': _lastName.text.trim(),
+        'userName': _userName.text.trim(),
         'email': _email.text.trim(),
         'phone': _phone.text.trim(),
         'password': _password.text,
@@ -123,13 +141,76 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
                           const SizedBox(height: AppSpacing.md),
 
                           TextFormField(
-                            controller: _login,
+                            controller: _code,
+                            decoration: const InputDecoration(
+                              labelText: 'رمز المستودع',
+                              prefixIcon: Icon(Icons.tag_outlined),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _governorate,
+                            decoration: const InputDecoration(
+                              labelText: 'المحافظة',
+                              prefixIcon: Icon(Icons.map_outlined),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _city,
+                            decoration: const InputDecoration(
+                              labelText: 'المدينة (اختياري)',
+                              prefixIcon: Icon(Icons.location_city_outlined),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _address,
+                            decoration: const InputDecoration(
+                              labelText: 'العنوان (اختياري)',
+                              prefixIcon: Icon(Icons.home_outlined),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _firstName,
+                                  decoration: const InputDecoration(labelText: 'الاسم الأول'),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _lastName,
+                                  decoration: const InputDecoration(labelText: 'اسم العائلة'),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          TextFormField(
+                            controller: _userName,
                             decoration: const InputDecoration(
                               labelText: 'اسم المستخدم',
                               prefixIcon: Icon(Icons.person_outline),
                             ),
                             validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                                (v == null || v.trim().length < 3) ? 'لا يقل عن ٣ أحرف' : null,
                           ),
                           const SizedBox(height: AppSpacing.md),
 

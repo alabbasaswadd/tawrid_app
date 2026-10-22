@@ -7,7 +7,13 @@ import 'package:tawrid_app/core/constants/storage_keys.dart';
 import 'package:tawrid_app/core/session/pharmacy_session.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 
-const String _baseUrl = 'http://10.0.2.2:5289';
+// قيمة افتراضية لمحاكي أندرويد (loopback). للتشغيل على جهاز حقيقي/iOS
+// simulator/web، مرّر عنوان الباك إند الفعلي عبر:
+//   flutter run --dart-define=API_BASE_URL=http://192.168.x.x:5289
+const String _baseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://10.0.2.2:5289',
+);
 
 final _logger = Logger();
 
@@ -73,8 +79,10 @@ class _AuthInterceptor extends Interceptor {
   _AuthInterceptor(this._ref);
   final Ref _ref;
 
+  // كل مسارات المستودع تحت tawrid-api/warehouse/... — يكفي التحقق من
+  // وجود هذا القسم بدل افتراض بادئة كاملة مختلفة.
   bool _isWarehouseRequest(RequestOptions options) =>
-      options.path.startsWith('/supply-api/');
+      options.path.contains('/warehouse/');
 
   @override
   Future<void> onRequest(

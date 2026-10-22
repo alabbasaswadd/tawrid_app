@@ -42,7 +42,11 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
   }
 
   Future<void> clear() async {
-    await _store.deleteAll();
+    // حذف مفاتيح الصيدلي فقط — deleteAll() كانت تمحو أيضاً جلسة
+    // المستودع (نفس الـ secure storage الفعلي لكليهما).
+    await _store.delete(key: StorageKeys.pharmacyToken);
+    await _store.delete(key: StorageKeys.pharmacyUserId);
+    await _store.delete(key: StorageKeys.pharmacyTenantId);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(StorageKeys.hasPharmacySession, false);
     state = const AsyncData(SessionUnauthenticated());
