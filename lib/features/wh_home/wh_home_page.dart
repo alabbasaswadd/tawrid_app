@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/tender_models.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/tender_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
@@ -18,9 +18,7 @@ import 'package:tawrid_app/shared/widgets/governorate_city_selector.dart';
 import 'package:tawrid_app/shared/widgets/sales_offer_detail_sheet.dart';
 import 'package:tawrid_app/shared/widgets/sales_offer_post_card.dart';
 
-// الصفحة الرئيسية للمستودع — تدفّقان منفصلان كل بتبويبه الخاص (بدل تكديسهما
-// في قائمة واحدة): "عروضي" (فلترة بالمنطقة فقط) و"مناقصات مفتوحة" (فلترة
-// بالمحافظة والمدينة)، كلٌ بتصميم منشورات فيسبوك.
+// الصفحة الرئيسية للمستودع — مفتاح تبديل بين "عروضي" و"مناقصات مفتوحة".
 class WhHomePage extends ConsumerStatefulWidget {
   const WhHomePage({super.key});
 
@@ -32,7 +30,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   List<SalesOfferSummary>? _offers;
   bool _offersLoading = true;
   String? _offersError;
-  String? _offersGovernorateFilter; // اسم المحافظة، null = الكل
+  String? _offersGovernorateFilter;
 
   List<TenderSummary>? _tenders;
   bool _tendersLoading = true;
@@ -40,7 +38,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   String? _tendersGovernorateId;
   String? _tendersCityId;
 
-  int _tab = 0; // 0 = عروضي ، 1 = مناقصات مفتوحة
+  int _tab = 0;
 
   @override
   void initState() {
@@ -105,10 +103,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
 
   Future<void> _openOfferDetails(SalesOfferSummary offer) {
     final repo = ref.read(salesOfferRepositoryProvider);
-    return SalesOfferDetailSheet.show(
-      context,
-      load: () => repo.getWarehouseOfferById(offer.id),
-    );
+    return SalesOfferDetailSheet.show(context, load: () => repo.getWarehouseOfferById(offer.id));
   }
 
   Future<void> _openComments(SalesOfferSummary offer) {
@@ -139,11 +134,22 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
       ),
       body: Column(
         children: [
-          _SegmentedToggle(
-            selected: _tab,
-            offersCount: _offers?.length,
-            tendersCount: _tenders?.length,
-            onChanged: (i) => setState(() => _tab = i),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xs),
+            child: AppSegmentedToggle(
+              selected: _tab,
+              onChanged: (i) => setState(() => _tab = i),
+              items: [
+                SegmentItem(
+                  icon: Icons.sell_outlined,
+                  label: _offers == null ? 'عروضي' : 'عروضي (${_offers!.length})',
+                ),
+                SegmentItem(
+                  icon: Icons.gavel_outlined,
+                  label: _tenders == null ? 'مناقصات مفتوحة' : 'مناقصات مفتوحة (${_tenders!.length})',
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: IndexedStack(
@@ -162,7 +168,6 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
                 ),
                 _TendersTab(
                   governorates: governorates,
-                  allTenders: _tenders ?? [],
                   loading: _tendersLoading,
                   error: _tendersError,
                   governorateId: _tendersGovernorateId,
@@ -179,90 +184,6 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// مفتاح تبديل علوي واضح بين "عروضي" و"مناقصات مفتوحة" — المقطع المحدّد بخلفية
-// ملوّنة ونص أبيض، وغير المحدّد بخلفية شفافة ونص ثانوي (تباين واضح).
-class _SegmentedToggle extends StatelessWidget {
-  const _SegmentedToggle({
-    required this.selected,
-    required this.offersCount,
-    required this.tendersCount,
-    required this.onChanged,
-  });
-
-  final int selected;
-  final int? offersCount;
-  final int? tendersCount;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xs),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: TawridColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: TawridColors.border),
-      ),
-      child: Row(
-        children: [
-          _segment(
-            index: 0,
-            icon: Icons.sell_outlined,
-            label: offersCount == null ? 'عروضي' : 'عروضي ($offersCount)',
-          ),
-          _segment(
-            index: 1,
-            icon: Icons.gavel_outlined,
-            label: tendersCount == null ? 'مناقصات مفتوحة' : 'مناقصات مفتوحة ($tendersCount)',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _segment({required int index, required IconData icon, required String label}) {
-    final active = selected == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onChanged(index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: active ? TawridColors.warehouse : Colors.transparent,
-            borderRadius: BorderRadius.circular(11),
-            boxShadow: active
-                ? [BoxShadow(color: TawridColors.warehouse.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: active ? Colors.white : TawridColors.textSecondary),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.cairo(
-                    fontSize: 13,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                    color: active ? Colors.white : TawridColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -294,6 +215,7 @@ class _OffersTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
     return Column(
       children: [
         Padding(
@@ -304,32 +226,23 @@ class _OffersTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: TawridColors.surfaceVariant,
+                  color: context.tokens.surfaceAlt,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: TawridColors.border),
+                  border: Border.all(color: cs.outline),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.filter_alt_outlined, size: 14, color: TawridColors.textSecondary),
+                    Icon(Icons.filter_alt_outlined, size: 14, color: cs.onSurfaceVariant),
                     const SizedBox(width: 4),
-                    _GovernorateOnlyFilter(
-                      governorates: governorates,
-                      value: filter,
-                      onChanged: onFilterChanged,
-                    ),
+                    _GovernorateOnlyFilter(governorates: governorates, value: filter, onChanged: onFilterChanged),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: onRefresh,
-            child: _buildBody(),
-          ),
-        ),
+        Expanded(child: RefreshIndicator(onRefresh: onRefresh, child: _buildBody())),
       ],
     );
   }
@@ -337,14 +250,11 @@ class _OffersTab extends StatelessWidget {
   Widget _buildBody() {
     if (loading) return const LoadingState();
     if (error != null) return ErrorState(message: error!, onRetry: onRefresh);
-
     if (offers.isEmpty) {
-      return ListView(
-        children: const [
-          SizedBox(height: 120),
-          EmptyState(message: 'لا توجد عروض مطابقة', icon: Icons.sell_outlined),
-        ],
-      );
+      return ListView(children: const [
+        SizedBox(height: 120),
+        EmptyState(message: 'لا توجد عروض مطابقة', icon: Icons.sell_outlined),
+      ]);
     }
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -365,7 +275,6 @@ class _OffersTab extends StatelessWidget {
 class _TendersTab extends StatelessWidget {
   const _TendersTab({
     required this.governorates,
-    required this.allTenders,
     required this.loading,
     required this.error,
     required this.governorateId,
@@ -377,7 +286,6 @@ class _TendersTab extends StatelessWidget {
   });
 
   final List governorates;
-  final List<TenderSummary> allTenders;
   final bool loading;
   final String? error;
   final String? governorateId;
@@ -410,13 +318,9 @@ class _TendersTab extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
-          child: Container(
+          child: AppCard(
             padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: TawridColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: TawridColors.border),
-            ),
+            color: context.tokens.surfaceAlt,
             child: GovernorateCitySelector(
               governorateId: governorateId,
               cityId: cityId,
@@ -425,12 +329,7 @@ class _TendersTab extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: onRefresh,
-            child: _buildBody(filtered(govName, cityName)),
-          ),
-        ),
+        Expanded(child: RefreshIndicator(onRefresh: onRefresh, child: _buildBody(filtered(govName, cityName)))),
       ],
     );
   }
@@ -438,14 +337,11 @@ class _TendersTab extends StatelessWidget {
   Widget _buildBody(List<TenderSummary> tenders) {
     if (loading) return const LoadingState();
     if (error != null) return ErrorState(message: error!, onRetry: onRefresh);
-
     if (tenders.isEmpty) {
-      return ListView(
-        children: const [
-          SizedBox(height: 120),
-          EmptyState(message: 'لا توجد مناقصات مطابقة', icon: Icons.gavel_outlined),
-        ],
-      );
+      return ListView(children: const [
+        SizedBox(height: 120),
+        EmptyState(message: 'لا توجد مناقصات مطابقة', icon: Icons.gavel_outlined),
+      ]);
     }
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -461,13 +357,9 @@ class _TendersTab extends StatelessWidget {
   }
 }
 
-// فلتر محافظة واحد فقط (بلا مدينة) — لتصفية "عروضي".
+// فلتر محافظة واحد (بلا مدينة) لـ "عروضي".
 class _GovernorateOnlyFilter extends StatelessWidget {
-  const _GovernorateOnlyFilter({
-    required this.governorates,
-    required this.value,
-    required this.onChanged,
-  });
+  const _GovernorateOnlyFilter({required this.governorates, required this.value, required this.onChanged});
 
   final List governorates;
   final String? value;
@@ -478,12 +370,13 @@ class _GovernorateOnlyFilter extends StatelessWidget {
     return DropdownButton<String?>(
       value: value,
       underline: const SizedBox.shrink(),
-      hint: Text('المنطقة', style: GoogleFonts.cairo(fontSize: 13)),
+      hint: Text('المنطقة', style: context.text.bodySmall),
+      style: context.text.bodySmall,
       items: [
-        DropdownMenuItem(value: null, child: Text('الكل', style: GoogleFonts.cairo(fontSize: 13))),
+        DropdownMenuItem(value: null, child: Text('الكل', style: context.text.bodySmall)),
         ...governorates.map((g) => DropdownMenuItem(
               value: g.name as String,
-              child: Text(g.name as String, style: GoogleFonts.cairo(fontSize: 13)),
+              child: Text(g.name as String, style: context.text.bodySmall),
             )),
       ],
       onChanged: onChanged,
@@ -491,7 +384,7 @@ class _GovernorateOnlyFilter extends StatelessWidget {
   }
 }
 
-// بطاقة مناقصة — نفس أسلوب بطاقة العرض، مع زر "تقدّم بعرض" كإجراء رئيسي.
+// بطاقة مناقصة — أسلوب موحّد مع شريط حالة جانبي.
 class _TenderPostCard extends StatelessWidget {
   const _TenderPostCard({required this.tender, required this.onApply});
   final TenderSummary tender;
@@ -499,15 +392,17 @@ class _TenderPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final t = context.tokens;
     final region = [tender.tenantGovernorate, tender.tenantCity].where((e) => e != null && e.isNotEmpty).join(' - ');
-    final statusColor = tender.isExpired ? TawridColors.error : TawridColors.success;
+    final statusColor = tender.isExpired ? cs.error : t.success;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
-        color: TawridColors.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TawridColors.border),
+        border: Border.all(color: cs.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(
@@ -520,54 +415,29 @@ class _TenderPostCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(tender.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15.5)),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        margin: const EdgeInsets.only(left: 5),
-                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-                      ),
-                      Flexible(
-                        child: Text(
-                          '${tender.isExpired ? "منتهية" : "مفتوحة"} · ${tender.itemCount} صنف · ${formatSmartTimestamp(tender.createdOn)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.hint),
-                        ),
-                      ),
-                    ],
+                  Text(tender.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.text.titleMedium),
+                  const SizedBox(height: 4),
+                  StatusBadge(
+                    label: '${tender.isExpired ? "منتهية" : "مفتوحة"} · ${tender.itemCount} صنف · ${formatSmartTimestamp(tender.createdOn)}',
+                    tone: tender.isExpired ? StatusTone.danger : StatusTone.success,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 13, color: TawridColors.textSecondary),
+                      Icon(Icons.location_on_outlined, size: 13, color: cs.onSurfaceVariant),
                       const SizedBox(width: 3),
                       Expanded(
-                        child: Text(
-                          region.isEmpty ? 'بلا منطقة' : region,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary),
-                        ),
+                        child: Text(region.isEmpty ? 'بلا منطقة' : region,
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: context.text.bodySmall),
                       ),
-                      Text('ينتهي ${formatSmartTimestamp(tender.expiresAt)}',
-                          style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.textSecondary)),
+                      Text('ينتهي ${formatSmartTimestamp(tender.expiresAt)}', style: context.text.bodySmall),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: tender.isExpired ? null : onApply,
-                      icon: const Icon(Icons.send_outlined, size: 18),
-                      label: const Text('تقدّم بعرض'),
-                    ),
+                  AppButton(
+                    label: 'تقدّم بعرض',
+                    icon: Icons.send_outlined,
+                    onPressed: tender.isExpired ? null : onApply,
                   ),
                 ],
               ),

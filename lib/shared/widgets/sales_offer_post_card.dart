@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 
-// بطاقة عرض بيع — تصميم مُعاد بالكامل: شريط لوني جانبي يعكس الحالة بدل
-// شارة مؤطَّرة، سطر وصفي مختصر (نوع · وقت) بلا أيقونات متكررة، معاينة
-// لأصناف العرض كرقاقات مميّزة بصرياً، وقائمة إجراءات (⋮) اختيارية لتغيير
-// الحالة بدل أزرار تذييل إضافية. مُعاد استخدامها في الصفحة الرئيسية
-// وصفحة "عروضي".
+// بطاقة عرض بيع — شريط لوني جانبي يعكس الحالة + سطر وصفي + معاينة أصناف
+// كرقاقات + قائمة إجراءات اختيارية. كل الألوان/الخطوط من الثيم (تدعم الدارك).
 class SalesOfferPostCard extends StatelessWidget {
   const SalesOfferPostCard({
     required this.offer,
@@ -27,12 +23,16 @@ class SalesOfferPostCard extends StatelessWidget {
   final VoidCallback? onPublish;
   final VoidCallback? onCancel;
 
-  Color get _statusColor => switch (offer.status) {
-        SalesOfferStatus.active => TawridColors.success,
-        SalesOfferStatus.draft => TawridColors.warning,
-        SalesOfferStatus.expired => TawridColors.textSecondary,
-        SalesOfferStatus.cancelled => TawridColors.error,
-      };
+  Color _statusColor(BuildContext context) {
+    final cs = context.colors;
+    final t = context.tokens;
+    return switch (offer.status) {
+      SalesOfferStatus.active => t.success,
+      SalesOfferStatus.draft => t.warning,
+      SalesOfferStatus.expired => cs.onSurfaceVariant,
+      SalesOfferStatus.cancelled => cs.error,
+    };
+  }
 
   bool get _hasActions =>
       (onPublish != null && offer.status == SalesOfferStatus.draft) ||
@@ -41,6 +41,8 @@ class SalesOfferPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final statusColor = _statusColor(context);
     final regionLabel = offer.targetRegions.isEmpty
         ? null
         : offer.targetRegions.length == 1
@@ -50,15 +52,15 @@ class SalesOfferPostCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
-        color: TawridColors.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TawridColors.border),
+        border: Border.all(color: cs.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(width: 4, color: _statusColor),
+          Container(width: 4, color: statusColor),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.sm, AppSpacing.sm),
@@ -68,16 +70,11 @@ class SalesOfferPostCard extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(offer.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15.5)),
-                      ),
+                      Expanded(child: Text(offer.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.text.titleMedium)),
                       if (_hasActions)
                         PopupMenuButton<String>(
                           padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.more_vert, size: 20, color: TawridColors.hint),
+                          icon: Icon(Icons.more_vert, size: 20, color: context.tokens.hint),
                           onSelected: (v) {
                             if (v == 'publish') onPublish?.call();
                             if (v == 'cancel') onCancel?.call();
@@ -86,31 +83,29 @@ class SalesOfferPostCard extends StatelessWidget {
                             if (onPublish != null && offer.status == SalesOfferStatus.draft)
                               const PopupMenuItem(value: 'publish', child: Text('نشر العرض')),
                             if (onCancel != null &&
-                                (offer.status == SalesOfferStatus.draft ||
-                                    offer.status == SalesOfferStatus.active))
-                              const PopupMenuItem(
+                                (offer.status == SalesOfferStatus.draft || offer.status == SalesOfferStatus.active))
+                              PopupMenuItem(
                                 value: 'cancel',
-                                child: Text('إلغاء العرض', style: TextStyle(color: TawridColors.error)),
+                                child: Text('إلغاء العرض', style: TextStyle(color: cs.error)),
                               ),
                           ],
                         ),
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Container(
-                        width: 6,
-                        height: 6,
+                        width: 6, height: 6,
                         margin: const EdgeInsets.only(left: 5),
-                        decoration: BoxDecoration(color: _statusColor, shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
                       ),
                       Flexible(
                         child: Text(
                           '${offer.status.label} · ${offer.offerType.label} · ${formatSmartTimestamp(offer.createdOn)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.hint),
+                          style: context.text.bodySmall,
                         ),
                       ),
                     ],
@@ -130,19 +125,14 @@ class SalesOfferPostCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 13, color: TawridColors.textSecondary),
+                      Icon(Icons.location_on_outlined, size: 13, color: cs.onSurfaceVariant),
                       const SizedBox(width: 3),
                       Expanded(
-                        child: Text(
-                          regionLabel ?? 'بلا منطقة محدَّدة',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary),
-                        ),
+                        child: Text(regionLabel ?? 'بلا منطقة محدَّدة',
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: context.text.bodySmall),
                       ),
                       Text(offer.currency,
-                          style: GoogleFonts.cairo(
-                              fontSize: 12, color: TawridColors.textSecondary, fontWeight: FontWeight.w700)),
+                          style: context.text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -153,15 +143,15 @@ class SalesOfferPostCard extends StatelessWidget {
                         child: TextButton(
                           style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
                           onPressed: onDetails,
-                          child: Text('التفاصيل', style: GoogleFonts.cairo(fontSize: 12.5)),
+                          child: const Text('التفاصيل'),
                         ),
                       ),
-                      Container(width: 1, height: 16, color: TawridColors.border),
+                      Container(width: 1, height: 16, color: cs.outline),
                       Expanded(
                         child: TextButton(
                           style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
                           onPressed: onComments,
-                          child: Text('التعليقات', style: GoogleFonts.cairo(fontSize: 12.5)),
+                          child: const Text('التعليقات'),
                         ),
                       ),
                     ],
@@ -183,18 +173,19 @@ class _ItemPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final t = context.tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: muted ? TawridColors.surfaceVariant : TawridColors.warehouse.withValues(alpha: 0.09),
+        color: muted ? t.surfaceAlt : cs.primary.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
-        style: GoogleFonts.cairo(
-          fontSize: 11,
+        style: context.text.labelSmall?.copyWith(
+          color: muted ? t.hint : cs.primary,
           fontWeight: FontWeight.w600,
-          color: muted ? TawridColors.hint : TawridColors.warehouse,
         ),
       ),
     );

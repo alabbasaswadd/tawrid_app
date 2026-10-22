@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 class WhLoginPage extends ConsumerStatefulWidget {
   const WhLoginPage({super.key});
@@ -23,7 +22,6 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _username = TextEditingController();
   final _password = TextEditingController();
-  bool _obscure = true;
   bool _loading = false;
 
   @override
@@ -56,13 +54,20 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final heroGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.28)!],
+    );
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: TawridColors.warehouseGradient),
+        decoration: BoxDecoration(gradient: heroGradient),
         child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // الترويسة
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.lg),
@@ -73,107 +78,85 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.warehouse_outlined,
-                        color: Colors.white, size: 40),
+                    child: const Icon(Icons.warehouse_outlined, color: Colors.white, size: 40),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text('توريد',
-                      style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800)),
+                      style: context.text.displayMedium?.copyWith(color: Colors.white)),
                   Text('بوابة المستودع',
-                      style: GoogleFonts.cairo(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 14)),
+                      style: context.text.bodyMedium
+                          ?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
                 ]),
               ),
 
-              // Form card
+              // بطاقة النموذج
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: TawridColors.background,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(32)),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: AppSpacing.sm),
-                          Text('دخول المستودع',
-                              style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text('أدخل بيانات حساب المستودع',
-                              style: Theme.of(context).textTheme.bodySmall),
-                          const SizedBox(height: AppSpacing.lg),
+                    child: CenteredContent(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: AppSpacing.sm),
+                            Text('دخول المستودع', style: context.text.titleLarge),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text('أدخل بيانات حساب المستودع', style: context.text.bodySmall),
+                            const SizedBox(height: AppSpacing.lg),
 
-                          TextFormField(
-                            controller: _username,
-                            decoration: const InputDecoration(
-                              labelText: 'اسم المستخدم أو البريد',
-                              prefixIcon: Icon(Icons.person_outline),
+                            AppTextField(
+                              controller: _username,
+                              label: 'اسم المستخدم أو البريد',
+                              prefixIcon: Icons.person_outline,
+                              textInputAction: TextInputAction.next,
+                              validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                             ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'مطلوب'
-                                : null,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
-                            controller: _password,
-                            obscureText: _obscure,
-                            decoration: InputDecoration(
-                              labelText: 'كلمة المرور',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscure
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                onPressed: () =>
-                                    setState(() => _obscure = !_obscure),
-                              ),
+                            AppTextField(
+                              controller: _password,
+                              label: 'كلمة المرور',
+                              prefixIcon: Icons.lock_outline,
+                              obscure: true,
+                              validator: (v) => (v == null || v.isEmpty) ? 'كلمة المرور مطلوبة' : null,
                             ),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'كلمة المرور مطلوبة'
-                                : null,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
+                            const SizedBox(height: AppSpacing.lg),
 
-                          TawridButton(
-                            label: 'دخول',
-                            onPressed: _loading ? null : _login,
-                            loading: _loading,
-                            gradient: TawridColors.warehouseGradient,
-                            icon: Icons.login,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
+                            AppButton(
+                              label: 'دخول',
+                              icon: Icons.login,
+                              loading: _loading,
+                              onPressed: _login,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('مستودع جديد؟',
-                                  style: Theme.of(context).textTheme.bodySmall),
-                              TextButton(
-                                onPressed: () =>
-                                    context.go(TRoutes.whRegister),
-                                child: const Text('تسجيل المستودع'),
-                              ),
-                            ],
-                          ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('مستودع جديد؟', style: context.text.bodySmall),
+                                TextButton(
+                                  onPressed: () => context.go(TRoutes.whRegister),
+                                  child: const Text('تسجيل المستودع'),
+                                ),
+                              ],
+                            ),
 
-                          const Divider(height: AppSpacing.xl),
+                            const Divider(height: AppSpacing.xl),
 
-                          OutlinedButton.icon(
-                            onPressed: () => context.go(TRoutes.phLogin),
-                            icon: const Icon(Icons.local_pharmacy_outlined),
-                            label: const Text('دخول كصيدلية'),
-                          ),
-                        ],
+                            AppButton(
+                              label: 'دخول كصيدلية',
+                              icon: Icons.local_pharmacy_outlined,
+                              variant: AppButtonVariant.outline,
+                              onPressed: () => context.go(TRoutes.phLogin),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

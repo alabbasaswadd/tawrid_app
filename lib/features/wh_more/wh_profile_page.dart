@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/geo_models.dart';
 import 'package:tawrid_app/models/warehouse_auth_models.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_service_area_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-// الملف الشخصي للمستودع: بطاقة بيانات + محرّر مناطق التغطية (المحافظات/المدن
-// التي يوصّل إليها) مع إمكانية التعديل والحفظ مباشرة.
+// الملف الشخصي للمستودع: بطاقة بيانات + محرّر مناطق التغطية (قابل للتعديل والحفظ).
 class WhProfilePage extends ConsumerStatefulWidget {
   const WhProfilePage({super.key});
 
@@ -68,8 +67,7 @@ class _WhProfilePageState extends ConsumerState<WhProfilePage> {
   }
 
   bool get _dirty =>
-      _selected.length != _savedSelection.length ||
-      !_selected.containsAll(_savedSelection);
+      _selected.length != _savedSelection.length || !_selected.containsAll(_savedSelection);
 
   bool? _governorateState(Governorate g) {
     if (g.cities.isEmpty) return false;
@@ -130,17 +128,11 @@ class _WhProfilePageState extends ConsumerState<WhProfilePage> {
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: FilledButton.icon(
-                  onPressed: _saving ? null : _save,
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.save_outlined),
-                  label: Text(_saving ? 'جارٍ الحفظ...' : 'حفظ مناطق التغطية (${_selected.length})'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: TawridColors.warehouse,
-                    minimumSize: const Size.fromHeight(50),
-                  ),
+                child: AppButton(
+                  label: 'حفظ مناطق التغطية (${_selected.length})',
+                  icon: Icons.save_outlined,
+                  loading: _saving,
+                  onPressed: _save,
                 ),
               ),
             )
@@ -158,31 +150,18 @@ class _WhProfilePageState extends ConsumerState<WhProfilePage> {
       children: [
         _ProfileHeader(me: me),
         const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            const Icon(Icons.map_outlined, size: 18, color: TawridColors.warehouse),
-            const SizedBox(width: 6),
-            Text('مناطق التغطية',
-                style: GoogleFonts.cairo(fontSize: 15, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text('${_selected.length} مدينة',
-                style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
-          ],
+        AppSectionHeader(
+          title: 'مناطق التغطية',
+          icon: Icons.map_outlined,
+          subtitle: 'اختر المحافظات والمدن التي يوصّل إليها مستودعك',
+          trailing: Text('${_selected.length} مدينة', style: context.text.bodySmall),
         ),
-        const SizedBox(height: 2),
-        Text('اختر المحافظات والمدن التي يوصّل إليها مستودعك',
-            style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
         const SizedBox(height: AppSpacing.sm),
         if (_governorates.isEmpty)
           const EmptyState(message: 'لا توجد محافظات متاحة حالياً', icon: Icons.map_outlined)
         else
-          Container(
-            decoration: BoxDecoration(
-              color: TawridColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: TawridColors.border),
-            ),
-            clipBehavior: Clip.antiAlias,
+          AppCard(
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 for (var i = 0; i < _governorates.length; i++) ...[
@@ -210,13 +189,18 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
     final location = [me.governorate, me.city].where((e) => e.isNotEmpty).join(' - ');
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.28)!],
+    );
+    final onHero = Colors.white;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        gradient: TawridColors.warehouseGradient,
-        borderRadius: BorderRadius.circular(18),
-      ),
+      decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(18)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -228,7 +212,7 @@ class _ProfileHeader extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.warehouse_outlined, color: Colors.white, size: 28),
+                child: Icon(Icons.warehouse_outlined, color: onHero, size: 28),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -238,14 +222,12 @@ class _ProfileHeader extends StatelessWidget {
                     Text(me.warehouseName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.cairo(
-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                        style: context.text.titleLarge?.copyWith(color: onHero)),
                     const SizedBox(height: 2),
                     Text('رمز: ${me.warehouseCode}${location.isNotEmpty ? ' · $location' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.cairo(
-                            color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
+                        style: context.text.bodySmall?.copyWith(color: onHero.withValues(alpha: 0.85))),
                   ],
                 ),
               ),
@@ -290,7 +272,7 @@ class _InfoRow extends StatelessWidget {
             child: Text(text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.cairo(color: Colors.white, fontSize: 13)),
+                style: context.text.bodyMedium?.copyWith(color: Colors.white)),
           ),
         ],
       ),
@@ -315,26 +297,26 @@ class _GovernorateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
     final selectedCount = governorate.cities.where((c) => selected.contains(c.id)).length;
     return ExpansionTile(
       leading: Checkbox(
         tristate: true,
         value: triState,
-        activeColor: TawridColors.warehouse,
+        activeColor: cs.primary,
         onChanged: (_) => onToggleGovernorate(),
       ),
-      title: Text(governorate.name,
-          style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+      title: Text(governorate.name, style: context.text.titleSmall),
       subtitle: Text('$selectedCount من ${governorate.cities.length} مدينة محدَّدة',
-          style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+          style: context.text.bodySmall),
       childrenPadding: const EdgeInsets.only(right: AppSpacing.md),
       children: governorate.cities
           .map((c) => CheckboxListTile(
                 value: selected.contains(c.id),
                 controlAffinity: ListTileControlAffinity.leading,
-                activeColor: TawridColors.warehouse,
+                activeColor: cs.primary,
                 dense: true,
-                title: Text(c.name, style: GoogleFonts.cairo(fontSize: 14)),
+                title: Text(c.name, style: context.text.bodyMedium),
                 onChanged: (v) => onToggleCity(c.id, v ?? false),
               ))
           .toList(),

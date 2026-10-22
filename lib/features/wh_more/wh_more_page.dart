@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
@@ -13,57 +12,58 @@ class WhMorePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = context.colors;
+    final t = context.tokens;
     return Scaffold(
       appBar: AppBar(title: const Text('المزيد')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          _SectionHeader(label: 'الخدمات'),
+          const _SectionHeader(label: 'الخدمات'),
           _MoreTile(
             icon: Icons.campaign_outlined,
             label: 'إعلاناتي',
-            color: TawridColors.warning,
+            color: t.warning,
             onTap: () => context.push(TRoutes.whListings),
           ),
           _MoreTile(
             icon: Icons.medication_outlined,
             label: 'أدويتي',
-            color: TawridColors.warehouse,
+            color: cs.primary,
             onTap: () => context.push(TRoutes.whMedicines),
           ),
           _MoreTile(
             icon: Icons.bar_chart_outlined,
             label: 'التقارير',
-            color: TawridColors.info,
+            color: t.info,
             onTap: () {},
           ),
           const SizedBox(height: AppSpacing.md),
-          _SectionHeader(label: 'الحساب'),
+          const _SectionHeader(label: 'الحساب'),
           _MoreTile(
             icon: Icons.business_outlined,
             label: 'ملف المستودع',
-            color: TawridColors.warehouse,
+            color: cs.primary,
             onTap: () => context.push(TRoutes.whProfile),
           ),
           _MoreTile(
             icon: Icons.settings_outlined,
             label: 'الإعدادات',
-            color: TawridColors.textSecondary,
+            color: cs.onSurfaceVariant,
             onTap: () {},
           ),
           const SizedBox(height: AppSpacing.md),
           _MoreTile(
             icon: Icons.logout,
             label: 'تسجيل الخروج',
-            color: TawridColors.error,
+            color: cs.error,
             onTap: () => _confirmLogout(context, ref),
             showArrow: false,
           ),
           const SizedBox(height: AppSpacing.xl),
           Center(
             child: Text('توريد — منصة التوريد الدوائي',
-                style: GoogleFonts.cairo(
-                    color: TawridColors.hint, fontSize: 12)),
+                style: context.text.bodySmall?.copyWith(color: t.hint)),
           ),
         ],
       ),
@@ -74,22 +74,16 @@ class WhMorePage extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('تسجيل الخروج',
-            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
-        content: Text('هل تريد تسجيل الخروج من حساب المستودع؟',
-            style: GoogleFonts.cairo()),
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل تريد تسجيل الخروج من حساب المستودع؟'),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TawridColors.error),
+            style: FilledButton.styleFrom(backgroundColor: context.colors.error),
             onPressed: () async {
               Navigator.pop(ctx);
               await ref.read(warehouseSessionProvider.notifier).clear();
-              if (context.mounted) {
-                AppSnackbar.success(context, 'تم تسجيل الخروج');
-              }
+              if (context.mounted) AppSnackbar.success(context, 'تم تسجيل الخروج');
             },
             child: const Text('خروج'),
           ),
@@ -105,13 +99,9 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(
-            bottom: AppSpacing.xs, top: AppSpacing.sm),
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs, top: AppSpacing.sm),
         child: Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelMedium
-                ?.copyWith(color: TawridColors.hint, letterSpacing: 0.5)),
+            style: context.text.labelMedium?.copyWith(color: context.tokens.hint, letterSpacing: 0.5)),
       );
 }
 
@@ -142,12 +132,9 @@ class _MoreTile extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          title: Text(label,
-              style: GoogleFonts.cairo(
-                  fontWeight: FontWeight.w600, fontSize: 14)),
+          title: Text(label, style: context.text.titleSmall),
           trailing: showArrow
-              ? Icon(Icons.arrow_forward_ios,
-                  size: 14, color: TawridColors.hint)
+              ? Icon(Icons.arrow_forward_ios, size: 14, color: context.tokens.hint)
               : null,
           onTap: onTap,
         ),

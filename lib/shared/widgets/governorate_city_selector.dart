@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/models/geo_models.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
 
@@ -75,15 +75,15 @@ class GovernorateCitySelector extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: Center(child: CircularProgressIndicator(color: TawridColors.primary)),
+      loading: () => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator(color: context.colors.primary)),
       ),
       error: (error, stackTrace) => Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Text(
           'تعذّر تحميل قائمة المحافظات، تحقّق من الاتصال',
-          style: TextStyle(color: TawridColors.error, fontSize: 13),
+          style: context.text.bodySmall?.copyWith(color: context.colors.error),
         ),
       ),
     );

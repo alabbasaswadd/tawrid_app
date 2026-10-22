@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/models/enums.dart';
 
-// بطاقة دواء مُوحَّدة — تُستخدم في قائمة "أدويتي" وفي كاتالوج الاختيار،
-// بتصميم أكثر كثافة وقابلية للمسح البصري (شريط لوني جانبي بدل الأفاتار
-// الدائري، وشارة شكل جرعة مختصرة) بدل صفوف ListTile العادية.
+// بطاقة دواء مُوحَّدة — تُستخدم في "أدويتي" وكاتالوج الاختيار. شريط لوني جانبي
+// + شارة شكل الجرعة. كل الألوان/الخطوط من الثيم (تدعم الدارك).
 class MedicineListTile extends StatelessWidget {
   const MedicineListTile({
     required this.displayName,
@@ -29,6 +27,7 @@ class MedicineListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
     final meta = [
       genericName,
       manufacturerName,
@@ -38,9 +37,9 @@ class MedicineListTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: TawridColors.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: TawridColors.border),
+        border: Border.all(color: cs.outline),
       ),
       child: Row(
         children: [
@@ -48,10 +47,7 @@ class MedicineListTile extends StatelessWidget {
             width: 4,
             height: 52,
             margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: TawridColors.warehouse,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -66,7 +62,7 @@ class MedicineListTile extends StatelessWidget {
                         child: Text(displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 14)),
+                            style: context.text.titleSmall),
                       ),
                       const SizedBox(width: 6),
                       _DosagePill(dosageForm: dosageForm, strength: strength),
@@ -77,7 +73,7 @@ class MedicineListTile extends StatelessWidget {
                     Text(meta,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.textSecondary)),
+                        style: context.text.bodySmall),
                   ],
                 ],
               ),
@@ -99,18 +95,18 @@ class _DosagePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
     final label = (strength != null && strength! > 0)
         ? '${dosageForm.label} $strength'
         : dosageForm.label;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: TawridColors.warehouse.withValues(alpha: 0.1),
+        color: cs.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppSpacing.chipRadius),
       ),
       child: Text(label,
-          style: GoogleFonts.cairo(
-              fontSize: 10.5, color: TawridColors.warehouse, fontWeight: FontWeight.w700)),
+          style: context.text.labelSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w700)),
     );
   }
 }
