@@ -7,12 +7,14 @@ import 'package:tawrid_app/core/constants/storage_keys.dart';
 import 'package:tawrid_app/core/session/pharmacy_session.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 
-// قيمة افتراضية لمحاكي أندرويد (loopback). للتشغيل على جهاز حقيقي/iOS
-// simulator/web، مرّر عنوان الباك إند الفعلي عبر:
-//   flutter run --dart-define=API_BASE_URL=http://192.168.x.x:5289
+// خادم Tawrid.api التطويري المشترك (Development فقط — بيئة مؤقتة، سيُعلن
+// رابط البروكشن لاحقاً). ملاحظة: بدون "/tawrid-api" هنا — البادئة موجودة
+// فعلاً في كل مسارات ApiEndpoints. للعمل على باك إند محلي بدلاً منه:
+//   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5289   (محاكي أندرويد)
+//   flutter run --dart-define=API_BASE_URL=http://localhost:5289  (ويندوز/ويب)
 const String _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:5289',
+  defaultValue: 'http://169.58.139.217:5040',
 );
 
 final _logger = Logger();

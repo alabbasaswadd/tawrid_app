@@ -8,7 +8,9 @@ import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/repositories/geo_repository.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/governorate_city_selector.dart';
 import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 class PhRegisterPage extends ConsumerStatefulWidget {
@@ -21,13 +23,13 @@ class PhRegisterPage extends ConsumerStatefulWidget {
 class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
-  final _governorate = TextEditingController();
-  final _city = TextEditingController();
   final _address = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  String? _governorateId;
+  String? _cityId;
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
@@ -35,8 +37,6 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
   @override
   void dispose() {
     _name.dispose();
-    _governorate.dispose();
-    _city.dispose();
     _address.dispose();
     _email.dispose();
     _phone.dispose();
@@ -49,11 +49,18 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
     try {
+      final governorates = ref.read(governoratesProvider).value ?? [];
+      final governorate = governorates.firstWhere((g) => g.id == _governorateId);
+      final cityId = _cityId;
+      final city = cityId == null
+          ? null
+          : governorate.cities.firstWhere((c) => c.id == cityId);
+
       final api = ref.read(apiClientProvider);
       await api.post(ApiEndpoints.phRegister, data: {
         'pharmacyName': _name.text.trim(),
-        'governorate': _governorate.text.trim(),
-        'city': _city.text.trim(),
+        'governorate': governorate.name,
+        'city': city?.name ?? '',
         'address': _address.text.trim(),
         'email': _email.text.trim(),
         'phone': _phone.text.trim(),
@@ -128,23 +135,11 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
-                            controller: _governorate,
-                            decoration: const InputDecoration(
-                              labelText: 'المحافظة',
-                              prefixIcon: Icon(Icons.map_outlined),
-                            ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-
-                          TextFormField(
-                            controller: _city,
-                            decoration: const InputDecoration(
-                              labelText: 'المدينة (اختياري)',
-                              prefixIcon: Icon(Icons.location_city_outlined),
-                            ),
+                          GovernorateCitySelector(
+                            governorateId: _governorateId,
+                            cityId: _cityId,
+                            onGovernorateChanged: (v) => setState(() => _governorateId = v),
+                            onCityChanged: (v) => setState(() => _cityId = v),
                           ),
                           const SizedBox(height: AppSpacing.md),
 

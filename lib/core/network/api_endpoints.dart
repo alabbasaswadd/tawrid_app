@@ -15,6 +15,12 @@ abstract final class ApiEndpoints {
   // ── Supply Warehouses list (pharmacy side) ─────────────────────────────────
   static const String supplyWarehouses = '$_ph/supply-warehouses';
 
+  // ── Geo (محافظات/مدن — عام، بلا توكن) ───────────────────────────────────────
+  static const String geoGovernorates = '$_ph/geo/governorates';
+
+  // ── Warehouse: Service Areas (مناطق التخديم) ───────────────────────────────
+  static const String whServiceAreas = '$_wh/service-areas';
+
   // ── Pharmacy: Supply Orders ────────────────────────────────────────────────
   static const String phOrders = '$_ph/supply-orders';
   static String phOrderById(String id)        => '$_ph/supply-orders/$id';

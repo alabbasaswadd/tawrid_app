@@ -17,6 +17,7 @@ import 'package:tawrid_app/features/ph_tenders/ph_tenders_page.dart';
 import 'package:tawrid_app/features/splash/splash_page.dart';
 import 'package:tawrid_app/features/wh_auth/wh_login_page.dart';
 import 'package:tawrid_app/features/wh_auth/wh_register_page.dart';
+import 'package:tawrid_app/features/wh_auth/wh_service_areas_page.dart';
 import 'package:tawrid_app/features/wh_home/wh_home_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_more_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
@@ -83,6 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       const whRoutes = {
         TRoutes.whHome, TRoutes.whOrders, TRoutes.whTenders,
         TRoutes.whOffers, TRoutes.whMore, TRoutes.whListings,
+        TRoutes.whServiceAreas,
       };
       if (whRoutes.contains(loc) && !whAuth) return TRoutes.whLogin;
 
@@ -122,6 +124,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.whListings,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const _PlaceholderPage(title: 'إعلانات المستودع'),
+      ),
+
+      // مناطق التخديم — تُعرَض مباشرةً بعد نجاح تسجيل المستودع (top-level، بلا نافبار)
+      GoRoute(
+        path: TRoutes.whServiceAreas,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhServiceAreasPage(),
       ),
 
       // Pharmacy shell

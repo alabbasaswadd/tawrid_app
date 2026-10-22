@@ -9,6 +9,7 @@ abstract final class TRoutes {
   // Warehouse auth
   static const String whLogin    = '/wh/login';
   static const String whRegister = '/wh/register';
+  static const String whServiceAreas = '/wh/service-areas';
 
   // Pharmacy shell tabs
   static const String phHome     = '/home';
