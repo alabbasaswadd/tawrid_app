@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
 import 'session_state.dart';
@@ -10,7 +10,7 @@ final pharmacySessionProvider =
 );
 
 class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
-  static const _store = FlutterSecureStorage();
+  static const _store = appSecureStorage;
 
   @override
   Future<SessionState> build() async {

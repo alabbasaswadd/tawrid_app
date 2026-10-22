@@ -40,6 +40,8 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   String? _tendersGovernorateId;
   String? _tendersCityId;
 
+  int _tab = 0; // 0 = عروضي ، 1 = مناقصات مفتوحة
+
   @override
   void initState() {
     super.initState();
@@ -123,62 +125,143 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
     final governorates = ref.watch(governoratesProvider).value ?? [];
     final busy = _offersLoading || _tendersLoading;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('الصفحة الرئيسية'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'تحديث',
-              onPressed: busy ? null : () => Future.wait([_loadOffers(), _loadTenders()]),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('الصفحة الرئيسية'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'تحديث',
+            onPressed: busy ? null : () => Future.wait([_loadOffers(), _loadTenders()]),
+          ),
+          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+        ],
+      ),
+      body: Column(
+        children: [
+          _SegmentedToggle(
+            selected: _tab,
+            offersCount: _offers?.length,
+            tendersCount: _tenders?.length,
+            onChanged: (i) => setState(() => _tab = i),
+          ),
+          Expanded(
+            child: IndexedStack(
+              index: _tab,
+              children: [
+                _OffersTab(
+                  governorates: governorates,
+                  offers: _filteredOffers,
+                  loading: _offersLoading,
+                  error: _offersError,
+                  filter: _offersGovernorateFilter,
+                  onFilterChanged: (v) => setState(() => _offersGovernorateFilter = v),
+                  onRefresh: _loadOffers,
+                  onDetails: _openOfferDetails,
+                  onComments: _openComments,
+                ),
+                _TendersTab(
+                  governorates: governorates,
+                  allTenders: _tenders ?? [],
+                  loading: _tendersLoading,
+                  error: _tendersError,
+                  governorateId: _tendersGovernorateId,
+                  cityId: _tendersCityId,
+                  onGovernorateChanged: (v) => setState(() {
+                    _tendersGovernorateId = v;
+                    _tendersCityId = null;
+                  }),
+                  onCityChanged: (v) => setState(() => _tendersCityId = v),
+                  filtered: (govName, cityName) => _filteredTenders(govName, cityName),
+                  onRefresh: _loadTenders,
+                ),
+              ],
             ),
-            IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
-          ],
-          bottom: TabBar(
-            indicatorSize: TabBarIndicatorSize.label,
-            tabs: [
-              Tab(
-                icon: const Icon(Icons.sell_outlined, size: 20),
-                text: _offers == null ? 'عروضي' : 'عروضي (${_offers!.length})',
-              ),
-              Tab(
-                icon: const Icon(Icons.gavel_outlined, size: 20),
-                text: _tenders == null ? 'مناقصات مفتوحة' : 'مناقصات مفتوحة (${_tenders!.length})',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// مفتاح تبديل علوي واضح بين "عروضي" و"مناقصات مفتوحة" — المقطع المحدّد بخلفية
+// ملوّنة ونص أبيض، وغير المحدّد بخلفية شفافة ونص ثانوي (تباين واضح).
+class _SegmentedToggle extends StatelessWidget {
+  const _SegmentedToggle({
+    required this.selected,
+    required this.offersCount,
+    required this.tendersCount,
+    required this.onChanged,
+  });
+
+  final int selected;
+  final int? offersCount;
+  final int? tendersCount;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xs),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: TawridColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TawridColors.border),
+      ),
+      child: Row(
+        children: [
+          _segment(
+            index: 0,
+            icon: Icons.sell_outlined,
+            label: offersCount == null ? 'عروضي' : 'عروضي ($offersCount)',
+          ),
+          _segment(
+            index: 1,
+            icon: Icons.gavel_outlined,
+            label: tendersCount == null ? 'مناقصات مفتوحة' : 'مناقصات مفتوحة ($tendersCount)',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment({required int index, required IconData icon, required String label}) {
+    final active = selected == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(index),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: active ? TawridColors.warehouse : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: active
+                ? [BoxShadow(color: TawridColors.warehouse.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: active ? Colors.white : TawridColors.textSecondary),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.cairo(
+                    fontSize: 13,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                    color: active ? Colors.white : TawridColors.textSecondary,
+                  ),
+                ),
               ),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _OffersTab(
-              governorates: governorates,
-              offers: _filteredOffers,
-              loading: _offersLoading,
-              error: _offersError,
-              filter: _offersGovernorateFilter,
-              onFilterChanged: (v) => setState(() => _offersGovernorateFilter = v),
-              onRefresh: _loadOffers,
-              onDetails: _openOfferDetails,
-              onComments: _openComments,
-            ),
-            _TendersTab(
-              governorates: governorates,
-              allTenders: _tenders ?? [],
-              loading: _tendersLoading,
-              error: _tendersError,
-              governorateId: _tendersGovernorateId,
-              cityId: _tendersCityId,
-              onGovernorateChanged: (v) => setState(() {
-                _tendersGovernorateId = v;
-                _tendersCityId = null;
-              }),
-              onCityChanged: (v) => setState(() => _tendersCityId = v),
-              filtered: (govName, cityName) => _filteredTenders(govName, cityName),
-              onRefresh: _loadTenders,
-            ),
-          ],
         ),
       ),
     );

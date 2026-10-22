@@ -10,6 +10,7 @@ abstract final class TRoutes {
   static const String whLogin    = '/wh/login';
   static const String whRegister = '/wh/register';
   static const String whServiceAreas = '/wh/service-areas';
+  static const String whProfile = '/wh/profile';
   static const String whMedicines = '/wh/medicines';
   static const String whMedicineCatalog = '/wh/medicines/catalog';
   static const String whCreateOffer = '/wh/offers/create';

@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
@@ -91,7 +91,7 @@ class _AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    const store = FlutterSecureStorage();
+    const store = appSecureStorage;
     final key = _isWarehouseRequest(options)
         ? StorageKeys.warehouseToken
         : StorageKeys.pharmacyToken;
@@ -110,7 +110,7 @@ class _AuthInterceptor extends Interceptor {
     if (err.response?.statusCode == 401) {
       final prefs = await SharedPreferences.getInstance();
       final isWh = _isWarehouseRequest(err.requestOptions);
-      const store = FlutterSecureStorage();
+      const store = appSecureStorage;
       if (isWh) {
         await store.delete(key: StorageKeys.warehouseToken);
         await prefs.setBool(StorageKeys.hasWarehouseSession, false);

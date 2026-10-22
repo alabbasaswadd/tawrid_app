@@ -1,0 +1,343 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tawrid_app/app/theme/app_colors.dart';
+import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/models/geo_models.dart';
+import 'package:tawrid_app/models/warehouse_auth_models.dart';
+import 'package:tawrid_app/repositories/geo_repository.dart';
+import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
+import 'package:tawrid_app/repositories/warehouse_service_area_repository.dart';
+import 'package:tawrid_app/shared/widgets/app_states.dart';
+
+// الملف الشخصي للمستودع: بطاقة بيانات + محرّر مناطق التغطية (المحافظات/المدن
+// التي يوصّل إليها) مع إمكانية التعديل والحفظ مباشرة.
+class WhProfilePage extends ConsumerStatefulWidget {
+  const WhProfilePage({super.key});
+
+  @override
+  ConsumerState<WhProfilePage> createState() => _WhProfilePageState();
+}
+
+class _WhProfilePageState extends ConsumerState<WhProfilePage> {
+  WarehouseMe? _me;
+  List<Governorate> _governorates = [];
+  final Set<String> _selected = {};
+  Set<String> _savedSelection = {};
+
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait([
+        ref.read(warehouseProfileRepositoryProvider).getMe(),
+        ref.read(geoRepositoryProvider).getGovernorates(),
+        ref.read(warehouseServiceAreaRepositoryProvider).getMyServiceAreas(),
+      ]);
+      final me = results[0] as WarehouseMe;
+      final govs = results[1] as List<Governorate>;
+      final areas = (results[2] as List<String>).toSet();
+      setState(() {
+        _me = me;
+        _governorates = govs;
+        _selected
+          ..clear()
+          ..addAll(areas);
+        _savedSelection = {...areas};
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = ApiException.from(e).message;
+        _loading = false;
+      });
+    }
+  }
+
+  bool get _dirty =>
+      _selected.length != _savedSelection.length ||
+      !_selected.containsAll(_savedSelection);
+
+  bool? _governorateState(Governorate g) {
+    if (g.cities.isEmpty) return false;
+    final count = g.cities.where((c) => _selected.contains(c.id)).length;
+    if (count == 0) return false;
+    if (count == g.cities.length) return true;
+    return null;
+  }
+
+  void _toggleGovernorate(Governorate g) {
+    final current = _governorateState(g);
+    setState(() {
+      final selectAll = current != true;
+      for (final c in g.cities) {
+        if (selectAll) {
+          _selected.add(c.id);
+        } else {
+          _selected.remove(c.id);
+        }
+      }
+    });
+  }
+
+  void _toggleCity(String cityId, bool value) {
+    setState(() {
+      if (value) {
+        _selected.add(cityId);
+      } else {
+        _selected.remove(cityId);
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(warehouseServiceAreaRepositoryProvider).setServiceAreas(_selected.toList());
+      if (!mounted) return;
+      setState(() {
+        _savedSelection = {..._selected};
+        _saving = false;
+      });
+      AppSnackbar.success(context, 'تم حفظ مناطق التغطية');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        AppSnackbar.error(context, ApiException.from(e).message);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('الملف الشخصي')),
+      body: _buildBody(),
+      bottomNavigationBar: (_me != null && _dirty)
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: FilledButton.icon(
+                  onPressed: _saving ? null : _save,
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.save_outlined),
+                  label: Text(_saving ? 'جارٍ الحفظ...' : 'حفظ مناطق التغطية (${_selected.length})'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: TawridColors.warehouse,
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const LoadingState();
+    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+
+    final me = _me!;
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        _ProfileHeader(me: me),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            const Icon(Icons.map_outlined, size: 18, color: TawridColors.warehouse),
+            const SizedBox(width: 6),
+            Text('مناطق التغطية',
+                style: GoogleFonts.cairo(fontSize: 15, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text('${_selected.length} مدينة',
+                style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text('اختر المحافظات والمدن التي يوصّل إليها مستودعك',
+            style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+        const SizedBox(height: AppSpacing.sm),
+        if (_governorates.isEmpty)
+          const EmptyState(message: 'لا توجد محافظات متاحة حالياً', icon: Icons.map_outlined)
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: TawridColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: TawridColors.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < _governorates.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  _GovernorateTile(
+                    governorate: _governorates[i],
+                    selected: _selected,
+                    triState: _governorateState(_governorates[i]),
+                    onToggleGovernorate: () => _toggleGovernorate(_governorates[i]),
+                    onToggleCity: _toggleCity,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.me});
+  final WarehouseMe me;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = [me.governorate, me.city].where((e) => e.isNotEmpty).join(' - ');
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        gradient: TawridColors.warehouseGradient,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.warehouse_outlined, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(me.warehouseName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.cairo(
+                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text('رمز: ${me.warehouseCode}${location.isNotEmpty ? ' · $location' : ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.cairo(
+                            color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _InfoRow(icon: Icons.person_outline, text: '${me.firstName} ${me.lastName} (${me.userName})'),
+                _InfoRow(icon: Icons.badge_outlined, text: me.role.label),
+                if (me.phone.isNotEmpty) _InfoRow(icon: Icons.phone_outlined, text: me.phone),
+                if (me.email.isNotEmpty) _InfoRow(icon: Icons.email_outlined, text: me.email),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.cairo(color: Colors.white, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GovernorateTile extends StatelessWidget {
+  const _GovernorateTile({
+    required this.governorate,
+    required this.selected,
+    required this.triState,
+    required this.onToggleGovernorate,
+    required this.onToggleCity,
+  });
+
+  final Governorate governorate;
+  final Set<String> selected;
+  final bool? triState;
+  final VoidCallback onToggleGovernorate;
+  final void Function(String cityId, bool value) onToggleCity;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedCount = governorate.cities.where((c) => selected.contains(c.id)).length;
+    return ExpansionTile(
+      leading: Checkbox(
+        tristate: true,
+        value: triState,
+        activeColor: TawridColors.warehouse,
+        onChanged: (_) => onToggleGovernorate(),
+      ),
+      title: Text(governorate.name,
+          style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+      subtitle: Text('$selectedCount من ${governorate.cities.length} مدينة محدَّدة',
+          style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+      childrenPadding: const EdgeInsets.only(right: AppSpacing.md),
+      children: governorate.cities
+          .map((c) => CheckboxListTile(
+                value: selected.contains(c.id),
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: TawridColors.warehouse,
+                dense: true,
+                title: Text(c.name, style: GoogleFonts.cairo(fontSize: 14)),
+                onChanged: (v) => onToggleCity(c.id, v ?? false),
+              ))
+          .toList(),
+    );
+  }
+}

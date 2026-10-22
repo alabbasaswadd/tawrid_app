@@ -23,6 +23,7 @@ abstract final class ApiEndpoints {
 
   // ── Medicine Catalog (كاتالوج عام — بلا توكن للقراءة) ──────────────────────
   static const String catalogSearch = '$_ph/catalog';
+  static const String catalogManufacturers = '$_ph/catalog/manufacturers';
   static String catalogById(String id) => '$_ph/catalog/$id';
 
   // ── Warehouse: My Medicines (أدوية المستودع — بلا ربط مخزون) ───────────────

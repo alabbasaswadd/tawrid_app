@@ -34,6 +34,9 @@ dependencies:
   # Logging
   logger: ^2.7.0
 
+  # مسح الباركود بالكاميرا
+  mobile_scanner: ^5.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

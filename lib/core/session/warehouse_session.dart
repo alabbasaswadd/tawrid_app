@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
+import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'session_state.dart';
 
 final warehouseSessionProvider =
@@ -10,7 +10,7 @@ final warehouseSessionProvider =
 );
 
 class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
-  static const _store = FlutterSecureStorage();
+  static const _store = appSecureStorage;
 
   @override
   Future<WarehouseSessionState> build() async {
@@ -43,7 +43,7 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
   }
 
   Future<void> clear() async {
-    const store = FlutterSecureStorage();
+    const store = appSecureStorage;
     await store.delete(key: StorageKeys.warehouseToken);
     await store.delete(key: StorageKeys.warehouseUserId);
     await store.delete(key: StorageKeys.warehouseId);

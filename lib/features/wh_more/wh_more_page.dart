@@ -43,7 +43,7 @@ class WhMorePage extends ConsumerWidget {
             icon: Icons.business_outlined,
             label: 'ملف المستودع',
             color: TawridColors.warehouse,
-            onTap: () {},
+            onTap: () => context.push(TRoutes.whProfile),
           ),
           _MoreTile(
             icon: Icons.settings_outlined,

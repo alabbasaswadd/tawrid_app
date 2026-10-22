@@ -22,6 +22,7 @@ import 'package:tawrid_app/features/wh_home/wh_home_page.dart';
 import 'package:tawrid_app/features/wh_medicines/wh_medicine_catalog_page.dart';
 import 'package:tawrid_app/features/wh_medicines/wh_medicines_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_more_page.dart';
+import 'package:tawrid_app/features/wh_more/wh_profile_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_create_offer_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_orders_page.dart';
@@ -90,6 +91,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whOffers, TRoutes.whMore, TRoutes.whListings,
         TRoutes.whServiceAreas, TRoutes.whMedicines,
         TRoutes.whMedicineCatalog, TRoutes.whCreateOffer,
+        TRoutes.whProfile,
       };
       final isSubmitOfferRoute = loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
       if ((whRoutes.contains(loc) || isSubmitOfferRoute) && !whAuth) return TRoutes.whLogin;
@@ -164,6 +166,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.whServiceAreas,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const WhServiceAreasPage(),
+      ),
+
+      // الملف الشخصي للمستودع (بيانات + تعديل مناطق التغطية)
+      GoRoute(
+        path: TRoutes.whProfile,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhProfilePage(),
       ),
 
       // Pharmacy shell
