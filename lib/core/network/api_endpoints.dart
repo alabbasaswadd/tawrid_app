@@ -21,6 +21,14 @@ abstract final class ApiEndpoints {
   // ── Warehouse: Service Areas (مناطق التخديم) ───────────────────────────────
   static const String whServiceAreas = '$_wh/service-areas';
 
+  // ── Medicine Catalog (كاتالوج عام — بلا توكن للقراءة) ──────────────────────
+  static const String catalogSearch = '$_ph/catalog';
+  static String catalogById(String id) => '$_ph/catalog/$id';
+
+  // ── Warehouse: My Medicines (أدوية المستودع — بلا ربط مخزون) ───────────────
+  static const String whMedicines = '$_wh/medicines';
+  static String whMedicineById(String id) => '$_wh/medicines/$id';
+
   // ── Pharmacy: Supply Orders ────────────────────────────────────────────────
   static const String phOrders = '$_ph/supply-orders';
   static String phOrderById(String id)        => '$_ph/supply-orders/$id';
@@ -58,6 +66,7 @@ abstract final class ApiEndpoints {
   // ── Warehouse: Tenders ────────────────────────────────────────────────────
   static const String whTendersOpen = '$_wh/tenders/open';
   static const String whMyOffers    = '$_wh/tenders/my-offers';
+  static String whTenderById(String id)         => '$_wh/tenders/$id';
   static String whTenderSubmit(String tenderId) => '$_wh/tenders/$tenderId/offers';
 
   // ── Warehouse: Sales Offers ───────────────────────────────────────────────

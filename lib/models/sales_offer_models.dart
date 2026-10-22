@@ -1,14 +1,33 @@
 import 'enums.dart';
 
+// منطقة مستهدفة (محافظة، مع مدينة اختيارية = كل مدن المحافظة) — عرض واحد
+// قد يستهدف أكثر من محافظة وأكثر من مدينة.
+class TargetRegion {
+  final String governorate;
+  final String? city;
+
+  TargetRegion({required this.governorate, this.city});
+
+  factory TargetRegion.fromJson(Map<String, dynamic> j) => TargetRegion(
+        governorate: j['governorate'] as String,
+        city: j['city'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {'governorate': governorate, 'city': city};
+
+  String get label => city != null && city!.isNotEmpty ? '$governorate - $city' : governorate;
+}
+
 class SalesOfferSummary {
   final String id;
   final String title;
   final SalesOfferType offerType;
   final SalesOfferStatus status;
   final String warehouseName;
-  final String? targetGovernorate;
-  final String? targetCity;
+  final String currency;
+  final List<TargetRegion> targetRegions;
   final int itemCount;
+  final List<String> itemNames;
   final DateTime startsAt;
   final DateTime expiresAt;
   final DateTime createdOn;
@@ -19,9 +38,10 @@ class SalesOfferSummary {
     required this.offerType,
     required this.status,
     required this.warehouseName,
-    this.targetGovernorate,
-    this.targetCity,
+    required this.currency,
+    required this.targetRegions,
     required this.itemCount,
+    required this.itemNames,
     required this.startsAt,
     required this.expiresAt,
     required this.createdOn,
@@ -33,9 +53,12 @@ class SalesOfferSummary {
         offerType: SalesOfferType.fromCode(j['offerType'] as int),
         status: SalesOfferStatus.fromCode(j['status'] as int),
         warehouseName: j['warehouseName'] as String,
-        targetGovernorate: j['targetGovernorate'] as String?,
-        targetCity: j['targetCity'] as String?,
+        currency: j['currency'] as String? ?? 'SYP',
+        targetRegions: ((j['targetRegions'] as List?) ?? [])
+            .map((e) => TargetRegion.fromJson(e as Map<String, dynamic>))
+            .toList(),
         itemCount: j['itemCount'] as int,
+        itemNames: ((j['itemNames'] as List?) ?? []).map((e) => e as String).toList(),
         startsAt: DateTime.parse(j['startsAt'] as String),
         expiresAt: DateTime.parse(j['expiresAt'] as String),
         createdOn: DateTime.parse(j['createdOn'] as String),
@@ -135,8 +158,8 @@ class SalesOfferDetail {
   final SalesOfferStatus status;
   final DateTime startsAt;
   final DateTime expiresAt;
-  final String? targetGovernorate;
-  final String? targetCity;
+  final String currency;
+  final List<TargetRegion> targetRegions;
   final bool isPublicInRegion;
   final double? upfrontPercentage;
   final int? paymentPeriodDays;
@@ -156,8 +179,8 @@ class SalesOfferDetail {
     required this.status,
     required this.startsAt,
     required this.expiresAt,
-    this.targetGovernorate,
-    this.targetCity,
+    required this.currency,
+    required this.targetRegions,
     required this.isPublicInRegion,
     this.upfrontPercentage,
     this.paymentPeriodDays,
@@ -178,8 +201,10 @@ class SalesOfferDetail {
         status: SalesOfferStatus.fromCode(j['status'] as int),
         startsAt: DateTime.parse(j['startsAt'] as String),
         expiresAt: DateTime.parse(j['expiresAt'] as String),
-        targetGovernorate: j['targetGovernorate'] as String?,
-        targetCity: j['targetCity'] as String?,
+        currency: j['currency'] as String? ?? 'SYP',
+        targetRegions: ((j['targetRegions'] as List?) ?? [])
+            .map((e) => TargetRegion.fromJson(e as Map<String, dynamic>))
+            .toList(),
         isPublicInRegion: j['isPublicInRegion'] as bool,
         upfrontPercentage: (j['upfrontPercentage'] as num?)?.toDouble(),
         paymentPeriodDays: j['paymentPeriodDays'] as int?,

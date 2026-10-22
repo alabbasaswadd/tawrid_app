@@ -26,6 +26,12 @@ class WhMorePage extends ConsumerWidget {
             onTap: () => context.push(TRoutes.whListings),
           ),
           _MoreTile(
+            icon: Icons.medication_outlined,
+            label: 'أدويتي',
+            color: TawridColors.warehouse,
+            onTap: () => context.push(TRoutes.whMedicines),
+          ),
+          _MoreTile(
             icon: Icons.bar_chart_outlined,
             label: 'التقارير',
             color: TawridColors.info,

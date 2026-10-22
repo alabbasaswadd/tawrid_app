@@ -197,3 +197,39 @@ enum WarehouseUserRole {
         WarehouseUserRole.staff => 'موظف',
       };
 }
+
+enum DosageForm {
+  tablet(1),
+  capsule(2),
+  syrup(3),
+  injection(4),
+  cream(5),
+  ointment(6),
+  gel(7),
+  drops(8),
+  inhaler(9),
+  suppository(10),
+  powder(11),
+  lotion(12);
+
+  const DosageForm(this.code);
+  final int code;
+
+  static DosageForm fromCode(int code) =>
+      DosageForm.values.firstWhere((e) => e.code == code, orElse: () => DosageForm.tablet);
+
+  String get label => switch (this) {
+        DosageForm.tablet => 'أقراص',
+        DosageForm.capsule => 'كبسولات',
+        DosageForm.syrup => 'شراب',
+        DosageForm.injection => 'حقن',
+        DosageForm.cream => 'كريم',
+        DosageForm.ointment => 'مرهم',
+        DosageForm.gel => 'جل',
+        DosageForm.drops => 'قطرات',
+        DosageForm.inhaler => 'بخاخ/استنشاق',
+        DosageForm.suppository => 'تحميلة',
+        DosageForm.powder => 'مسحوق',
+        DosageForm.lotion => 'لوشن',
+      };
+}

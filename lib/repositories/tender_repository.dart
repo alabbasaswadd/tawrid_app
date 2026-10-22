@@ -55,6 +55,12 @@ class TenderRepository {
     return data.map((e) => TenderSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  // تفاصيل مناقصة (أصنافها) قبل التقدّم بعرض — بلا أي معلومة عن المنافسين.
+  Future<TenderDetail> getTenderDetailsForWarehouse(String tenderId) async {
+    final data = await _api.get(ApiEndpoints.whTenderById(tenderId)) as Map<String, dynamic>;
+    return TenderDetail.fromJson(data);
+  }
+
   Future<List<MyTenderOfferSummary>> getMyOffers({int limit = 20, int offset = 0}) async {
     final data = await _api.get(ApiEndpoints.whMyOffers,
         queryParameters: {'limit': limit, 'offset': offset}) as List;

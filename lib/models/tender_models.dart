@@ -10,6 +10,8 @@ class TenderSummary {
   final DateTime expiresAt;
   final DateTime createdOn;
   final bool isExpired;
+  final String? tenantGovernorate;
+  final String? tenantCity;
 
   TenderSummary({
     required this.id,
@@ -21,6 +23,8 @@ class TenderSummary {
     required this.expiresAt,
     required this.createdOn,
     required this.isExpired,
+    this.tenantGovernorate,
+    this.tenantCity,
   });
 
   factory TenderSummary.fromJson(Map<String, dynamic> j) => TenderSummary(
@@ -33,6 +37,8 @@ class TenderSummary {
         expiresAt: DateTime.parse(j['expiresAt'] as String),
         createdOn: DateTime.parse(j['createdOn'] as String),
         isExpired: j['isExpired'] as bool,
+        tenantGovernorate: j['tenantGovernorate'] as String?,
+        tenantCity: j['tenantCity'] as String?,
       );
 }
 
@@ -152,6 +158,8 @@ class TenderDetail {
   final int offerCount;
   final List<TenderItem> items;
   final List<TenderOffer>? offers;
+  final String? tenantGovernorate;
+  final String? tenantCity;
 
   TenderDetail({
     required this.id,
@@ -166,6 +174,8 @@ class TenderDetail {
     required this.offerCount,
     required this.items,
     this.offers,
+    this.tenantGovernorate,
+    this.tenantCity,
   });
 
   factory TenderDetail.fromJson(Map<String, dynamic> j) => TenderDetail(
@@ -185,6 +195,8 @@ class TenderDetail {
         offers: (j['offers'] as List?)
             ?.map((e) => TenderOffer.fromJson(e as Map<String, dynamic>))
             .toList(),
+        tenantGovernorate: j['tenantGovernorate'] as String?,
+        tenantCity: j['tenantCity'] as String?,
       );
 }
 

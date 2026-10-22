@@ -10,6 +10,11 @@ abstract final class TRoutes {
   static const String whLogin    = '/wh/login';
   static const String whRegister = '/wh/register';
   static const String whServiceAreas = '/wh/service-areas';
+  static const String whMedicines = '/wh/medicines';
+  static const String whMedicineCatalog = '/wh/medicines/catalog';
+  static const String whCreateOffer = '/wh/offers/create';
+  static const String whSubmitTenderOfferPattern = '/wh/tenders/:tenderId/submit-offer';
+  static String whSubmitTenderOffer(String tenderId) => '/wh/tenders/$tenderId/submit-offer';
 
   // Pharmacy shell tabs
   static const String phHome     = '/home';

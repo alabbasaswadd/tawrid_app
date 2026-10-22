@@ -19,9 +19,13 @@ import 'package:tawrid_app/features/wh_auth/wh_login_page.dart';
 import 'package:tawrid_app/features/wh_auth/wh_register_page.dart';
 import 'package:tawrid_app/features/wh_auth/wh_service_areas_page.dart';
 import 'package:tawrid_app/features/wh_home/wh_home_page.dart';
+import 'package:tawrid_app/features/wh_medicines/wh_medicine_catalog_page.dart';
+import 'package:tawrid_app/features/wh_medicines/wh_medicines_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_more_page.dart';
+import 'package:tawrid_app/features/wh_offers/wh_create_offer_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_orders_page.dart';
+import 'package:tawrid_app/features/wh_tenders/wh_submit_tender_offer_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_tenders_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -84,9 +88,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       const whRoutes = {
         TRoutes.whHome, TRoutes.whOrders, TRoutes.whTenders,
         TRoutes.whOffers, TRoutes.whMore, TRoutes.whListings,
-        TRoutes.whServiceAreas,
+        TRoutes.whServiceAreas, TRoutes.whMedicines,
+        TRoutes.whMedicineCatalog, TRoutes.whCreateOffer,
       };
-      if (whRoutes.contains(loc) && !whAuth) return TRoutes.whLogin;
+      final isSubmitOfferRoute = loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
+      if ((whRoutes.contains(loc) || isSubmitOfferRoute) && !whAuth) return TRoutes.whLogin;
 
       return null;
     },
@@ -124,6 +130,33 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.whListings,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const _PlaceholderPage(title: 'إعلانات المستودع'),
+      ),
+
+      // أدوية المستودع (بلا ربط مخزون) + اختيار من الكاتالوج العام
+      GoRoute(
+        path: TRoutes.whMedicines,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhMedicinesPage(),
+      ),
+      GoRoute(
+        path: TRoutes.whMedicineCatalog,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhMedicineCatalogPage(),
+      ),
+
+      // إنشاء عرض بيع — الأصناف تُختار من أدوية المستودع فقط
+      GoRoute(
+        path: TRoutes.whCreateOffer,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhCreateOfferPage(),
+      ),
+
+      // التقدّم بعرض على مناقصة مفتوحة (من بطاقة المناقصة في الصفحة الرئيسية)
+      GoRoute(
+        path: TRoutes.whSubmitTenderOfferPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            WhSubmitTenderOfferPage(tenderId: state.pathParameters['tenderId']!),
       ),
 
       // مناطق التخديم — تُعرَض مباشرةً بعد نجاح تسجيل المستودع (top-level، بلا نافبار)
