@@ -140,11 +140,13 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                 ),
               ),
               Expanded(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: TawridColors.background,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                  ),
+                // Material (لا Container+BoxDecoration) حتى يكون أقرب سلف
+                // Material لـ CheckboxListTile — وإلا تُرسَم خلفية القائمة
+                // فوق تأثيرات الضغط (ink splashes) وتُخفيها بالكامل.
+                child: Material(
+                  color: TawridColors.background,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  clipBehavior: Clip.antiAlias,
                   child: _buildBody(),
                 ),
               ),
