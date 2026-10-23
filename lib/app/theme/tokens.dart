@@ -28,11 +28,12 @@ abstract final class AppPalette {
   static const infoDark = Color(0xFF5B9BE0);
 
   // ── محايدات (فاتح) ────────────────────────────────────────────────
-  static const bgLight = Color(0xFFF7F8F9);
+  // خلفية رمادية واضحة ليبرز السطح الأبيض للبطاقات، وحدود أوضح للتمييز.
+  static const bgLight = Color(0xFFEBEEF2);
   static const surfaceLight = Color(0xFFFFFFFF);
-  static const surfaceAltLight = Color(0xFFF1F3F5);
-  static const outlineLight = Color(0xFFE3E7EA);
-  static const outlineStrongLight = Color(0xFFCDD4DA);
+  static const surfaceAltLight = Color(0xFFE6EAEE);
+  static const outlineLight = Color(0xFFD3D9DF);
+  static const outlineStrongLight = Color(0xFFBFC7CF);
   static const textPrimaryLight = Color(0xFF1A2230);
   static const textSecondaryLight = Color(0xFF596273);
   static const textHintLight = Color(0xFF8A94A3);
