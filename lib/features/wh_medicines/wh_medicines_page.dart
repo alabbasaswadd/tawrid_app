@@ -67,8 +67,8 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('حذف دواء', style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700)),
-        content: Text('إزالة "${m.displayName}" من قائمة أدوية مستودعك؟', style: GoogleFonts.ibmPlexSansArabic()),
+        title: Text('حذف دواء', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: Text('إزالة "${m.displayName}" من قائمة أدوية مستودعك؟', style: GoogleFonts.cairo()),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(
@@ -140,7 +140,7 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
               child: Row(
                 children: [
                   Text('${_filtered.length} من ${_medicines?.length ?? 0} دواء',
-                      style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.hint)),
+                      style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
                 ],
               ),
             ),

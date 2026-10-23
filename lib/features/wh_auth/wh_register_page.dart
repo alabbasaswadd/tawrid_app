@@ -133,7 +133,7 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text('تسجيل مستودع جديد',
-                        style: GoogleFonts.ibmPlexSansArabic(
+                        style: GoogleFonts.cairo(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w700)),
@@ -419,7 +419,7 @@ class _StepIndicator extends StatelessWidget {
                   ? Icon(Icons.check, size: 16, color: TawridColors.warehouse)
                   : Text(
                       '${step + 1}',
-                      style: GoogleFonts.ibmPlexSansArabic(
+                      style: GoogleFonts.cairo(
                         color: isActive ? TawridColors.warehouse : Colors.white,
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
@@ -432,7 +432,7 @@ class _StepIndicator extends StatelessWidget {
               child: Text(
                 _labels[step],
                 textAlign: TextAlign.center,
-                style: GoogleFonts.ibmPlexSansArabic(
+                style: GoogleFonts.cairo(
                   color: Colors.white.withValues(alpha: isActive ? 1 : 0.7),
                   fontSize: 11,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,

@@ -25,13 +25,13 @@ class PhTendersPage extends ConsumerWidget {
               Icon(Icons.gavel_outlined, size: 64, color: TawridColors.hint),
               const SizedBox(height: AppSpacing.md),
               Text('لا توجد مناقصات',
-                  style: GoogleFonts.ibmPlexSansArabic(
+                  style: GoogleFonts.cairo(
                       color: TawridColors.hint,
                       fontSize: 16,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: AppSpacing.xs),
               Text('أنشئ مناقصة لتلقّي عروض المستودعات',
-                  style: GoogleFonts.ibmPlexSansArabic(
+                  style: GoogleFonts.cairo(
                       color: TawridColors.hint, fontSize: 13)),
             ],
           ),

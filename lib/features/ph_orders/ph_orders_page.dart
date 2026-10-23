@@ -26,13 +26,13 @@ class PhOrdersPage extends ConsumerWidget {
                   size: 64, color: TawridColors.hint),
               const SizedBox(height: AppSpacing.md),
               Text('لا توجد طلبيات',
-                  style: GoogleFonts.ibmPlexSansArabic(
+                  style: GoogleFonts.cairo(
                       color: TawridColors.hint,
                       fontSize: 16,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: AppSpacing.xs),
               Text('ابدأ بإنشاء طلبية توريد جديدة',
-                  style: GoogleFonts.ibmPlexSansArabic(
+                  style: GoogleFonts.cairo(
                       color: TawridColors.hint, fontSize: 13)),
             ],
           ),

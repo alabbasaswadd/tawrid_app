@@ -96,7 +96,7 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text('تسجيل صيدلية جديدة',
-                        style: GoogleFonts.ibmPlexSansArabic(
+                        style: GoogleFonts.cairo(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w700)),
