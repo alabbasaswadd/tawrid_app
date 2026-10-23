@@ -10,6 +10,7 @@ import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/features/auth/login_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
 import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
+import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offers_page.dart';
 import 'package:tawrid_app/features/ph_orders/ph_orders_page.dart';
@@ -83,6 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       const phRoutes = {
         TRoutes.phHome, TRoutes.phOrders, TRoutes.phTenders,
         TRoutes.phOffers, TRoutes.phMore, TRoutes.phListings,
+        TRoutes.phMedicineSearch,
       };
       if (phRoutes.contains(loc) && !phAuth) return TRoutes.phLogin;
 
@@ -173,6 +175,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.whProfile,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const WhProfilePage(),
+      ),
+
+      // البحث عن دواء (الصيدلي) — يُفتح من الرئيسية
+      GoRoute(
+        path: TRoutes.phMedicineSearch,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhMedicineSearchPage(),
       ),
 
       // Pharmacy shell
