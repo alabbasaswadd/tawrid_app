@@ -408,7 +408,8 @@ class _TenderPostCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
+      child: IntrinsicHeight(
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(width: 4, color: statusColor),
@@ -447,6 +448,7 @@ class _TenderPostCard extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
