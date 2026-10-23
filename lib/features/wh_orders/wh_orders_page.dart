@@ -125,7 +125,7 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
                           children: [
                             Expanded(
                               child: Text('طلبية ${order.orderNumber}',
-                                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+                                  style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 15)),
                             ),
                             Icon(Icons.chevron_left, size: 18, color: TawridColors.hint),
                           ],
@@ -140,13 +140,13 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
                               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                             ),
                             Text('${order.status.label} · ${order.itemCount} صنف · ${formatSmartTimestamp(order.createdOn)}',
-                                style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.hint)),
+                                style: GoogleFonts.ibmPlexSansArabic(fontSize: 11.5, color: TawridColors.hint)),
                           ],
                         ),
                         if (order.invoiceCreated) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text('تم إصدار فاتورة لهذه الطلبية',
-                              style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.success)),
+                              style: GoogleFonts.ibmPlexSansArabic(fontSize: 11.5, color: TawridColors.success)),
                         ],
                       ],
                     ),
@@ -242,16 +242,16 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               Text('طلبية ${order.orderNumber}',
-                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 17)),
+                  style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 17)),
               const SizedBox(height: 4),
               Text(formatSmartTimestamp(order.createdOn),
-                  style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
+                  style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.hint)),
               const SizedBox(height: AppSpacing.md),
               Text('الحالة: ${order.status.label}',
-                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700, color: _statusColor(order.status))),
+                  style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, color: _statusColor(order.status))),
               if (order.notes != null && order.notes!.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(order.notes!, style: GoogleFonts.cairo(fontSize: 13.5)),
+                Text(order.notes!, style: GoogleFonts.ibmPlexSansArabic(fontSize: 13.5)),
               ],
               const SizedBox(height: AppSpacing.md),
               const Divider(),
@@ -262,7 +262,7 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                   child: Text('${item.medicineName} — ${item.quantity} ${item.unit}',
-                      style: GoogleFonts.cairo(fontSize: 13.5)),
+                      style: GoogleFonts.ibmPlexSansArabic(fontSize: 13.5)),
                 ),
               if (nextOptions.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),

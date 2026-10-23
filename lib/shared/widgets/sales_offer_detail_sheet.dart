@@ -102,17 +102,17 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 children: [
                   Expanded(
                     child: Text(offer.title,
-                        style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 17)),
+                        style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 17)),
                   ),
                   StatusChip(label: offer.status.label, color: _statusColor(offer.status)),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(formatSmartTimestamp(offer.createdOn),
-                  style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
+                  style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.hint)),
               if (offer.description != null && offer.description!.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(offer.description!, style: GoogleFonts.cairo(fontSize: 14, height: 1.5)),
+                Text(offer.description!, style: GoogleFonts.ibmPlexSansArabic(fontSize: 14, height: 1.5)),
               ],
               const SizedBox(height: AppSpacing.md),
               Wrap(
@@ -148,14 +148,14 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 const SizedBox(height: AppSpacing.xs),
                 if (offer.upfrontPercentage != null)
                   Text('نسبة الدفع المقدَّم: ${offer.upfrontPercentage}%',
-                      style: GoogleFonts.cairo(fontSize: 13)),
+                      style: GoogleFonts.ibmPlexSansArabic(fontSize: 13)),
                 if (offer.paymentPeriodDays != null)
                   Text('مدة السداد: ${offer.paymentPeriodDays} يوماً',
-                      style: GoogleFonts.cairo(fontSize: 13)),
+                      style: GoogleFonts.ibmPlexSansArabic(fontSize: 13)),
                 if (offer.consignmentTerms != null && offer.consignmentTerms!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(offer.consignmentTerms!, style: GoogleFonts.cairo(fontSize: 13)),
+                    child: Text(offer.consignmentTerms!, style: GoogleFonts.ibmPlexSansArabic(fontSize: 13)),
                   ),
               ],
               const SizedBox(height: AppSpacing.md),
@@ -190,7 +190,7 @@ class _DetailChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: TawridColors.textSecondary),
           const SizedBox(width: 4),
-          Text(label, style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+          Text(label, style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.textSecondary)),
         ],
       ),
     );
@@ -211,7 +211,7 @@ class _OfferItemTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.medicineName, style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(item.medicineName, style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 14)),
             const SizedBox(height: 4),
             Wrap(
               spacing: AppSpacing.xs,

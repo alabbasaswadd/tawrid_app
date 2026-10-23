@@ -144,13 +144,13 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
         children: [
-          Text(tender.title, style: GoogleFonts.cairo(fontWeight: FontWeight.w800, fontSize: 18)),
+          Text(tender.title, style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w800, fontSize: 18)),
           const SizedBox(height: 4),
           Text('رقم المناقصة: ${tender.tenderNumber}',
-              style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+              style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.textSecondary)),
           if (tender.description != null && tender.description!.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(tender.description!, style: GoogleFonts.cairo(fontSize: 13)),
+            Text(tender.description!, style: GoogleFonts.ibmPlexSansArabic(fontSize: 13)),
           ],
           const SizedBox(height: AppSpacing.lg),
           DropdownButtonFormField<TenderOfferType>(
@@ -179,12 +179,12 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(draft.item.medicineName,
-                          style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 14)),
+                          style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 14)),
                       Text('${draft.item.quantity} ${draft.item.unit}',
-                          style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+                          style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.textSecondary)),
                       if (draft.item.notes != null && draft.item.notes!.isNotEmpty)
                         Text(draft.item.notes!,
-                            style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+                            style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.textSecondary)),
                       const SizedBox(height: AppSpacing.xs),
                       Row(
                         children: [

@@ -28,13 +28,13 @@ class PhOffersPage extends ConsumerWidget {
               Icon(Icons.sell_outlined, size: 64, color: TawridColors.hint),
               const SizedBox(height: AppSpacing.md),
               Text('لا توجد عروض متاحة',
-                  style: GoogleFonts.cairo(
+                  style: GoogleFonts.ibmPlexSansArabic(
                       color: TawridColors.hint,
                       fontSize: 16,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: AppSpacing.xs),
               Text('ستظهر هنا عروض بيع المستودعات',
-                  style: GoogleFonts.cairo(
+                  style: GoogleFonts.ibmPlexSansArabic(
                       color: TawridColors.hint, fontSize: 13)),
             ],
           ),

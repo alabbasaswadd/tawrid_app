@@ -80,7 +80,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
             child: Text(
               'وجّه الكاميرا نحو باركود الدواء',
               textAlign: TextAlign.center,
-              style: GoogleFonts.cairo(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              style: GoogleFonts.ibmPlexSansArabic(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
         ],

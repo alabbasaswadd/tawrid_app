@@ -25,13 +25,13 @@ class SplashPage extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text('توريد',
-                    style: GoogleFonts.cairo(
+                    style: GoogleFonts.ibmPlexSansArabic(
                         color: Colors.white,
                         fontSize: 42,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5)),
                 Text('منصة التوريد الدوائي',
-                    style: GoogleFonts.cairo(
+                    style: GoogleFonts.ibmPlexSansArabic(
                         color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 16)),
                 const SizedBox(height: AppSpacing.xxl),

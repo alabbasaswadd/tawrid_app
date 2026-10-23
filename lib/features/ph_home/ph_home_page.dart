@@ -34,17 +34,17 @@ class PhHomePage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('مرحباً بك',
-                            style: GoogleFonts.cairo(
+                            style: GoogleFonts.ibmPlexSansArabic(
                                 color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 13)),
                         Text('صيدليتك',
-                            style: GoogleFonts.cairo(
+                            style: GoogleFonts.ibmPlexSansArabic(
                                 color: Colors.white,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800)),
                         const SizedBox(height: AppSpacing.xs),
                         Text('إدارة متكاملة للتوريد الدوائي',
-                            style: GoogleFonts.cairo(
+                            style: GoogleFonts.ibmPlexSansArabic(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 12)),
                       ],
@@ -114,7 +114,7 @@ class PhHomePage extends ConsumerWidget {
                           size: 48, color: TawridColors.hint),
                       const SizedBox(height: AppSpacing.sm),
                       Text('لا توجد نشاطات حديثة',
-                          style: GoogleFonts.cairo(
+                          style: GoogleFonts.ibmPlexSansArabic(
                               color: TawridColors.hint, fontSize: 14)),
                     ],
                   ),

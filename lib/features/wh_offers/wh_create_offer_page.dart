@@ -335,7 +335,7 @@ class _OfferItemCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(draft.medicine.displayName,
-                      style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 14)),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 18, color: TawridColors.error),

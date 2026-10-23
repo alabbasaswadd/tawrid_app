@@ -76,10 +76,10 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text('توريد',
-                      style: GoogleFonts.cairo(
+                      style: GoogleFonts.ibmPlexSansArabic(
                           color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
                   Text('منصة التوريد الدوائي',
-                      style: GoogleFonts.cairo(
+                      style: GoogleFonts.ibmPlexSansArabic(
                           color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
                 ]),
               ),

@@ -115,7 +115,7 @@ class _WhTendersPageState extends ConsumerState<WhTendersPage> {
                       Text(offer.tenderTitle,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+                          style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 15)),
                       const SizedBox(height: 3),
                       Row(
                         children: [
@@ -130,7 +130,7 @@ class _WhTendersPageState extends ConsumerState<WhTendersPage> {
                               '${_statusLabel(offer.status, offer.isSelectedByPharmacy)} · ${offer.offerType.label} · ${formatSmartTimestamp(offer.createdOn)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.hint),
+                              style: GoogleFonts.ibmPlexSansArabic(fontSize: 11.5, color: TawridColors.hint),
                             ),
                           ),
                         ],
@@ -140,7 +140,7 @@ class _WhTendersPageState extends ConsumerState<WhTendersPage> {
                         expired
                             ? 'انتهت المناقصة ${formatSmartTimestamp(offer.tenderExpiresAt)}'
                             : 'تنتهي المناقصة ${formatSmartTimestamp(offer.tenderExpiresAt)}',
-                        style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.textSecondary),
+                        style: GoogleFonts.ibmPlexSansArabic(fontSize: 11.5, color: TawridColors.textSecondary),
                       ),
                     ],
                   ),

@@ -56,7 +56,7 @@ class PhMorePage extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xl),
           Center(
             child: Text('توريد — منصة التوريد الدوائي',
-                style: GoogleFonts.cairo(
+                style: GoogleFonts.ibmPlexSansArabic(
                     color: TawridColors.hint, fontSize: 12)),
           ),
         ],
@@ -69,9 +69,9 @@ class PhMorePage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('تسجيل الخروج',
-            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+            style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700)),
         content: Text('هل تريد تسجيل الخروج من حساب الصيدلية؟',
-            style: GoogleFonts.cairo()),
+            style: GoogleFonts.ibmPlexSansArabic()),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -137,7 +137,7 @@ class _MoreTile extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           title: Text(label,
-              style: GoogleFonts.cairo(
+              style: GoogleFonts.ibmPlexSansArabic(
                   fontWeight: FontWeight.w600, fontSize: 14)),
           trailing: showArrow
               ? Icon(Icons.arrow_forward_ios,

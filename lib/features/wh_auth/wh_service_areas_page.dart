@@ -129,12 +129,12 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text('مناطق التخديم',
-                        style: GoogleFonts.cairo(
+                        style: GoogleFonts.ibmPlexSansArabic(
                             color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     Text(
                       'اختر المحافظات والمدن التي يوصّل إليها مستودعك — يمكنك تعديلها لاحقاً',
-                      style: GoogleFonts.cairo(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
+                      style: GoogleFonts.ibmPlexSansArabic(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
                     ),
                   ],
                 ),
@@ -184,15 +184,15 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                   onChanged: (_) => _toggleGovernorate(g),
                 ),
                 title: Text(g.name,
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+                    style: GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w700, fontSize: 15)),
                 subtitle: Text('$selectedCount من ${g.cities.length} مدينة محدَّدة',
-                    style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+                    style: GoogleFonts.ibmPlexSansArabic(fontSize: 12, color: TawridColors.textSecondary)),
                 children: g.cities
                     .map((c) => CheckboxListTile(
                           value: _selected.contains(c.id),
                           controlAffinity: ListTileControlAffinity.leading,
                           activeColor: TawridColors.warehouse,
-                          title: Text(c.name, style: GoogleFonts.cairo(fontSize: 14)),
+                          title: Text(c.name, style: GoogleFonts.ibmPlexSansArabic(fontSize: 14)),
                           onChanged: (v) => _toggleCity(c.id, v ?? false),
                         ))
                     .toList(),
@@ -211,7 +211,7 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
             children: [
               Text('${_selected.length} مدينة محدَّدة',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.cairo(fontSize: 13, color: TawridColors.textSecondary)),
+                  style: GoogleFonts.ibmPlexSansArabic(fontSize: 13, color: TawridColors.textSecondary)),
               const SizedBox(height: AppSpacing.sm),
               TawridButton(
                 label: 'حفظ ومتابعة',
