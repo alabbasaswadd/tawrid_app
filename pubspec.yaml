@@ -37,6 +37,10 @@ dependencies:
   # مسح الباركود بالكاميرا
   mobile_scanner: ^5.2.3
 
+  # توليد ومشاركة PDF لتفاصيل العرض
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

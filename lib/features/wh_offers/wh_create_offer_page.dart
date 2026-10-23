@@ -27,21 +27,18 @@ class WhCreateOfferPage extends ConsumerStatefulWidget {
 
 class _OfferItemDraft {
   _OfferItemDraft(this.medicine)
-      : quantity = TextEditingController(text: '1'),
-        unit = TextEditingController(text: 'علبة'),
+      : unit = TextEditingController(text: 'علبة'),
         unitPrice = TextEditingController(),
         discount = TextEditingController(),
         bonus = TextEditingController();
 
   final WarehouseMedicine medicine;
-  final TextEditingController quantity;
   final TextEditingController unit;
   final TextEditingController unitPrice;
   final TextEditingController discount;
   final TextEditingController bonus;
 
   void dispose() {
-    quantity.dispose();
     unit.dispose();
     unitPrice.dispose();
     discount.dispose();
@@ -66,6 +63,11 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   final List<_OfferItemDraft> _items = [];
   bool _saving = false;
 
+  // بونص على مستوى العرض كله = دواء مجاني (اختياري)
+  WarehouseMedicine? _bonusMedicine;
+  final _bonusQuantity = TextEditingController(text: '1');
+  final _bonusUnit = TextEditingController(text: 'علبة');
+
   @override
   void dispose() {
     _title.dispose();
@@ -73,6 +75,8 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
     _upfrontPercentage.dispose();
     _paymentPeriodDays.dispose();
     _consignmentTerms.dispose();
+    _bonusQuantity.dispose();
+    _bonusUnit.dispose();
     for (final item in _items) {
       item.dispose();
     }
@@ -97,7 +101,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   }
 
   Future<void> _addMedicine() async {
-    final picked = await showModalBottomSheet<WarehouseMedicine>(
+    final picked = await showModalBottomSheet<List<WarehouseMedicine>>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -107,8 +111,22 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
         alreadyPicked: _items.map((d) => d.medicine.id).toSet(),
       ),
     );
-    if (picked != null) {
-      setState(() => _items.add(_OfferItemDraft(picked)));
+    if (picked != null && picked.isNotEmpty) {
+      setState(() => _items.addAll(picked.map(_OfferItemDraft.new)));
+    }
+  }
+
+  Future<void> _pickBonusMedicine() async {
+    final picked = await showModalBottomSheet<List<WarehouseMedicine>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => const _MedicinePickerSheet(alreadyPicked: {}, single: true),
+    );
+    if (picked != null && picked.isNotEmpty) {
+      setState(() => _bonusMedicine = picked.first);
     }
   }
 
@@ -137,7 +155,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                 id: '',
                 medicineName: d.medicine.displayName,
                 catalogItemId: d.medicine.catalogItemId,
-                quantity: double.tryParse(d.quantity.text) ?? 0,
+                quantity: 1,
                 unit: d.unit.text.trim(),
                 unitPrice: double.tryParse(d.unitPrice.text) ?? 0,
                 discountPercentage:
@@ -164,6 +182,11 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
             consignmentTerms:
                 _consignmentTerms.text.trim().isEmpty ? null : _consignmentTerms.text.trim(),
             items: items,
+            bonusMedicineName: _bonusMedicine?.displayName,
+            bonusMedicineCatalogItemId: _bonusMedicine?.catalogItemId,
+            bonusMedicineQuantity:
+                _bonusMedicine == null ? null : (double.tryParse(_bonusQuantity.text) ?? 1),
+            bonusMedicineUnit: _bonusMedicine == null ? null : _bonusUnit.text.trim(),
           );
 
       if (mounted) {
@@ -284,6 +307,64 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                     draft: draft,
                     onRemove: () => _removeItem(draft),
                   )),
+
+            const SizedBox(height: AppSpacing.lg),
+            Text('بونص العرض (دواء مجاني — اختياري)',
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.sm),
+            if (_bonusMedicine == null)
+              OutlinedButton.icon(
+                onPressed: _pickBonusMedicine,
+                icon: const Icon(Icons.card_giftcard_outlined),
+                label: const Text('إضافة دواء بونص'),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: TawridColors.success.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: TawridColors.success.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.card_giftcard, size: 18, color: TawridColors.success),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(_bonusMedicine!.displayName,
+                              style: Theme.of(context).textTheme.titleSmall),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18, color: TawridColors.error),
+                          onPressed: () => setState(() => _bonusMedicine = null),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _bonusQuantity,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'كمية البونص', isDense: true),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _bonusUnit,
+                            decoration: const InputDecoration(labelText: 'الوحدة', isDense: true),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
             const SizedBox(height: AppSpacing.lg),
             TawridButton(
               label: 'نشر العرض',
@@ -343,25 +424,10 @@ class _OfferItemCard extends StatelessWidget {
                 ),
               ],
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: draft.quantity,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'الكمية', isDense: true),
-                    validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'مطلوب' : null,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: TextFormField(
-                    controller: draft.unit,
-                    decoration: const InputDecoration(labelText: 'الوحدة', isDense: true),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-                  ),
-                ),
-              ],
+            TextFormField(
+              controller: draft.unit,
+              decoration: const InputDecoration(labelText: 'الوحدة', isDense: true),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: AppSpacing.xs),
             Row(
@@ -402,8 +468,9 @@ class _OfferItemCard extends StatelessWidget {
 // ورقة سفلية لاختيار دواء من قائمة أدوية المستودع المُضافة مسبقاً فقط —
 // جوهر الطلب: لا كتابة حرّة ولا من الكاتالوج مباشرة.
 class _MedicinePickerSheet extends ConsumerStatefulWidget {
-  const _MedicinePickerSheet({required this.alreadyPicked});
+  const _MedicinePickerSheet({required this.alreadyPicked, this.single = false});
   final Set<String> alreadyPicked;
+  final bool single;
 
   @override
   ConsumerState<_MedicinePickerSheet> createState() => _MedicinePickerSheetState();
@@ -411,6 +478,7 @@ class _MedicinePickerSheet extends ConsumerStatefulWidget {
 
 class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
   final _search = TextEditingController();
+  final Set<String> _selected = {};
   List<WarehouseMedicine>? _medicines;
   bool _loading = true;
   String? _error;
@@ -455,7 +523,8 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('اختر دواءً من مستودعك', style: Theme.of(context).textTheme.titleMedium),
+              Text(widget.single ? 'اختر دواء البونص' : 'اختر أدوية من مستودعك',
+                  style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                 controller: _search,
@@ -467,6 +536,15 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Expanded(child: _buildList(scrollController)),
+              if (!widget.single && _selected.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                FilledButton(
+                  onPressed: () => Navigator.pop(
+                      context,
+                      (_medicines ?? []).where((m) => _selected.contains(m.id)).toList()),
+                  child: Text('إضافة (${_selected.length})'),
+                ),
+              ],
             ],
           ),
         );
@@ -496,16 +574,26 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
       itemCount: available.length,
       itemBuilder: (context, index) {
         final m = available[index];
+        final selected = _selected.contains(m.id);
         return InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => Navigator.pop(context, m),
+          onTap: () {
+            if (widget.single) {
+              Navigator.pop(context, [m]);
+            } else {
+              setState(() => selected ? _selected.remove(m.id) : _selected.add(m.id));
+            }
+          },
           child: MedicineListTile(
             displayName: m.displayName,
             genericName: m.genericName,
             manufacturerName: m.manufacturerName,
             dosageForm: m.dosageForm,
             strength: m.strength,
-            trailing: const Icon(Icons.chevron_left, color: TawridColors.hint),
+            trailing: widget.single
+                ? const Icon(Icons.chevron_left, color: TawridColors.hint)
+                : Icon(selected ? Icons.check_box : Icons.check_box_outline_blank,
+                    color: selected ? TawridColors.primary : TawridColors.hint),
           ),
         );
       },

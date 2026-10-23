@@ -164,6 +164,9 @@ class SalesOfferDetail {
   final double? upfrontPercentage;
   final int? paymentPeriodDays;
   final String? consignmentTerms;
+  final String? bonusMedicineName;
+  final double? bonusMedicineQuantity;
+  final String? bonusMedicineUnit;
   final DateTime createdOn;
   final List<SalesOfferItem> items;
   final List<SalesOfferTarget>? targets;
@@ -185,6 +188,9 @@ class SalesOfferDetail {
     this.upfrontPercentage,
     this.paymentPeriodDays,
     this.consignmentTerms,
+    this.bonusMedicineName,
+    this.bonusMedicineQuantity,
+    this.bonusMedicineUnit,
     required this.createdOn,
     required this.items,
     this.targets,
@@ -209,6 +215,9 @@ class SalesOfferDetail {
         upfrontPercentage: (j['upfrontPercentage'] as num?)?.toDouble(),
         paymentPeriodDays: j['paymentPeriodDays'] as int?,
         consignmentTerms: j['consignmentTerms'] as String?,
+        bonusMedicineName: j['bonusMedicineName'] as String?,
+        bonusMedicineQuantity: (j['bonusMedicineQuantity'] as num?)?.toDouble(),
+        bonusMedicineUnit: j['bonusMedicineUnit'] as String?,
         createdOn: DateTime.parse(j['createdOn'] as String),
         items: ((j['items'] as List?) ?? [])
             .map((e) => SalesOfferItem.fromJson(e as Map<String, dynamic>))

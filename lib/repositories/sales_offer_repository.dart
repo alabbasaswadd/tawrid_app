@@ -53,6 +53,10 @@ class SalesOfferRepository {
     String? consignmentTerms,
     required List<SalesOfferItem> items,
     List<String>? targetTenantIds,
+    String? bonusMedicineName,
+    String? bonusMedicineCatalogItemId,
+    double? bonusMedicineQuantity,
+    String? bonusMedicineUnit,
   }) async {
     final data = await _api.post(ApiEndpoints.whSalesOffers, data: {
       'title': title,
@@ -68,6 +72,10 @@ class SalesOfferRepository {
       'consignmentTerms': consignmentTerms,
       'items': items.map((e) => e.toCreateJson()).toList(),
       'targetTenantIds': targetTenantIds,
+      'bonusMedicineName': bonusMedicineName,
+      'bonusMedicineCatalogItemId': bonusMedicineCatalogItemId,
+      'bonusMedicineQuantity': bonusMedicineQuantity,
+      'bonusMedicineUnit': bonusMedicineUnit,
     }) as Map<String, dynamic>;
     return SalesOfferDetail.fromJson(data);
   }
