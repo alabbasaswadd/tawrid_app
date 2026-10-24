@@ -14,6 +14,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
     required this.info,
     required this.pharmacy,
     required this.warehouse,
+    required this.gold,
   });
 
   final Color surfaceAlt;
@@ -24,6 +25,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
   final Color info;
   final Color pharmacy;
   final Color warehouse;
+  final Color gold;
 
   static const light = TawridTokens(
     surfaceAlt: AppPalette.surfaceAltLight,
@@ -34,6 +36,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
     info: AppPalette.infoLight,
     pharmacy: AppPalette.pharmacyLight,
     warehouse: AppPalette.warehouseLight,
+    gold: AppPalette.goldLight,
   );
 
   static const dark = TawridTokens(
@@ -45,6 +48,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
     info: AppPalette.infoDark,
     pharmacy: AppPalette.pharmacyDark,
     warehouse: AppPalette.warehouseDark,
+    gold: AppPalette.goldDark,
   );
 
   @override
@@ -57,6 +61,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
     Color? info,
     Color? pharmacy,
     Color? warehouse,
+    Color? gold,
   }) {
     return TawridTokens(
       surfaceAlt: surfaceAlt ?? this.surfaceAlt,
@@ -67,6 +72,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
       info: info ?? this.info,
       pharmacy: pharmacy ?? this.pharmacy,
       warehouse: warehouse ?? this.warehouse,
+      gold: gold ?? this.gold,
     );
   }
 
@@ -82,6 +88,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
       info: Color.lerp(info, other.info, t)!,
       pharmacy: Color.lerp(pharmacy, other.pharmacy, t)!,
       warehouse: Color.lerp(warehouse, other.warehouse, t)!,
+      gold: Color.lerp(gold, other.gold, t)!,
     );
   }
 }

@@ -16,6 +16,8 @@ abstract final class AppTheme {
 
     final brand = isDark ? AppPalette.brandDark : AppPalette.brandLight;
     final onBrand = isDark ? AppPalette.onBrandDark : AppPalette.onBrandLight;
+    final gold = isDark ? AppPalette.goldDark : AppPalette.goldLight;
+    final onGold = isDark ? AppPalette.onGoldDark : AppPalette.onGoldLight;
     final bg = isDark ? AppPalette.bgDark : AppPalette.bgLight;
     final surface = isDark ? AppPalette.surfaceDark : AppPalette.surfaceLight;
     final surfaceAlt = isDark ? AppPalette.surfaceAltDark : AppPalette.surfaceAltLight;
@@ -34,6 +36,8 @@ abstract final class AppTheme {
       onPrimary: onBrand,
       secondary: brand,
       onSecondary: onBrand,
+      tertiary: gold,
+      onTertiary: onGold,
       surface: surface,
       onSurface: textPrimary,
       onSurfaceVariant: textSecondary,

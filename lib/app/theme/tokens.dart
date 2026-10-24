@@ -3,22 +3,26 @@ import 'package:flutter/material.dart';
 // القيم الخام للتصميم — لا تُستهلك مباشرة في الشاشات، بل عبر الثيم/TawridTokens.
 // طيف هادئ منخفض التشبّع يليق بجمهور مثقّف: لون أساسي واحد + محايدات دافئة.
 abstract final class AppPalette {
-  // ── اللون الأساسي (تركواز-أخضر مغبّر) ──────────────────────────────
-  static const brandLight = Color(0xFF2E8B73);
-  static const brandDark = Color(0xFF4FB999);
+  // ── اللون الأساسي — أخضر غابي عميق مستخرج من لوغو توريد ─────────
+  static const brandLight = Color(0xFF1A6B44);
+  static const brandDark = Color(0xFF2D9B64);
   static const onBrandLight = Color(0xFFFFFFFF);
-  static const onBrandDark = Color(0xFF0C1A15);
+  static const onBrandDark = Color(0xFF001A0A);
+
+  // ── الذهبي — اللون الثانوي من اللوغو ────────────────────────────
+  static const goldLight = Color(0xFFC4A24A);
+  static const goldDark = Color(0xFFD4B878);
+  static const onGoldLight = Color(0xFF1A0D00);
+  static const onGoldDark = Color(0xFF1A0D00);
 
   // ── الأدوار ─────────────────────────────────────────────────────────
-  // قرار الهوية: لون أساسي واحد هادئ للطرفين (ألغي تمييز البنفسجي/الأخضر).
-  // التمييز بين المستودع والصيدلية يكون بلمسة خفيفة (أيقونة/تسمية) لا بلون ثانٍ.
   static const pharmacyLight = brandLight;
   static const pharmacyDark = brandDark;
   static const warehouseLight = brandLight;
   static const warehouseDark = brandDark;
 
   // ── دلالات ─────────────────────────────────────────────────────────
-  static const successLight = Color(0xFF2E7D52);
+  static const successLight = Color(0xFF1A6B44);
   static const successDark = Color(0xFF4FBF84);
   static const warningLight = Color(0xFFB9770E);
   static const warningDark = Color(0xFFE0A33E);
@@ -28,8 +32,7 @@ abstract final class AppPalette {
   static const infoDark = Color(0xFF5B9BE0);
 
   // ── محايدات (فاتح) ────────────────────────────────────────────────
-  // خلفية رمادية واضحة ليبرز السطح الأبيض للبطاقات، وحدود أوضح للتمييز.
-  static const bgLight = Color(0xFFEBEEF2);
+  static const bgLight = Color(0xFFF0F4F1);
   static const surfaceLight = Color(0xFFFFFFFF);
   static const surfaceAltLight = Color(0xFFE6EAEE);
   static const outlineLight = Color(0xFFD3D9DF);

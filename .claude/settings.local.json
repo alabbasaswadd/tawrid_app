@@ -37,7 +37,13 @@
       "PowerShell(Get-ChildItem *)",
       "Bash(Select-Object -ExpandProperty Name)",
       "Bash(xargs -I {} basename {})",
-      "Bash(dir E:\\\\flutter\\\\saydaliati\\\\pharmacy_flutter\\\\lib\\\\features *)"
+      "Bash(dir E:\\\\flutter\\\\saydaliati\\\\pharmacy_flutter\\\\lib\\\\features *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\" -Recurse -Name)",
+      "Bash(find \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\android\\\\app\\\\src\\\\main\\\\res\\\\mipmap-\"* -name \"*.png\" -o -name \"*.xml\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\assets\\\\images\")",
+      "Bash(Out-Null)",
+      "Bash(Copy-Item \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\لوغو توريد.jpeg\" \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\assets\\\\images\\\\logo.jpg\" -Force)",
+      "Bash(Write-Host \"Done\")"
     ]
   }
 }

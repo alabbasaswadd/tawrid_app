@@ -7,15 +7,21 @@ import 'tokens.dart';
 abstract final class TawridColors {
   // ── Brand ──────────────────────────────────────────────────────────
   static const Color primary = AppPalette.brandLight;
-  static const Color primaryLight = Color(0xFF4FB999);
-  static const Color primaryDark = Color(0xFF246E5B);
-  static const Color accent = AppPalette.brandLight;
+  static const Color primaryLight = Color(0xFF2D9B64);
+  static const Color primaryDark = Color(0xFF0F5030);
+  static const Color accent = AppPalette.goldLight;
+  static const Color gold = AppPalette.goldLight;
 
-  // ── Gradients (موحّدة على اللون الأساسي) ──────────────────────────
+  // ── Gradients (أخضر غابي عميق من اللوغو) ─────────────────────────
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF2E8B73), Color(0xFF246E5B)],
+    colors: [Color(0xFF1A6B44), Color(0xFF0F5030)],
+  );
+  static const LinearGradient goldGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFC4A24A), Color(0xFFAA8530)],
   );
   static const LinearGradient warehouseGradient = brandGradient;
   static const LinearGradient pharmacyGradient = brandGradient;
