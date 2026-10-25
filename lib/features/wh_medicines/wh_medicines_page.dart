@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
 
@@ -67,12 +67,17 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('حذف دواء', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
-        content: Text('إزالة "${m.displayName}" من قائمة أدوية مستودعك؟', style: GoogleFonts.cairo()),
+        title: Text('حذف دواء',
+            style: Theme.of(ctx).textTheme.titleMedium),
+        content: Text('إزالة "${m.displayName}" من قائمة أدوية مستودعك؟',
+            style: Theme.of(ctx).textTheme.bodyMedium),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TawridColors.error),
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('حذف'),
           ),
@@ -103,11 +108,15 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tk = context.tokens;
     return Scaffold(
       appBar: AppBar(
         title: const Text('أدويتي'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), tooltip: 'تحديث', onPressed: _loading ? null : _load),
+          IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'تحديث',
+              onPressed: _loading ? null : _load),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -118,7 +127,8 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
             child: TextField(
               controller: _search,
               onChanged: (_) => setState(() {}),
@@ -136,11 +146,13 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
           ),
           if (!_loading && _error == null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
               child: Row(
                 children: [
                   Text('${_filtered.length} من ${_medicines?.length ?? 0} دواء',
-                      style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
+                      style: context.text.bodySmall
+                          ?.copyWith(color: tk.hint)),
                 ],
               ),
             ),
@@ -157,20 +169,24 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
     final all = _medicines ?? [];
     if (all.isEmpty) {
       return const EmptyState(
-        message: 'لا توجد أدوية في مستودعك بعد\nاضغط "إضافة دواء" للاختيار من الكاتالوج',
+        message:
+            'لا توجد أدوية في مستودعك بعد\nاضغط "إضافة دواء" للاختيار من الكاتالوج',
         icon: Icons.medication_outlined,
       );
     }
 
     final medicines = _filtered;
     if (medicines.isEmpty) {
-      return const EmptyState(message: 'لا نتائج مطابقة للبحث', icon: Icons.search_off_outlined);
+      return const EmptyState(
+          message: 'لا نتائج مطابقة للبحث',
+          icon: Icons.search_off_outlined);
     }
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 88),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md, AppSpacing.sm, AppSpacing.md, 88),
         itemCount: medicines.length,
         itemBuilder: (context, index) {
           final m = medicines[index];
@@ -181,7 +197,8 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
             dosageForm: m.dosageForm,
             strength: m.strength,
             trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, color: TawridColors.error),
+              icon: Icon(Icons.delete_outline,
+                  color: context.colors.error),
               onPressed: () => _confirmRemove(m),
             ),
           );

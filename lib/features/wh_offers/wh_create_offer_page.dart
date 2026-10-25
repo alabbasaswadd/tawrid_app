@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
 import 'package:tawrid_app/shared/widgets/multi_region_picker.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 // إنشاء عرض بيع — اختيار الأصناف يتم من أدوية المستودع المُضافة مسبقاً
 // (wh_medicines_page.dart) فقط، لا كتابة حرّة ولا من الكاتالوج العام
@@ -322,23 +321,23 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: TawridColors.success.withValues(alpha: 0.06),
+                  color: context.tokens.success.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: TawridColors.success.withValues(alpha: 0.3)),
+                  border: Border.all(color: context.tokens.success.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.card_giftcard, size: 18, color: TawridColors.success),
+                        Icon(Icons.card_giftcard, size: 18, color: context.tokens.success),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(_bonusMedicine!.displayName,
                               style: Theme.of(context).textTheme.titleSmall),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 18, color: TawridColors.error),
+                          icon: Icon(Icons.close, size: 18, color: context.colors.error),
                           onPressed: () => setState(() => _bonusMedicine = null),
                         ),
                       ],
@@ -366,12 +365,11 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
               ),
 
             const SizedBox(height: AppSpacing.lg),
-            TawridButton(
+            AppButton(
               label: 'نشر العرض',
-              onPressed: _saving ? null : _submit,
-              loading: _saving,
-              gradient: TawridColors.warehouseGradient,
               icon: Icons.check_circle_outline,
+              loading: _saving,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
@@ -416,10 +414,10 @@ class _OfferItemCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(draft.medicine.displayName,
-                      style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 18, color: TawridColors.error),
+                  icon: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.error),
                   onPressed: onRemove,
                 ),
               ],
@@ -591,9 +589,9 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
             dosageForm: m.dosageForm,
             strength: m.strength,
             trailing: widget.single
-                ? const Icon(Icons.chevron_left, color: TawridColors.hint)
+                ? Icon(Icons.chevron_left, color: context.tokens.hint)
                 : Icon(selected ? Icons.check_box : Icons.check_box_outline_blank,
-                    color: selected ? TawridColors.primary : TawridColors.hint),
+                    color: selected ? context.colors.primary : context.tokens.hint),
           ),
         );
       },

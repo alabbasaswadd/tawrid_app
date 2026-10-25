@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/tender_models.dart';
 import 'package:tawrid_app/repositories/tender_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 // التقدّم بعرض على مناقصة مفتوحة — يصل إليها المستودع من بطاقة المناقصة في
 // الصفحة الرئيسية. لا يرى المستودع أي معلومة عن المنافسين هنا أو في أي
@@ -144,13 +143,16 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
         children: [
-          Text(tender.title, style: GoogleFonts.cairo(fontWeight: FontWeight.w800, fontSize: 18)),
+          Text(tender.title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text('رقم المناقصة: ${tender.tenderNumber}',
-              style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           if (tender.description != null && tender.description!.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(tender.description!, style: GoogleFonts.cairo(fontSize: 13)),
+            Text(tender.description!,
+                style: Theme.of(context).textTheme.bodyMedium),
           ],
           const SizedBox(height: AppSpacing.lg),
           DropdownButtonFormField<TenderOfferType>(
@@ -179,12 +181,14 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(draft.item.medicineName,
-                          style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 14)),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                       Text('${draft.item.quantity} ${draft.item.unit}',
-                          style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       if (draft.item.notes != null && draft.item.notes!.isNotEmpty)
                         Text(draft.item.notes!,
-                            style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: AppSpacing.xs),
                       Row(
                         children: [
@@ -221,12 +225,11 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
                 ),
               )),
           const SizedBox(height: AppSpacing.lg),
-          TawridButton(
+          AppButton(
             label: 'تقديم العرض',
-            onPressed: _saving ? null : _submit,
-            loading: _saving,
-            gradient: TawridColors.warehouseGradient,
             icon: Icons.send_outlined,
+            loading: _saving,
+            onPressed: _saving ? null : _submit,
           ),
         ],
       ),

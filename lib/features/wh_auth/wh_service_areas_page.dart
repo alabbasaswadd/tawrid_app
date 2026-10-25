@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/geo_models.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_service_area_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 // تُعرَض مباشرةً بعد نجاح تسجيل المستودع: يختار المستودع المحافظات/المدن
 // التي يُوصّل إليها. المحافظات والمدن تُجلَب بالكامل من الخادم
@@ -107,9 +106,16 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final heroGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.28)!],
+    );
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: TawridColors.warehouseGradient),
+        decoration: BoxDecoration(gradient: heroGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -129,12 +135,12 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text('مناطق التخديم',
-                        style: GoogleFonts.cairo(
-                            color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+                        style: context.text.headlineMedium?.copyWith(color: Colors.white)),
                     const SizedBox(height: 4),
                     Text(
                       'اختر المحافظات والمدن التي يوصّل إليها مستودعك — يمكنك تعديلها لاحقاً',
-                      style: GoogleFonts.cairo(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
+                      style: context.text.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85)),
                     ),
                   ],
                 ),
@@ -144,7 +150,7 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                 // Material لـ CheckboxListTile — وإلا تُرسَم خلفية القائمة
                 // فوق تأثيرات الضغط (ink splashes) وتُخفيها بالكامل.
                 child: Material(
-                  color: TawridColors.background,
+                  color: cs.surface,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   clipBehavior: Clip.antiAlias,
                   child: _buildBody(),
@@ -166,6 +172,8 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
       return const EmptyState(message: 'لا توجد محافظات متاحة حالياً', icon: Icons.map_outlined);
     }
 
+    final cs = context.colors;
+
     return Column(
       children: [
         Expanded(
@@ -180,19 +188,19 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                 leading: Checkbox(
                   tristate: true,
                   value: _governorateState(g),
-                  activeColor: TawridColors.warehouse,
+                  activeColor: cs.primary,
                   onChanged: (_) => _toggleGovernorate(g),
                 ),
                 title: Text(g.name,
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+                    style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                 subtitle: Text('$selectedCount من ${g.cities.length} مدينة محدَّدة',
-                    style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.textSecondary)),
+                    style: context.text.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                 children: g.cities
                     .map((c) => CheckboxListTile(
                           value: _selected.contains(c.id),
                           controlAffinity: ListTileControlAffinity.leading,
-                          activeColor: TawridColors.warehouse,
-                          title: Text(c.name, style: GoogleFonts.cairo(fontSize: 14)),
+                          activeColor: cs.primary,
+                          title: Text(c.name, style: context.text.bodyMedium),
                           onChanged: (v) => _toggleCity(c.id, v ?? false),
                         ))
                     .toList(),
@@ -203,7 +211,7 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: TawridColors.surface,
+            color: cs.surface,
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, -4))],
           ),
           child: Column(
@@ -211,14 +219,13 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
             children: [
               Text('${_selected.length} مدينة محدَّدة',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.cairo(fontSize: 13, color: TawridColors.textSecondary)),
+                  style: context.text.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
               const SizedBox(height: AppSpacing.sm),
-              TawridButton(
+              AppButton(
                 label: 'حفظ ومتابعة',
-                onPressed: _saving ? null : _save,
-                loading: _saving,
-                gradient: TawridColors.warehouseGradient,
                 icon: Icons.check_circle_outline,
+                loading: _saving,
+                onPressed: _saving ? null : _save,
               ),
               const SizedBox(height: AppSpacing.xs),
               TextButton(

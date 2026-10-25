@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/governorate_city_selector.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 class PhRegisterPage extends ConsumerStatefulWidget {
   const PhRegisterPage({super.key});
@@ -30,8 +29,6 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
   final _confirm = TextEditingController();
   String? _governorateId;
   String? _cityId;
-  bool _obscurePass = true;
-  bool _obscureConfirm = true;
   bool _loading = false;
 
   @override
@@ -79,9 +76,16 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final heroGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.28)!],
+    );
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: TawridColors.pharmacyGradient),
+        decoration: BoxDecoration(gradient: heroGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -96,18 +100,16 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text('تسجيل صيدلية جديدة',
-                        style: GoogleFonts.cairo(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700)),
+                        style: context.text.titleLarge?.copyWith(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: TawridColors.background,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(AppSpacing.lg),
@@ -118,18 +120,17 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                         children: [
                           const SizedBox(height: AppSpacing.sm),
                           Text('معلومات الصيدلية',
-                              style: Theme.of(context).textTheme.titleLarge),
+                              style: context.text.titleLarge),
                           const SizedBox(height: AppSpacing.xs),
                           Text('أدخل بيانات الصيدلية لإنشاء حساب',
-                              style: Theme.of(context).textTheme.bodySmall),
+                              style: context.text.bodySmall),
                           const SizedBox(height: AppSpacing.lg),
 
-                          TextFormField(
+                          AppTextField(
                             controller: _name,
-                            decoration: const InputDecoration(
-                              labelText: 'اسم الصيدلية',
-                              prefixIcon: Icon(Icons.local_pharmacy_outlined),
-                            ),
+                            label: 'اسم الصيدلية',
+                            prefixIcon: Icons.local_pharmacy_outlined,
+                            textInputAction: TextInputAction.next,
                             validator: (v) =>
                                 (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                           ),
@@ -143,22 +144,20 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
+                          AppTextField(
                             controller: _address,
-                            decoration: const InputDecoration(
-                              labelText: 'العنوان (اختياري)',
-                              prefixIcon: Icon(Icons.home_outlined),
-                            ),
+                            label: 'العنوان (اختياري)',
+                            prefixIcon: Icons.home_outlined,
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
+                          AppTextField(
                             controller: _email,
+                            label: 'البريد الإلكتروني',
+                            hint: 'example@domain.com',
+                            prefixIcon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'البريد الإلكتروني',
-                              prefixIcon: Icon(Icons.email_outlined),
-                            ),
+                            textInputAction: TextInputAction.next,
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) return 'مطلوب';
                               if (!v.contains('@')) return 'بريد غير صحيح';
@@ -167,32 +166,23 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
+                          AppTextField(
                             controller: _phone,
+                            label: 'رقم الهاتف',
+                            prefixIcon: Icons.phone_outlined,
                             keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: 'رقم الهاتف',
-                              prefixIcon: Icon(Icons.phone_outlined),
-                            ),
+                            textInputAction: TextInputAction.next,
                             validator: (v) =>
                                 (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
+                          AppTextField(
                             controller: _password,
-                            obscureText: _obscurePass,
-                            decoration: InputDecoration(
-                              labelText: 'كلمة المرور',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscurePass
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                onPressed: () =>
-                                    setState(() => _obscurePass = !_obscurePass),
-                              ),
-                            ),
+                            label: 'كلمة المرور',
+                            prefixIcon: Icons.lock_outline,
+                            obscure: true,
+                            textInputAction: TextInputAction.next,
                             validator: (v) {
                               if (v == null || v.isEmpty) return 'مطلوب';
                               if (v.length < 6) return 'لا تقل عن 6 أحرف';
@@ -201,20 +191,11 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
+                          AppTextField(
                             controller: _confirm,
-                            obscureText: _obscureConfirm,
-                            decoration: InputDecoration(
-                              labelText: 'تأكيد كلمة المرور',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscureConfirm
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                onPressed: () => setState(
-                                    () => _obscureConfirm = !_obscureConfirm),
-                              ),
-                            ),
+                            label: 'تأكيد كلمة المرور',
+                            prefixIcon: Icons.lock_outline,
+                            obscure: true,
                             validator: (v) {
                               if (v == null || v.isEmpty) return 'مطلوب';
                               if (v != _password.text) return 'كلمتا المرور غير متطابقتين';
@@ -223,12 +204,11 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                           ),
                           const SizedBox(height: AppSpacing.lg),
 
-                          TawridButton(
+                          AppButton(
                             label: 'إنشاء الحساب',
-                            onPressed: _loading ? null : _register,
-                            loading: _loading,
-                            gradient: TawridColors.pharmacyGradient,
                             icon: Icons.person_add_outlined,
+                            loading: _loading,
+                            onPressed: _loading ? null : _register,
                           ),
                           const SizedBox(height: AppSpacing.md),
 
@@ -236,7 +216,7 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text('لديك حساب بالفعل؟',
-                                  style: Theme.of(context).textTheme.bodySmall),
+                                  style: context.text.bodySmall),
                               TextButton(
                                 onPressed: () => context.go(TRoutes.phLogin),
                                 child: const Text('دخول'),

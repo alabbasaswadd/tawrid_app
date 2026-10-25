@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/governorate_city_selector.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 class WhRegisterPage extends ConsumerStatefulWidget {
   const WhRegisterPage({super.key});
@@ -41,8 +40,6 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
   final _shamCash = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
-  bool _obscurePass = true;
-  bool _obscureConfirm = true;
   bool _loading = false;
 
   @override
@@ -114,9 +111,16 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final heroGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.28)!],
+    );
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: TawridColors.warehouseGradient),
+        decoration: BoxDecoration(gradient: heroGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -133,10 +137,8 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text('تسجيل مستودع جديد',
-                        style: GoogleFonts.cairo(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700)),
+                        style: context.text.titleLarge?.copyWith(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
@@ -147,9 +149,9 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
               const SizedBox(height: AppSpacing.md),
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: TawridColors.background,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
@@ -174,18 +176,16 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: AppSpacing.sm),
-            Text('معلومات المستودع', style: Theme.of(context).textTheme.titleLarge),
+            Text('معلومات المستودع', style: context.text.titleLarge),
             const SizedBox(height: AppSpacing.xs),
             Text('أدخل بيانات المستودع للمتابعة',
-                style: Theme.of(context).textTheme.bodySmall),
+                style: context.text.bodySmall),
             const SizedBox(height: AppSpacing.lg),
 
-            TextFormField(
+            AppTextField(
               controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'اسم المستودع',
-                prefixIcon: Icon(Icons.warehouse_outlined),
-              ),
+              label: 'اسم المستودع',
+              prefixIcon: Icons.warehouse_outlined,
               validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -198,33 +198,27 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _address,
-              decoration: const InputDecoration(
-                labelText: 'العنوان (اختياري)',
-                prefixIcon: Icon(Icons.home_outlined),
-              ),
+              label: 'العنوان (اختياري)',
+              prefixIcon: Icons.home_outlined,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _phone,
+              label: 'رقم الهاتف',
+              prefixIcon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'رقم الهاتف',
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _email,
+              label: 'البريد الإلكتروني',
+              prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'البريد الإلكتروني',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'مطلوب';
                 if (!v.contains('@')) return 'بريد غير صحيح';
@@ -233,18 +227,17 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            TawridButton(
+            AppButton(
               label: 'التالي',
-              onPressed: _goToPersonalStep,
-              gradient: TawridColors.warehouseGradient,
               icon: Icons.arrow_forward,
+              onPressed: _goToPersonalStep,
             ),
             const SizedBox(height: AppSpacing.md),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('لديك حساب بالفعل؟', style: Theme.of(context).textTheme.bodySmall),
+                Text('لديك حساب بالفعل؟', style: context.text.bodySmall),
                 TextButton(
                   onPressed: () => context.go(TRoutes.whLogin),
                   child: const Text('دخول'),
@@ -267,26 +260,26 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: AppSpacing.sm),
-            Text('المعلومات الشخصية', style: Theme.of(context).textTheme.titleLarge),
+            Text('المعلومات الشخصية', style: context.text.titleLarge),
             const SizedBox(height: AppSpacing.xs),
             Text('بيانات مدير المستودع (حساب Admin)',
-                style: Theme.of(context).textTheme.bodySmall),
+                style: context.text.bodySmall),
             const SizedBox(height: AppSpacing.lg),
 
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
+                  child: AppTextField(
                     controller: _firstName,
-                    decoration: const InputDecoration(labelText: 'الاسم الأول'),
+                    label: 'الاسم الأول',
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: TextFormField(
+                  child: AppTextField(
                     controller: _lastName,
-                    decoration: const InputDecoration(labelText: 'اسم العائلة'),
+                    label: 'اسم العائلة',
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                   ),
                 ),
@@ -294,39 +287,28 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _userName,
-              decoration: const InputDecoration(
-                labelText: 'اسم المستخدم',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
+              label: 'اسم المستخدم',
+              prefixIcon: Icons.person_outline,
               validator: (v) =>
                   (v == null || v.trim().length < 3) ? 'لا يقل عن ٣ أحرف' : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _shamCash,
-              decoration: const InputDecoration(
-                labelText: 'حساب شام كاش (اختياري)',
-                prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-              ),
+              label: 'حساب شام كاش (اختياري)',
+              prefixIcon: Icons.account_balance_wallet_outlined,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _password,
-              obscureText: _obscurePass,
-              decoration: InputDecoration(
-                labelText: 'كلمة المرور',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscurePass
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscurePass = !_obscurePass),
-                ),
-              ),
+              label: 'كلمة المرور',
+              prefixIcon: Icons.lock_outline,
+              obscure: true,
+              textInputAction: TextInputAction.next,
               validator: (v) {
                 if (v == null || v.isEmpty) return 'مطلوب';
                 if (v.length < 6) return 'لا تقل عن 6 أحرف';
@@ -335,19 +317,11 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            TextFormField(
+            AppTextField(
               controller: _confirm,
-              obscureText: _obscureConfirm,
-              decoration: InputDecoration(
-                labelText: 'تأكيد كلمة المرور',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscureConfirm
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                ),
-              ),
+              label: 'تأكيد كلمة المرور',
+              prefixIcon: Icons.lock_outline,
+              obscure: true,
               validator: (v) {
                 if (v == null || v.isEmpty) return 'مطلوب';
                 if (v != _password.text) return 'كلمتا المرور غير متطابقتين';
@@ -356,12 +330,11 @@ class _WhRegisterPageState extends ConsumerState<WhRegisterPage> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            TawridButton(
+            AppButton(
               label: 'تسجيل المستودع',
-              onPressed: _loading ? null : _register,
-              loading: _loading,
-              gradient: TawridColors.warehouseGradient,
               icon: Icons.business_outlined,
+              loading: _loading,
+              onPressed: _loading ? null : _register,
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -416,13 +389,12 @@ class _StepIndicator extends StatelessWidget {
                 color: (isActive || isDone) ? Colors.white : Colors.white.withValues(alpha: 0.25),
               ),
               child: isDone
-                  ? Icon(Icons.check, size: 16, color: TawridColors.warehouse)
+                  ? Icon(Icons.check, size: 16, color: Theme.of(context).colorScheme.primary)
                   : Text(
                       '${step + 1}',
-                      style: GoogleFonts.cairo(
-                        color: isActive ? TawridColors.warehouse : Colors.white,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: isActive ? Theme.of(context).colorScheme.primary : Colors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 13,
                       ),
                     ),
             ),
@@ -432,9 +404,8 @@ class _StepIndicator extends StatelessWidget {
               child: Text(
                 _labels[step],
                 textAlign: TextAlign.center,
-                style: GoogleFonts.cairo(
-                  color: Colors.white.withValues(alpha: isActive ? 1 : 0.7),
-                  fontSize: 11,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: isActive ? 1.0 : 0.7),
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),

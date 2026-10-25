@@ -43,7 +43,14 @@
       "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\assets\\\\images\")",
       "Bash(Out-Null)",
       "Bash(Copy-Item \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\لوغو توريد.jpeg\" \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\assets\\\\images\\\\logo.jpg\" -Force)",
-      "Bash(Write-Host \"Done\")"
+      "Bash(Write-Host \"Done\")",
+      "Bash(dir /s /b)",
+      "PowerShell(\\(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\" -Directory\\) | ForEach-Object { Write-Host $_.Name })",
+      "PowerShell(\\(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\\\\features\" -Directory\\) | ForEach-Object { Write-Host $_.Name })",
+      "PowerShell(\\(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\\\\app\" -Directory\\) | ForEach-Object { Write-Host $_.Name })",
+      "PowerShell(\\(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\\\\core\" -Directory\\) | ForEach-Object { Write-Host $_.Name })",
+      "PowerShell(\\(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\tawrid_app\\\\lib\\\\shared\" -Directory\\) | ForEach-Object { Write-Host $_.Name })",
+      "Bash(Remove-Item *)"
     ]
   }
 }

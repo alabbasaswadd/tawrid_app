@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/core/session/pharmacy_session.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/tawrid_button.dart';
 
 class PhLoginPage extends ConsumerStatefulWidget {
   const PhLoginPage({super.key});
@@ -23,7 +22,6 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  bool _obscure = true;
   bool _loading = false;
 
   @override
@@ -56,9 +54,16 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = context.colors;
+    final heroGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.28)!],
+    );
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: TawridColors.pharmacyGradient),
+        decoration: BoxDecoration(gradient: heroGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -76,98 +81,87 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text('توريد',
-                      style: GoogleFonts.cairo(
-                          color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                      style: context.text.displayMedium?.copyWith(color: Colors.white)),
                   Text('منصة التوريد الدوائي',
-                      style: GoogleFonts.cairo(
-                          color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+                      style: context.text.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85))),
                 ]),
               ),
 
               // Form card
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: TawridColors.background,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: AppSpacing.sm),
-                          Text('دخول الصيدلية',
-                              style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text('أدخل بيانات حسابك للمتابعة',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall),
-                          const SizedBox(height: AppSpacing.lg),
+                    child: CenteredContent(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: AppSpacing.sm),
+                            Text('دخول الصيدلية',
+                                style: context.text.titleLarge),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text('أدخل بيانات حسابك للمتابعة',
+                                style: context.text.bodySmall),
+                            const SizedBox(height: AppSpacing.lg),
 
-                          TextFormField(
-                            controller: _email,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'البريد الإلكتروني',
-                              prefixIcon: Icon(Icons.email_outlined),
+                            AppTextField(
+                              controller: _email,
+                              label: 'البريد الإلكتروني',
+                              hint: 'example@domain.com',
+                              prefixIcon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              validator: (v) =>
+                                  (v == null || v.trim().isEmpty) ? 'البريد مطلوب' : null,
                             ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? 'البريد مطلوب' : null,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: AppSpacing.md),
 
-                          TextFormField(
-                            controller: _password,
-                            obscureText: _obscure,
-                            decoration: InputDecoration(
-                              labelText: 'كلمة المرور',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscure
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                onPressed: () =>
-                                    setState(() => _obscure = !_obscure),
-                              ),
+                            AppTextField(
+                              controller: _password,
+                              label: 'كلمة المرور',
+                              prefixIcon: Icons.lock_outline,
+                              obscure: true,
+                              validator: (v) =>
+                                  (v == null || v.isEmpty) ? 'كلمة المرور مطلوبة' : null,
                             ),
-                            validator: (v) =>
-                                (v == null || v.isEmpty) ? 'كلمة المرور مطلوبة' : null,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
+                            const SizedBox(height: AppSpacing.lg),
 
-                          TawridButton(
-                            label: 'دخول',
-                            onPressed: _loading ? null : _login,
-                            loading: _loading,
-                            gradient: TawridColors.pharmacyGradient,
-                            icon: Icons.login,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
+                            AppButton(
+                              label: 'دخول',
+                              icon: Icons.login,
+                              loading: _loading,
+                              onPressed: _loading ? null : _login,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('ليس لديك حساب؟',
-                                  style: Theme.of(context).textTheme.bodySmall),
-                              TextButton(
-                                onPressed: () => context.go(TRoutes.phRegister),
-                                child: const Text('إنشاء حساب'),
-                              ),
-                            ],
-                          ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('ليس لديك حساب؟',
+                                    style: context.text.bodySmall),
+                                TextButton(
+                                  onPressed: () => context.go(TRoutes.phRegister),
+                                  child: const Text('إنشاء حساب'),
+                                ),
+                              ],
+                            ),
 
-                          const Divider(height: AppSpacing.xl),
+                            const Divider(height: AppSpacing.xl),
 
-                          OutlinedButton.icon(
-                            onPressed: () => context.go(TRoutes.whLogin),
-                            icon: const Icon(Icons.warehouse_outlined),
-                            label: const Text('دخول كمستودع'),
-                          ),
-                        ],
+                            OutlinedButton.icon(
+                              onPressed: () => context.go(TRoutes.whLogin),
+                              icon: const Icon(Icons.warehouse_outlined),
+                              label: const Text('دخول كمستودع'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

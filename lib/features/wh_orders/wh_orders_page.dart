@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
+import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
@@ -20,8 +21,6 @@ Color _statusColor(SupplyOrderStatus s) => switch (s) {
       SupplyOrderStatus.cancelled => TawridColors.statusCancelled,
     };
 
-// الطلبيات الواردة من الصيدليات — قائمة فعلية (بدل الحالة الفارغة الثابتة
-// سابقاً) مع زر تحديث وسحب للتحديث، وإمكانية تحديث حالة الطلبية من بطاقتها.
 class WhOrdersPage extends ConsumerStatefulWidget {
   const WhOrdersPage({super.key});
 
@@ -63,7 +62,8 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _OrderDetailSheet(orderId: order.id, onChanged: _load),
     );
   }
@@ -74,7 +74,10 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
       appBar: AppBar(
         title: const Text('الطلبيات الواردة'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), tooltip: 'تحديث', onPressed: _loading ? null : _load),
+          IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'تحديث',
+              onPressed: _loading ? null : _load),
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
@@ -101,12 +104,14 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
       itemBuilder: (context, index) {
         final order = orders[index];
         final color = _statusColor(order.status);
+        final cs = context.colors;
+        final tk = context.tokens;
         return Container(
           margin: const EdgeInsets.only(bottom: AppSpacing.md),
           decoration: BoxDecoration(
-            color: TawridColors.surface,
+            color: cs.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: TawridColors.border),
+            border: Border.all(color: cs.outline),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -117,7 +122,8 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
                 Container(width: 4, color: color),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -125,9 +131,9 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
                           children: [
                             Expanded(
                               child: Text('طلبية ${order.orderNumber}',
-                                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 15)),
+                                  style: context.text.titleMedium),
                             ),
-                            Icon(Icons.chevron_left, size: 18, color: TawridColors.hint),
+                            Icon(Icons.chevron_left, size: 18, color: tk.hint),
                           ],
                         ),
                         const SizedBox(height: 3),
@@ -139,14 +145,18 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
                               margin: const EdgeInsets.only(left: 5),
                               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                             ),
-                            Text('${order.status.label} · ${order.itemCount} صنف · ${formatSmartTimestamp(order.createdOn)}',
-                                style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.hint)),
+                            Text(
+                              '${order.status.label} · ${order.itemCount} صنف · ${formatSmartTimestamp(order.createdOn)}',
+                              style: context.text.bodySmall
+                                  ?.copyWith(color: tk.hint),
+                            ),
                           ],
                         ),
                         if (order.invoiceCreated) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text('تم إصدار فاتورة لهذه الطلبية',
-                              style: GoogleFonts.cairo(fontSize: 11.5, color: TawridColors.success)),
+                              style: context.text.bodySmall
+                                  ?.copyWith(color: tk.success)),
                         ],
                       ],
                     ),
@@ -188,7 +198,9 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
       _error = null;
     });
     try {
-      final order = await ref.read(supplyOrderRepositoryProvider).getWarehouseOrderById(widget.orderId);
+      final order = await ref
+          .read(supplyOrderRepositoryProvider)
+          .getWarehouseOrderById(widget.orderId);
       setState(() {
         _order = order;
         _loading = false;
@@ -204,7 +216,9 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
   Future<void> _updateStatus(SupplyOrderStatus next) async {
     setState(() => _updating = true);
     try {
-      await ref.read(supplyOrderRepositoryProvider).updateOrderStatus(widget.orderId, next);
+      await ref
+          .read(supplyOrderRepositoryProvider)
+          .updateOrderStatus(widget.orderId, next);
       widget.onChanged();
       if (mounted) {
         AppSnackbar.success(context, 'تم تحديث حالة الطلبية إلى ${next.label}');
@@ -219,6 +233,7 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final tk = context.tokens;
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
       minChildSize: 0.4,
@@ -226,11 +241,15 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
       expand: false,
       builder: (context, scrollController) {
         if (_loading) {
-          return const SafeArea(child: Padding(padding: EdgeInsets.all(AppSpacing.lg), child: LoadingState()));
+          return const SafeArea(
+              child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.lg), child: LoadingState()));
         }
         if (_error != null) {
           return SafeArea(
-            child: Padding(padding: const EdgeInsets.all(AppSpacing.lg), child: ErrorState(message: _error!, onRetry: _load)),
+            child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: ErrorState(message: _error!, onRetry: _load)),
           );
         }
         final order = _order!;
@@ -242,33 +261,36 @@ class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               Text('طلبية ${order.orderNumber}',
-                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 17)),
+                  style: context.text.titleLarge),
               const SizedBox(height: 4),
               Text(formatSmartTimestamp(order.createdOn),
-                  style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
+                  style: context.text.bodySmall?.copyWith(color: tk.hint)),
               const SizedBox(height: AppSpacing.md),
               Text('الحالة: ${order.status.label}',
-                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700, color: _statusColor(order.status))),
+                  style: context.text.titleSmall
+                      ?.copyWith(color: _statusColor(order.status))),
               if (order.notes != null && order.notes!.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(order.notes!, style: GoogleFonts.cairo(fontSize: 13.5)),
+                Text(order.notes!, style: context.text.bodyMedium),
               ],
               const SizedBox(height: AppSpacing.md),
               const Divider(),
               const SizedBox(height: AppSpacing.xs),
-              Text('الأصناف (${order.items.length})', style: Theme.of(context).textTheme.titleSmall),
+              Text('الأصناف (${order.items.length})',
+                  style: context.text.titleSmall),
               const SizedBox(height: AppSpacing.sm),
               for (final item in order.items)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  child: Text('${item.medicineName} — ${item.quantity} ${item.unit}',
-                      style: GoogleFonts.cairo(fontSize: 13.5)),
+                  child: Text(
+                      '${item.medicineName} — ${item.quantity} ${item.unit}',
+                      style: context.text.bodyMedium),
                 ),
               if (nextOptions.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 const Divider(),
                 const SizedBox(height: AppSpacing.sm),
-                Text('تحديث الحالة', style: Theme.of(context).textTheme.titleSmall),
+                Text('تحديث الحالة', style: context.text.titleSmall),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
                   spacing: AppSpacing.sm,
