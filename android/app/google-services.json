@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042281224634",
+    "project_id": "tawrid-6adcd",
+    "storage_bucket": "tawrid-6adcd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042281224634:android:69aba36450b9f6422c2583",
+        "android_client_info": {
+          "package_name": "com.example.tawrid_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChkDWYBrBkDPrgbpjs_AZMnHd6RZVQ0bQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
