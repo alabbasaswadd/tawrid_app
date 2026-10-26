@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 
+import 'package:tawrid_app/shared/widgets/app_states.dart';
+
 import 'app_icon.dart';
 
 // حالات موحّدة متكيّفة مع الثيم — مطابقة لقسم «الحالات» في Figma.
 
+// مؤشّر التحميل واحد في التطبيق كله: هذا الاسم مُبقًى للتوافق مع معرض
+// نظام التصميم، ويفوّض إلى LoadingState حتى لا يبقى مؤشّران مختلفان.
 class UiLoading extends StatelessWidget {
   const UiLoading({super.key});
   @override
-  Widget build(BuildContext context) =>
-      Center(child: CircularProgressIndicator(color: context.colors.primary));
+  Widget build(BuildContext context) => const LoadingState();
 }
 
 // حالة فارغة مفيدة (Figma: حالة فارغة): أيقونة قابلة للتبديل + عنوان +

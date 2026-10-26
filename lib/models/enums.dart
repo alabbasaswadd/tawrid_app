@@ -6,7 +6,9 @@ enum TenderStatus {
   open(1),
   closed(2),
   awarded(3),
-  cancelled(4);
+  cancelled(4),
+  // مسودة عند الصيدلية وحدها — لم تُنشر فلا تصل أي مستودع.
+  draft(5);
 
   const TenderStatus(this.code);
   final int code;
@@ -19,6 +21,7 @@ enum TenderStatus {
         TenderStatus.closed => 'منتهية',
         TenderStatus.awarded => 'تم الترسية',
         TenderStatus.cancelled => 'ملغاة',
+        TenderStatus.draft => 'مسودة',
       };
 }
 
@@ -79,23 +82,8 @@ enum SalesOfferStatus {
       };
 }
 
-enum SalesOfferType {
-  targeted(1),
-  consignment(2),
-  open(3);
-
-  const SalesOfferType(this.code);
-  final int code;
-
-  static SalesOfferType fromCode(int code) =>
-      SalesOfferType.values.firstWhere((e) => e.code == code, orElse: () => SalesOfferType.open);
-
-  String get label => switch (this) {
-        SalesOfferType.targeted => 'موجَّه',
-        SalesOfferType.consignment => 'مبيع (نسبة مقدّمة)',
-        SalesOfferType.open => 'عام',
-      };
-}
+// حُذف SalesOfferType: الباك إند لم يعد يخزّن نوعاً للعرض — المناطق
+// المستهدَفة ومدن خدمة المستودع هي ما يحدّد من يرى العرض.
 
 enum TenderOfferType {
   priceBased(1),
@@ -118,7 +106,9 @@ enum TenderOfferType {
 enum TenderOfferStatus {
   submitted(1),
   accepted(2),
-  rejected(3);
+  rejected(3),
+  // مسودة عند المستودع وحده — لم تُرسَل فلا تصل الصيدلية ولا تُحتسب.
+  draft(4);
 
   const TenderOfferStatus(this.code);
   final int code;
@@ -130,6 +120,7 @@ enum TenderOfferStatus {
         TenderOfferStatus.submitted => 'مُقدَّم',
         TenderOfferStatus.accepted => 'مقبول',
         TenderOfferStatus.rejected => 'مرفوض',
+        TenderOfferStatus.draft => 'مسودة',
       };
 }
 
@@ -195,6 +186,23 @@ enum WarehouseUserRole {
   String get label => switch (this) {
         WarehouseUserRole.admin => 'مدير',
         WarehouseUserRole.staff => 'موظف',
+      };
+}
+
+// ترتيب قائمة العروض المتاحة للصيدلي (OfferSortEnum في الخادم).
+// `newest` هو افتراضي الخادم، فلا يُرسل في الاستعلام.
+enum OfferSort {
+  newest(1),
+  expiringSoon(2),
+  priceLowToHigh(3);
+
+  const OfferSort(this.code);
+  final int code;
+
+  String get label => switch (this) {
+        OfferSort.newest => 'الأحدث',
+        OfferSort.expiringSoon => 'الأقرب انتهاءً',
+        OfferSort.priceLowToHigh => 'الأقل سعراً',
       };
 }
 

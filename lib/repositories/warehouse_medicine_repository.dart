@@ -11,8 +11,19 @@ class WarehouseMedicineRepository {
   WarehouseMedicineRepository(this._api);
   final ApiClient _api;
 
-  Future<List<WarehouseMedicine>> getMine() async {
-    final data = await _api.get(ApiEndpoints.whMedicines) as List;
+  /// [search] يُمرَّر إلى الخادم لا يُطبَّق محلياً: القائمة مُرقَّمة، وما
+  /// لم يصل من صفحاتها لا يمكن البحث فيه على الجهاز.
+  Future<List<WarehouseMedicine>> getMine({
+    String? search,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final raw = await _api.get(ApiEndpoints.whMedicines, queryParameters: {
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      'limit': limit,
+      'offset': offset,
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => WarehouseMedicine.fromJson(e as Map<String, dynamic>)).toList();
   }
 

@@ -19,17 +19,25 @@ String _fmt(double v) => v.toStringAsFixed(v == v.roundToDouble() ? 0 : 2);
 // ورقة تفاصيل عرض بيع — عرض واضح للسعر قبل/بعد والحسم والبونص (صنف/عرض)،
 // مع مشاركة كملف PDF.
 class SalesOfferDetailSheet extends StatefulWidget {
-  const SalesOfferDetailSheet({required this.load, super.key});
+  const SalesOfferDetailSheet({required this.load, this.onWarehouseTap, super.key});
 
   final Future<SalesOfferDetail> Function() load;
 
-  static Future<void> show(BuildContext context, {required Future<SalesOfferDetail> Function() load}) {
+  // جهة الصيدلي تمرّر فتح ملف المستودع؛ جهة المستودع تتركها null فلا يُعرض
+  // اسمه كرابط إلى ملفه العام — لا معنى لذلك وهو صاحب العرض.
+  final void Function(String warehouseId)? onWarehouseTap;
+
+  static Future<void> show(
+    BuildContext context, {
+    required Future<SalesOfferDetail> Function() load,
+    void Function(String warehouseId)? onWarehouseTap,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => SalesOfferDetailSheet(load: load),
+      builder: (_) => SalesOfferDetailSheet(load: load, onWarehouseTap: onWarehouseTap),
     );
   }
 
@@ -117,7 +125,30 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 ],
               ),
               const SizedBox(height: 2),
-              Text('${offer.warehouseName} · ${formatSmartTimestamp(offer.createdOn)}', style: context.text.bodySmall),
+              if (widget.onWarehouseTap == null)
+                Text('${offer.warehouseName} · ${formatSmartTimestamp(offer.createdOn)}',
+                    style: context.text.bodySmall)
+              else
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => widget.onWarehouseTap!(offer.supplyWarehouseId),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(offer.warehouseName,
+                              style: context.text.bodySmall
+                                  ?.copyWith(color: context.colors.primary)),
+                          const SizedBox(width: 2),
+                          Icon(Icons.chevron_left,
+                              size: 15, color: context.colors.primary),
+                        ],
+                      ),
+                    ),
+                    Text(' · ${formatSmartTimestamp(offer.createdOn)}',
+                        style: context.text.bodySmall),
+                  ],
+                ),
               if (offer.description != null && offer.description!.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(offer.description!, style: context.text.bodyMedium),
@@ -127,7 +158,7 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 spacing: AppSpacing.xs,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  _chip(context, Icons.sell_outlined, offer.offerType.label),
+                  _chip(context, Icons.sell_outlined, '${offer.items.length} صنف'),
                   _chip(context, Icons.payments_outlined, offer.currency),
                   _chip(context, Icons.timer_outlined, 'ينتهي ${formatSmartTimestamp(offer.expiresAt)}'),
                 ],
@@ -174,10 +205,13 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 ),
               ],
 
-              if (offer.offerType == SalesOfferType.consignment) ...[
+              // شروط الدفع تُعرض متى وُجدت — لا ترتبط بنوع عرض بعد حذفه
+              if (offer.upfrontPercentage != null ||
+                  offer.paymentPeriodDays != null ||
+                  (offer.consignmentTerms?.isNotEmpty ?? false)) ...[
                 const SizedBox(height: AppSpacing.md),
                 const Divider(),
-                Text('شروط المبيع', style: context.text.titleSmall),
+                Text('شروط الدفع', style: context.text.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
                 if (offer.upfrontPercentage != null)
                   Text('نسبة الدفع المقدَّم: ${offer.upfrontPercentage}%', style: context.text.bodyMedium),
@@ -296,7 +330,7 @@ Future<Uint8List> _buildPdf(SalesOfferDetail offer) async {
       pw.Text(offer.title, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 4),
       pw.Text('المستودع: ${offer.warehouseName} · ${offer.warehousePhone}'),
-      pw.Text('النوع: ${offer.offerType.label} · العملة: ${offer.currency}'),
+      pw.Text('عدد الأصناف: ${offer.items.length} · العملة: ${offer.currency}'),
       pw.Text('ينتهي: ${offer.expiresAt.toString().split(' ').first}'),
       if (offer.description != null && offer.description!.isNotEmpty) ...[
         pw.SizedBox(height: 6),
@@ -326,9 +360,11 @@ Future<Uint8List> _buildPdf(SalesOfferDetail offer) async {
           ),
         ),
       ],
-      if (offer.offerType == SalesOfferType.consignment) ...[
+      if (offer.upfrontPercentage != null ||
+          offer.paymentPeriodDays != null ||
+          (offer.consignmentTerms?.isNotEmpty ?? false)) ...[
         pw.SizedBox(height: 10),
-        pw.Text('شروط المبيع', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        pw.Text('شروط الدفع', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         if (offer.upfrontPercentage != null) pw.Text('نسبة الدفع المقدَّم: ${offer.upfrontPercentage}%'),
         if (offer.paymentPeriodDays != null) pw.Text('مدة السداد: ${offer.paymentPeriodDays} يوماً'),
         if (offer.consignmentTerms != null && offer.consignmentTerms!.isNotEmpty) pw.Text(offer.consignmentTerms!),

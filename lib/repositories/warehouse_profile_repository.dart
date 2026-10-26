@@ -7,6 +7,12 @@ final warehouseProfileRepositoryProvider = Provider<WarehouseProfileRepository>(
   return WarehouseProfileRepository(ref.watch(apiClientProvider));
 });
 
+// المستخدم الحالي ومستودعه. الدور يُقرأ من هنا لا من الجلسة: الجلسة لا
+// تخزّنه، وقد يغيّره مدير آخر بعد تسجيل الدخول فيبقى التوكن قديماً.
+final warehouseMeProvider = FutureProvider<WarehouseMe>(
+  (ref) => ref.watch(warehouseProfileRepositoryProvider).getMe(),
+);
+
 // بيانات المستودع الحالي (الملف الشخصي).
 class WarehouseProfileRepository {
   WarehouseProfileRepository(this._api);

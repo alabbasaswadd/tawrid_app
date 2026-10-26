@@ -8,9 +8,9 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/medicine_catalog_models.dart';
 import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
-import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
 
 // تصفّح/بحث مكتبة الأدوية المركزية (الكاتالوج العام) وإضافة ما يُريده
 // المستودع إلى قائمته — بحث أونلاين حيّ + ترقيم صفحات (تمرير لانهائي) +
@@ -190,50 +190,24 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
 
   @override
   Widget build(BuildContext context) {
-    final hasText = _searchController.text.isNotEmpty;
     return Scaffold(
-      appBar: AppBar(title: const Text('اختيار من الكاتالوج')),
+      appBar: const InnerTopBar(title: 'الكتالوج العام'),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: TextField(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page, AppSpacing.xs, AppSpacing.page, 0),
+            // شريط البحث الموحّد (Figma: شريط بحث) — نفس الحقل في كل
+            // الشاشات: عدسة في بداية القراءة وباركود في الطرف المقابل.
+            child: AppSearchBar(
               controller: _searchController,
-              textInputAction: TextInputAction.search,
+              hint: 'ابحث باسم الدواء أو المادة الفعالة…',
               onChanged: _onSearchChanged,
               onSubmitted: (_) => _runSearch(reset: true),
-              decoration: InputDecoration(
-                hintText: 'ابحث بالاسم أو الباركود (أونلاين)...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (hasText)
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        tooltip: 'مسح',
-                        onPressed: () {
-                          _searchController.clear();
-                          _runSearch(reset: true);
-                        },
-                      ),
-                    Container(
-                      margin: const EdgeInsetsDirectional.only(end: 6),
-                      decoration: BoxDecoration(
-                        color: context.colors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.qr_code_scanner, color: context.colors.primary),
-                        tooltip: 'مسح باركود',
-                        onPressed: _scanBarcode,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              onScanTap: _scanBarcode,
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
             child: Row(
@@ -277,6 +251,19 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
               ],
             ),
           ),
+          if (!_loading && _error == null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, AppSpacing.xs, AppSpacing.page, AppSpacing.sm),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  '${_results.length} دواءً معتمداً في كتالوج المنصّة',
+                  style: context.text.bodySmall
+                      ?.copyWith(color: context.tokens.hint),
+                ),
+              ),
+            ),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -294,8 +281,20 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-      itemCount: _results.length + (_hasMore ? 1 : 0),
+      // +1 للحاشية، و+1 أخرى لمؤشّر تحميل الصفحة التالية إن وُجد.
+      itemCount: _results.length + 1 + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == _results.length && !_hasMore) {
+          return Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              'الكتالوج عام تديره المنصّة. إضافة دواء تُبقيه صنفاً في مخزونك '
+              'لتحدّد سعره وكمياته داخل كل عرض.',
+              style: context.text.labelSmall
+                  ?.copyWith(color: context.tokens.hint),
+            ),
+          );
+        }
         if (index >= _results.length) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -309,21 +308,59 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
         final added = _addedCatalogIds.contains(item.id);
         final adding = _addingNow.contains(item.id);
 
-        return MedicineListTile(
-          displayName: item.displayName,
-          genericName: item.genericName,
-          manufacturerName: item.manufacturerName,
-          dosageForm: item.dosageForm,
-          strength: item.strength,
-          trailing: added
-              ? Icon(Icons.check_circle, color: context.tokens.success)
-              : adding
-                  ? const SizedBox(
-                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : IconButton(
-                      icon: Icon(Icons.add_circle_outline, color: context.colors.primary),
-                      onPressed: () => _add(item),
-                    ),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: AppCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.displayName,
+                          style: context.text.titleSmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 3),
+                      Text(
+                        [
+                          if (item.genericName.isNotEmpty) item.genericName,
+                          item.dosageForm.label,
+                          if (item.strength > 0)
+                            '${item.strength.toStringAsFixed(0)} ملغ',
+                        ].join(' · '),
+                        style: context.text.bodySmall
+                            ?.copyWith(color: context.tokens.hint),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                // ما هو في المخزون شارةٌ لا زرّ: لا إجراء عليه، وإظهار زرّ
+                // مُعطَّل يوحي بإمكان إضافته مرّتين.
+                if (added)
+                  const StatusBadge(
+                      label: 'في مخزونك',
+                      tone: StatusTone.success,
+                      icon: Icons.check)
+                else if (adding)
+                  const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  AppButton(
+                    label: 'أضف لمخزونك',
+                    icon: Icons.add,
+                    fullWidth: false,
+                    onPressed: () => _add(item),
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );

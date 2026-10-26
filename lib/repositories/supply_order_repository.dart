@@ -18,11 +18,12 @@ class SupplyOrderRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    final data = await _api.get(ApiEndpoints.phOrders, queryParameters: {
+    final raw = await _api.get(ApiEndpoints.phOrders, queryParameters: {
       if (status != null) 'status': status.code,
       'limit': limit,
       'offset': offset,
-    }) as List;
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => SupplyOrderSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -47,7 +48,8 @@ class SupplyOrderRepository {
   }
 
   Future<List<StatusHistoryItem>> getOrderHistory(String id) async {
-    final data = await _api.get(ApiEndpoints.phOrderHistory(id)) as List;
+    final raw = await _api.get(ApiEndpoints.phOrderHistory(id));
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => StatusHistoryItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -64,17 +66,26 @@ class SupplyOrderRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    final data = await _api.get(ApiEndpoints.whOrders, queryParameters: {
+    final raw = await _api.get(ApiEndpoints.whOrders, queryParameters: {
       if (status != null) 'status': status.code,
       'limit': limit,
       'offset': offset,
-    }) as List;
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => SupplyOrderSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<SupplyOrderDetail> getWarehouseOrderById(String id) async {
     final data = await _api.get(ApiEndpoints.whOrderById(id)) as Map<String, dynamic>;
     return SupplyOrderDetail.fromJson(data);
+  }
+
+  /// سجلّ حالات الطلب كما يراه المستودع — مسارٌ مختلف عن مسار الصيدلي،
+  /// وتوكنٌ مختلف يختاره الـinterceptor من بادئة «/warehouse/».
+  Future<List<StatusHistoryItem>> getWarehouseOrderHistory(String id) async {
+    final raw = await _api.get(ApiEndpoints.whOrderHistory(id));
+    final data = ApiClient.itemsOf(raw);
+    return data.map((e) => StatusHistoryItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> updateOrderStatus(String id, SupplyOrderStatus newStatus, {String? comment}) {

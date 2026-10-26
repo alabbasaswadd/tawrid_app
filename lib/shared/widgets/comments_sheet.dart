@@ -7,7 +7,7 @@ import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-// ورقة تعليقات عامة — تُعاد استخدامها لأي مصدر تعليقات (عرض بيع، مناقصة،
+// ورقة تعليقات عامة — تُعاد استخدامها لأي مصدر تعليقات (عرض بيع، طلب تسعير،
 // إعلان) عبر تمرير دالّتَي التحميل والإضافة فقط.
 class CommentsSheet extends StatefulWidget {
   const CommentsSheet({

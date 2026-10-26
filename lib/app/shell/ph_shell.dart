@@ -20,7 +20,7 @@ class PhShell extends StatelessWidget {
         items: const [
           AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
           AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبيات'),
-          AppBottomNavItem(icon: AppIcons.fileText, label: 'المناقصات'),
+          AppBottomNavItem(icon: AppIcons.fileText, label: 'التسعير'),
           AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
           AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
         ],

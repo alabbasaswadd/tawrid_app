@@ -10,13 +10,21 @@ import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/features/auth/account_status_page.dart';
 import 'package:tawrid_app/features/auth/login_page.dart';
 import 'package:tawrid_app/features/dev_gallery/design_gallery_page.dart';
+import 'package:tawrid_app/features/notifications/notification_settings_page.dart';
+import 'package:tawrid_app/features/notifications/notifications_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
 import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
+import 'package:tawrid_app/features/ph_offers/ph_offer_detail_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offers_page.dart';
+import 'package:tawrid_app/features/ph_orders/ph_order_detail_page.dart';
 import 'package:tawrid_app/features/ph_orders/ph_orders_page.dart';
+import 'package:tawrid_app/features/ph_tenders/ph_compare_quotations_page.dart';
+import 'package:tawrid_app/features/ph_tenders/ph_create_tender_page.dart';
 import 'package:tawrid_app/features/ph_tenders/ph_tenders_page.dart';
+import 'package:tawrid_app/features/ph_warehouses/ph_warehouse_profile_page.dart';
+import 'package:tawrid_app/features/ph_warehouses/ph_warehouses_page.dart';
 import 'package:tawrid_app/features/splash/splash_page.dart';
 import 'package:tawrid_app/features/wh_auth/wh_login_page.dart';
 import 'package:tawrid_app/features/wh_auth/wh_register_page.dart';
@@ -27,10 +35,13 @@ import 'package:tawrid_app/features/wh_medicines/wh_medicines_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_more_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_profile_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_create_offer_page.dart';
+import 'package:tawrid_app/features/wh_offers/wh_offer_detail_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
+import 'package:tawrid_app/features/wh_orders/wh_order_detail_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_orders_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_submit_tender_offer_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_tenders_page.dart';
+import 'package:tawrid_app/features/wh_users/wh_users_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -110,8 +121,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phMore,
         TRoutes.phListings,
         TRoutes.phMedicineSearch,
+        TRoutes.phNotifications,
+        TRoutes.phNotificationSettings,
+        TRoutes.phWarehouses,
       };
-      if (phRoutes.contains(loc) && !phAuth) return TRoutes.phLogin;
+      // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
+      final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
+              loc.startsWith('/offers/') ||
+              loc.startsWith('/orders/') ||
+              loc.startsWith('/tenders/')) &&
+          loc.split('/').length == 3;
+      if ((phRoutes.contains(loc) || isPhDetailRoute) && !phAuth) {
+        return TRoutes.phLogin;
+      }
 
       const whRoutes = {
         TRoutes.whHome,
@@ -125,10 +147,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whMedicineCatalog,
         TRoutes.whCreateOffer,
         TRoutes.whProfile,
+        TRoutes.whUsers,
+        TRoutes.whNotifications,
+        TRoutes.whNotificationSettings,
       };
       final isSubmitOfferRoute =
           loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
-      if ((whRoutes.contains(loc) || isSubmitOfferRoute) && !whAuth) {
+      // تفاصيل الطلب الوارد: /wh/orders/{id}
+      final isWhOrderDetail =
+          loc.startsWith('/wh/orders/') && loc.split('/').length == 4;
+      // تفاصيل عرض البيع: /wh/offers/{id}
+      final isWhOfferDetail =
+          loc.startsWith('/wh/offers/') && loc.split('/').length == 4;
+      if ((whRoutes.contains(loc) ||
+              isSubmitOfferRoute ||
+              isWhOrderDetail ||
+              isWhOfferDetail) &&
+          !whAuth) {
         return TRoutes.whLogin;
       }
 
@@ -161,6 +196,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const AccountStatusPage(),
       ),
 
+      // الإشعارات — نفس الشاشة للجهتين، و`isWarehouse` يحدّد الصندوق
+      // (وبادئة المسار هي ما يجعل الـinterceptor يرسل التوكن الصحيح).
+      GoRoute(
+        path: TRoutes.phNotifications,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const NotificationsPage(isWarehouse: false),
+      ),
+      GoRoute(
+        path: TRoutes.phNotificationSettings,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const NotificationSettingsPage(isWarehouse: false),
+      ),
+      GoRoute(
+        path: TRoutes.whNotifications,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const NotificationsPage(isWarehouse: true),
+      ),
+      GoRoute(
+        path: TRoutes.whNotificationSettings,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const NotificationSettingsPage(isWarehouse: true),
+      ),
+
       // Pharmacy listings — top-level, pushes over the shell (no nav bar)
       GoRoute(
         path: TRoutes.phListings,
@@ -177,11 +235,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // أدوية المستودع (بلا ربط مخزون) + اختيار من الكاتالوج العام
       GoRoute(
-        path: TRoutes.whMedicines,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const WhMedicinesPage(),
-      ),
-      GoRoute(
         path: TRoutes.whMedicineCatalog,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const WhMedicineCatalogPage(),
@@ -194,7 +247,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const WhCreateOfferPage(),
       ),
 
-      // التقدّم بعرض على مناقصة مفتوحة (من بطاقة المناقصة في الصفحة الرئيسية)
+      // التقدّم بعرض سعر على طلب تسعير مفتوح (من بطاقة الطلب في الصفحة الرئيسية)
       GoRoute(
         path: TRoutes.whSubmitTenderOfferPattern,
         parentNavigatorKey: _rootNavigatorKey,
@@ -217,11 +270,88 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const WhProfilePage(),
       ),
 
+      // تفاصيل عرض البيع عند المستودع — شاشة مالك لا شاشة شراء
+      GoRoute(
+        path: TRoutes.whOfferDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            WhOfferDetailPage(offerId: state.pathParameters['offerId']!),
+      ),
+
+      // تفاصيل الطلب الوارد — شاشة قرار لا ورقة قراءة
+      GoRoute(
+        path: TRoutes.whOrderDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            WhOrderDetailPage(orderId: state.pathParameters['orderId']!),
+      ),
+
+      // لوح طلبات التسعير للمستودع — يُفتح من عدّاد الرئيسية لا من تبويب
+      GoRoute(
+        path: TRoutes.whTenders,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhTendersPage(),
+      ),
+
+      // موظّفو المستودع — للمدير فقط (الخادم يفرضها، والمدخل مخفيّ عن الموظّف)
+      GoRoute(
+        path: TRoutes.whUsers,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhUsersPage(),
+      ),
+
       // البحث عن دواء (الصيدلي) — يُفتح من الرئيسية
       GoRoute(
         path: TRoutes.phMedicineSearch,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const PhMedicineSearchPage(),
+      ),
+
+      // تفاصيل عرض بيع — شاشة كاملة لأن منها تُنشأ الطلبية (اختيار أصناف
+      // وكميات)، لا ورقة سفلية للقراءة.
+      GoRoute(
+        path: TRoutes.phOfferDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            PhOfferDetailPage(offerId: state.pathParameters['offerId']!),
+      ),
+
+      // طلبات التسعير: الإنشاء قبل المقارنة — «create» نصٌّ ثابت ولو
+      // جاء بعده نمط بمعرّف، فالترتيب هنا يمنع التقاط «create» كمعرّف.
+      GoRoute(
+        path: TRoutes.phCreateTender,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhCreateTenderPage(),
+      ),
+      GoRoute(
+        path: TRoutes.phCompareQuotationsPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => PhCompareQuotationsPage(
+          requestId: state.pathParameters['requestId']!,
+        ),
+      ),
+
+      // تفاصيل طلبية التوريد — المسار والأصناف والفاتورة ومشاركة PDF
+      GoRoute(
+        path: TRoutes.phOrderDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            PhOrderDetailPage(orderId: state.pathParameters['orderId']!),
+      ),
+
+      // المستودعات المتاحة + ملف مستودع بعينه (يُفتح أيضاً من اسم المستودع
+      // في ورقة تفاصيل العرض)
+      GoRoute(
+        path: TRoutes.phWarehouses,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhWarehousesPage(),
+      ),
+      GoRoute(
+        path: TRoutes.phWarehouseProfilePattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => PhWarehouseProfilePage(
+          warehouseId: state.pathParameters['warehouseId']!,
+        ),
       ),
 
       // Pharmacy shell
@@ -283,6 +413,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // ترتيب الفروع يحدّد ترتيب التبويبات، فيطابق شريط التنقل:
+          // الرئيسية، العروض، الطلبات، أدويتي، حسابي.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: TRoutes.whOffers,
+                builder: (_, _) => const WhOffersPage(),
+              ),
+            ],
+          ),
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -294,16 +434,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.whTenders,
-                builder: (_, _) => const WhTendersPage(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: TRoutes.whOffers,
-                builder: (_, _) => const WhOffersPage(),
+                path: TRoutes.whMedicines,
+                builder: (_, _) => const WhMedicinesPage(),
               ),
             ],
           ),

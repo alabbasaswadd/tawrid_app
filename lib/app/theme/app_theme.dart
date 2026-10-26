@@ -180,6 +180,28 @@ abstract final class AppTheme {
 
       dividerTheme: DividerThemeData(color: outline, thickness: 1, space: 1),
 
+      // بلا هذا يأخذ كل bottom sheet سطحَ M3 الافتراضي المُلوَّن
+      // (surfaceContainerLow + صبغة ارتفاع)، فيبدو أغمق وأكثر شفافيةً من
+      // بطاقات الشاشة — وكانت الأوراق تختلف فيما بينها حسب ما يمرّره كل
+      // موضع استدعاء. التوحيد هنا يجعلها كلها على سطح البطاقات نفسه.
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: surface,
+        modalBarrierColor: Colors.black54,
+        elevation: 0,
+        modalElevation: 0,
+        showDragHandle: false,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(

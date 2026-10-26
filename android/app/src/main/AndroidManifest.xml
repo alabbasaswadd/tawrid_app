@@ -2,6 +2,17 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
+    <!-- الموقع: إجباري عند إنشاء حساب الصيدلية. COARSE إلى جانب FINE حتى
+         يعمل الالتقاط ولو منح المستخدم الدقة التقريبية فقط (أندرويد ١٢+
+         يتيح له هذا الخيار). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-feature android:name="android.hardware.location" android:required="false"/>
+
+    <!-- الإشعارات الفورية: أندرويد ١٣+ يشترط إذناً صريحاً لعرضها. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
         android:label="tawrid_app"
         android:name="${applicationName}"

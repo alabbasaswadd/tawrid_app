@@ -97,7 +97,8 @@
       "mcp__plugin_dart-flutter_dart-mcp-server__hot_reload",
       "Bash(python -)",
       "PowerShell($conns = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue; $procIds = $conns | Select-Object -ExpandProperty OwningProcess -Unique; foreach \\($procId in $procIds\\) { $p = Get-Process -Id $procId -ErrorAction SilentlyContinue; Write-Output \"killing $procId $\\($p.ProcessName\\)\"; Stop-Process -Id $procId -Force -Confirm:$false })",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git push *)"
     ]
   }
 }

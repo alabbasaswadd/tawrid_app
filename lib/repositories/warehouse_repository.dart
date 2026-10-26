@@ -14,7 +14,16 @@ class WarehouseRepository {
   final ApiClient _api;
 
   Future<List<WarehousePicker>> getActiveWarehouses() async {
-    final data = await _api.get(ApiEndpoints.supplyWarehouses) as List;
+    final raw = await _api.get(ApiEndpoints.supplyWarehouses);
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => WarehousePicker.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ملف مستودع بعينه كما تراه الصيدلية. لعروضه نفسها:
+  /// `GET /offers?warehouseId={id}`.
+  Future<WarehouseProfile> getProfile(String id) async {
+    final data =
+        await _api.get(ApiEndpoints.supplyWarehouseById(id)) as Map<String, dynamic>;
+    return WarehouseProfile.fromJson(data);
   }
 }

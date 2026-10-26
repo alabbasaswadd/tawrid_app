@@ -65,6 +65,11 @@ class ApiClient {
     return _unwrap(res.data);
   }
 
+  Future<dynamic> patch(String path, {dynamic data}) async {
+    final res = await _dio.patch(path, data: data);
+    return _unwrap(res.data);
+  }
+
   Future<void> delete(String path) async {
     await _dio.delete(path);
   }
@@ -74,6 +79,27 @@ class ApiClient {
       return data['data'];
     }
     return data;
+  }
+
+  /// عناصر قائمة مهما كان شكل الاستجابة.
+  ///
+  /// قوائم التصفّح في الخادم تُرجع غلاف ترقيم
+  /// `{items, totalCount, page, pageSize, totalPages, hasPrevious, hasNext}`
+  /// بدل مصفوفة عارية، بينما القوائم المرجعية (المحافظات، المستودعات
+  /// النشطة، مناطق الخدمة، التعليقات، سجلّ الحالات) تبقى مصفوفة.
+  /// هذه الدالة تقبل الشكلين فلا تنكسر الشاشة إن تغيّر أحدهما.
+  static List<dynamic> itemsOf(dynamic data) {
+    if (data is List) return data;
+    if (data is Map<String, dynamic>) return (data['items'] as List?) ?? const [];
+    return const [];
+  }
+
+  /// العدد الكلي إن كانت الاستجابة مُرقَّمة، وإلا طول المصفوفة.
+  static int totalOf(dynamic data) {
+    if (data is Map<String, dynamic> && data['totalCount'] is int) {
+      return data['totalCount'] as int;
+    }
+    return itemsOf(data).length;
   }
 }
 

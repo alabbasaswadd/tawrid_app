@@ -42,17 +42,19 @@ class ListingRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    final data = await _api.get(ApiEndpoints.phMyListings, queryParameters: {
+    final raw = await _api.get(ApiEndpoints.phMyListings, queryParameters: {
       if (status != null) 'status': status.code,
       'limit': limit,
       'offset': offset,
-    }) as List;
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => ListingSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<List<ListingSummary>> getPublicListings({int limit = 20, int offset = 0}) async {
-    final data = await _api.get(ApiEndpoints.phPublicListings,
-        queryParameters: {'limit': limit, 'offset': offset}) as List;
+    final raw = await _api.get(ApiEndpoints.phPublicListings,
+        queryParameters: {'limit': limit, 'offset': offset});
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => ListingSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -72,7 +74,8 @@ class ListingRepository {
   }
 
   Future<List<OfferComment>> getPharmacyComments(String id) async {
-    final data = await _api.get(ApiEndpoints.phListingComments(id)) as List;
+    final raw = await _api.get(ApiEndpoints.phListingComments(id));
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => OfferComment.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -85,11 +88,12 @@ class ListingRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    final data = await _api.get(ApiEndpoints.whListings, queryParameters: {
+    final raw = await _api.get(ApiEndpoints.whListings, queryParameters: {
       'governorate': ?governorate,
       'limit': limit,
       'offset': offset,
-    }) as List;
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => ListingSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -105,7 +109,8 @@ class ListingRepository {
   }
 
   Future<List<OfferComment>> getWarehouseComments(String id) async {
-    final data = await _api.get(ApiEndpoints.whListingComments(id)) as List;
+    final raw = await _api.get(ApiEndpoints.whListingComments(id));
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => OfferComment.fromJson(e as Map<String, dynamic>)).toList();
   }
 

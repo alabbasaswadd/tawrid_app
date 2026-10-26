@@ -13,9 +13,33 @@ class SalesOfferRepository {
   final ApiClient _api;
 
   // ── جهة الصيدلي (تصفّح) ──────────────────────────────────────────────
-  Future<List<SalesOfferSummary>> getAvailableOffers({int limit = 20, int offset = 0}) async {
-    final data = await _api.get(ApiEndpoints.phOffers,
-        queryParameters: {'limit': limit, 'offset': offset}) as List;
+  // كل معاملات التصفية اختيارية، وغيابها يعيد السلوك السابق حرفياً — هكذا
+  // يفرضها الخادم أيضاً، فلا تنكسر مواضع الاستدعاء القائمة.
+  Future<List<SalesOfferSummary>> getAvailableOffers({
+    String? search,
+    String? warehouseId,
+    bool? hasBonus,
+    int? expiringWithinDays,
+    double? minUnitPrice,
+    double? maxUnitPrice,
+    DosageForm? dosageForm,
+    OfferSort sort = OfferSort.newest,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final raw = await _api.get(ApiEndpoints.phOffers, queryParameters: {
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      'warehouseId': ?warehouseId,
+      'hasBonus': ?hasBonus,
+      'expiringWithinDays': ?expiringWithinDays,
+      'minUnitPrice': ?minUnitPrice,
+      'maxUnitPrice': ?maxUnitPrice,
+      if (dosageForm != null) 'dosageForm': dosageForm.code,
+      if (sort != OfferSort.newest) 'sort': sort.code,
+      'limit': limit,
+      'offset': offset,
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => SalesOfferSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -31,7 +55,8 @@ class SalesOfferRepository {
   }
 
   Future<List<OfferComment>> getPharmacyComments(String id) async {
-    final data = await _api.get(ApiEndpoints.phOfferComments(id)) as List;
+    final raw = await _api.get(ApiEndpoints.phOfferComments(id));
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => OfferComment.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -42,7 +67,6 @@ class SalesOfferRepository {
   Future<SalesOfferDetail> createOffer({
     required String title,
     String? description,
-    required SalesOfferType offerType,
     required DateTime startsAt,
     required DateTime expiresAt,
     String currency = 'SYP',
@@ -61,7 +85,6 @@ class SalesOfferRepository {
     final data = await _api.post(ApiEndpoints.whSalesOffers, data: {
       'title': title,
       'description': description,
-      'offerType': offerType.code,
       'startsAt': startsAt.toUtc().toIso8601String(),
       'expiresAt': expiresAt.toUtc().toIso8601String(),
       'currency': currency,
@@ -85,11 +108,12 @@ class SalesOfferRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    final data = await _api.get(ApiEndpoints.whSalesOffers, queryParameters: {
+    final raw = await _api.get(ApiEndpoints.whSalesOffers, queryParameters: {
       if (status != null) 'status': status.code,
       'limit': limit,
       'offset': offset,
-    }) as List;
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => SalesOfferSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -112,7 +136,8 @@ class SalesOfferRepository {
   }
 
   Future<List<OfferComment>> getWarehouseComments(String id) async {
-    final data = await _api.get(ApiEndpoints.whSalesOfferComments(id)) as List;
+    final raw = await _api.get(ApiEndpoints.whSalesOfferComments(id));
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => OfferComment.fromJson(e as Map<String, dynamic>)).toList();
   }
 

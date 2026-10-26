@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
-import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
@@ -27,18 +26,24 @@ class WhCreateOfferPage extends ConsumerStatefulWidget {
 class _OfferItemDraft {
   _OfferItemDraft(this.medicine)
       : unit = TextEditingController(text: 'علبة'),
+        // الكمية المعروضة: سقف ما يستطيع الصيدلي طلبه من هذا الصنف.
+        // كانت مثبّتة على ١ في الشيفرة فكان كل عرض يقول «المتاح: عبوة
+        // واحدة» ولا يسمح بطلب أكثر — عرضٌ بلا معنى.
+        quantity = TextEditingController(text: '100'),
         unitPrice = TextEditingController(),
         discount = TextEditingController(),
         bonus = TextEditingController();
 
   final WarehouseMedicine medicine;
   final TextEditingController unit;
+  final TextEditingController quantity;
   final TextEditingController unitPrice;
   final TextEditingController discount;
   final TextEditingController bonus;
 
   void dispose() {
     unit.dispose();
+    quantity.dispose();
     unitPrice.dispose();
     discount.dispose();
     bonus.dispose();
@@ -53,7 +58,6 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   final _paymentPeriodDays = TextEditingController();
   final _consignmentTerms = TextEditingController();
 
-  SalesOfferType _offerType = SalesOfferType.open;
   DateTime _startsAt = DateTime.now();
   DateTime _expiresAt = DateTime.now().add(const Duration(days: 7));
   String _currency = 'SYP';
@@ -154,7 +158,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                 id: '',
                 medicineName: d.medicine.displayName,
                 catalogItemId: d.medicine.catalogItemId,
-                quantity: 1,
+                quantity: double.tryParse(d.quantity.text.trim()) ?? 1,
                 unit: d.unit.text.trim(),
                 unitPrice: double.tryParse(d.unitPrice.text) ?? 0,
                 discountPercentage:
@@ -166,7 +170,6 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
       await ref.read(salesOfferRepositoryProvider).createOffer(
             title: _title.text.trim(),
             description: _description.text.trim().isEmpty ? null : _description.text.trim(),
-            offerType: _offerType,
             startsAt: _startsAt,
             expiresAt: _expiresAt,
             currency: _currency,
@@ -189,7 +192,10 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
           );
 
       if (mounted) {
-        AppSnackbar.success(context, 'تم إنشاء العرض بنجاح');
+        // الخادم يُنشئ العرض بحالة «مسودة» لا «منشور»، فقول «تم الإنشاء»
+        // وحده يترك المستودع ينتظر طلبيات على عرض لا تراه أي صيدلية.
+        AppSnackbar.success(
+            context, 'حُفظ العرض كمسودة — اضغط «نشر» ليصل الصيدليات');
         context.pop();
       }
     } catch (e) {
@@ -203,12 +209,18 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('عرض بيع جديد')),
+      // SingleChildScrollView لا ListView: الأخيرة تُزيل الحقول الخارجة عن
+      // الشاشة من الشجرة، فتُلغى تسجيلها في الـForm ويتخطّاها `validate()`
+      // ويُرجع true. كان الأثر أن عرضاً بعنوان فارغ يُرسَل ويردّه الخادم
+      // بـ400 — الحقل كان قد اختفى حين وصل المستخدم إلى زر الحفظ.
       body: Form(
         key: _formKey,
-        child: ListView(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             TextFormField(
               controller: _title,
               decoration: const InputDecoration(labelText: 'عنوان العرض'),
@@ -219,15 +231,6 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
               controller: _description,
               maxLines: 2,
               decoration: const InputDecoration(labelText: 'وصف (اختياري)'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<SalesOfferType>(
-              initialValue: _offerType,
-              decoration: const InputDecoration(labelText: 'نوع العرض'),
-              items: SalesOfferType.values
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
-                  .toList(),
-              onChanged: (v) => setState(() => _offerType = v ?? SalesOfferType.open),
             ),
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
@@ -255,16 +258,16 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
               regions: _targetRegions,
               onChanged: (v) => setState(() => _targetRegions = v),
             ),
-            if (_offerType == SalesOfferType.targeted) ...[
-              const SizedBox(height: AppSpacing.sm),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('عام لكل صيدليات المنطقة'),
-                value: _isPublicInRegion,
-                onChanged: (v) => setState(() => _isPublicInRegion = v),
-              ),
-            ],
-            if (_offerType == SalesOfferType.consignment) ...[
+            const SizedBox(height: AppSpacing.sm),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('متاح لكل صيدليات المناطق المستهدفة'),
+              subtitle: const Text('إيقافه يقصر العرض على الصيدليات المحددة'),
+              value: _isPublicInRegion,
+              onChanged: (v) => setState(() => _isPublicInRegion = v),
+            ),
+            // شروط الدفع صارت اختيارية لكل عرض بعد حذف «نوع العرض»
+            ...[
               const SizedBox(height: AppSpacing.md),
               TextFormField(
                 controller: _upfrontPercentage,
@@ -371,7 +374,8 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
               loading: _saving,
               onPressed: _saving ? null : _submit,
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -422,10 +426,35 @@ class _OfferItemCard extends StatelessWidget {
                 ),
               ],
             ),
-            TextFormField(
-              controller: draft.unit,
-              decoration: const InputDecoration(labelText: 'الوحدة', isDense: true),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: draft.quantity,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'الكمية المتاحة', isDense: true),
+                    validator: (v) {
+                      final q = double.tryParse((v ?? '').trim());
+                      // الخادم يشترط Quantity > 0، فنمنع الرفض هنا بدل
+                      // ترك المستخدم يصطدم بـ400 بعد ملء النموذج كاملاً.
+                      if (q == null || q <= 0) return 'كمية غير صالحة';
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: TextFormField(
+                    controller: draft.unit,
+                    decoration:
+                        const InputDecoration(labelText: 'الوحدة', isDense: true),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.xs),
             Row(
