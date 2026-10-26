@@ -41,16 +41,26 @@ class AppButton extends StatelessWidget {
               color: spinnerColor,
             ),
           )
+        // سطر واحد دائماً: زرّان متجاوران في شريط سفلي يُضيّقان بعضهما،
+        // فكان «حفظ كمسودة» ينكسر سطرين ويخرج عن ارتفاع الزرّ.
         : (icon != null
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(icon, size: 18),
                     const SizedBox(width: 8),
-                    Text(label),
+                    Flexible(
+                      child: Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center),
+                    ),
                   ],
                 )
-              : Text(label));
+              : Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center));
 
     final Widget btn = switch (variant) {
       AppButtonVariant.filled => FilledButton(onPressed: onTap, child: child),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,12 +10,13 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
 
-// أدوية المستودع — مرجعٌ فقط (أيّ أدوية يتعامل بها المستودع)، بلا ربط
-// مخزون/كميات (قرار نطاق مقصود حالياً). تُغذّي قائمة اختيار الأدوية عند
-// إنشاء عرض بيع. بحث فوري + عدّاد علوي لتصفّح أسرع عند كِبر القائمة.
+// أدوية مستودعي (Figma: المستودع / أدوية مستودعي).
+//
+// قائمة تعريفية لا مخزون: الأسعار والكميات تُحدَّد داخل كل عرض بيع، وما
+// هنا هو «أي أصناف يتعامل بها مستودعي» ليُبنى منها العرض.
 class WhMedicinesPage extends ConsumerStatefulWidget {
   const WhMedicinesPage({super.key});
 
@@ -22,10 +25,11 @@ class WhMedicinesPage extends ConsumerStatefulWidget {
 }
 
 class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
-  final _search = TextEditingController();
-  List<WarehouseMedicine>? _medicines;
+  List<WarehouseMedicine>? _items;
   bool _loading = true;
   String? _error;
+  String _query = '';
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -35,22 +39,26 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
 
   @override
   void dispose() {
-    _search.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
     setState(() {
-      _loading = true;
+      if (!silent) _loading = true;
       _error = null;
     });
     try {
-      final list = await ref.read(warehouseMedicineRepositoryProvider).getMine();
+      final list = await ref
+          .read(warehouseMedicineRepositoryProvider)
+          .getMine(search: _query, limit: 50);
+      if (!mounted) return;
       setState(() {
-        _medicines = list;
+        _items = list;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = ApiException.from(e).message;
         _loading = false;
@@ -58,151 +66,228 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
     }
   }
 
-  Future<void> _openCatalog() async {
-    await context.push(TRoutes.whMedicineCatalog);
-    _load();
+  void _onSearchChanged(String v) {
+    _debounce?.cancel();
+    // نصف ثانية: كتابة اسم دواء عربي لا تستحق رحلة شبكة لكل حرف.
+    _debounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      setState(() => _query = v);
+      _load(silent: true);
+    });
   }
 
-  Future<void> _confirmRemove(WarehouseMedicine m) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _remove(WarehouseMedicine m) async {
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('حذف دواء',
-            style: Theme.of(ctx).textTheme.titleMedium),
-        content: Text('إزالة "${m.displayName}" من قائمة أدوية مستودعك؟',
-            style: Theme.of(ctx).textTheme.bodyMedium),
+        title: const Text('إزالة من أدويتي'),
+        content: Text(
+            'سيُزال «${m.displayName}» من قائمة أدوية مستودعك. لا يؤثر ذلك '
+            'في العروض المنشورة التي تضمّه.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء')),
+              child: const Text('تراجع')),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error),
+            style: FilledButton.styleFrom(backgroundColor: context.colors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
+            child: const Text('إزالة'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (ok != true) return;
 
     try {
       await ref.read(warehouseMedicineRepositoryProvider).remove(m.id);
-      if (mounted) _load();
+      if (!mounted) return;
+      AppSnackbar.success(context, 'أُزيل الدواء من قائمتك');
+      await _load(silent: true);
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     }
   }
 
-  List<WarehouseMedicine> get _filtered {
-    final list = _medicines ?? [];
-    final q = _search.text.trim();
-    if (q.isEmpty) return list;
-    return list
-        .where((m) =>
-            m.displayName.contains(q) ||
-            m.genericName.contains(q) ||
-            m.manufacturerName.contains(q))
-        .toList();
+  // الماسح حقيقي (mobile_scanner): يُعيد الرمز نصاً فنمرّره إلى البحث
+  // نفسه — الباركود مجرّد طريقة أسرع لكتابة ما يُبحث عنه.
+  Future<void> _scanBarcode() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+    // لا حقل نصّي مرتبط — يُمرَّر الرمز مباشرة إلى البحث.
+    _onSearchChanged(code);
   }
 
   @override
   Widget build(BuildContext context) {
-    final tk = context.tokens;
+    final cs = context.colors;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('أدويتي'),
+        title: const Text('أدوية مستودعي'),
         actions: [
-          IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'تحديث',
-              onPressed: _loading ? null : _load),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openCatalog,
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة دواء'),
-      ),
-      body: Column(
-        children: [
+          // زر الكتالوج العام: حدٌّ بلون العلامة — ثانوي لا رئيسي.
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-            child: TextField(
-              controller: _search,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'ابحث في أدويتك...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () => setState(_search.clear),
-                      ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Material(
+              color: Colors.transparent,
+              shape: StadiumBorder(side: BorderSide(color: cs.primary)),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () async {
+                  await context.push(TRoutes.whMedicineCatalog);
+                  if (mounted) await _load(silent: true);
+                },
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('الكتالوج العام',
+                          style: context.text.bodySmall
+                              ?.copyWith(color: cs.primary)),
+                      const SizedBox(width: 6),
+                      AppIcon(AppIcons.package, size: 15, color: cs.primary),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-          if (!_loading && _error == null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-              child: Row(
-                children: [
-                  Text('${_filtered.length} من ${_medicines?.length ?? 0} دواء',
-                      style: context.text.bodySmall
-                          ?.copyWith(color: tk.hint)),
-                ],
-              ),
-            ),
-          Expanded(child: _buildBody()),
         ],
       ),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }
 
   Widget _buildBody() {
+    final tk = context.tokens;
+    final items = _items ?? const <WarehouseMedicine>[];
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.xs, AppSpacing.page, 0),
+          child: AppSearchBar(
+            hint: 'ابحث في أصناف المخزون…',
+            onChanged: _onSearchChanged,
+            onScanTap: _scanBarcode,
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.sm),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              _loading
+                  ? 'جارٍ التحميل…'
+                  : '${items.length} ${items.length == 1 ? 'دواء' : 'دواءً'} في مستودعك',
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+            ),
+          ),
+        ),
+
+        Expanded(child: _buildList(items)),
+      ],
+    );
+  }
+
+  Widget _buildList(List<WarehouseMedicine> items) {
     if (_loading) return const LoadingState();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
-    final all = _medicines ?? [];
-    if (all.isEmpty) {
-      return const EmptyState(
-        message:
-            'لا توجد أدوية في مستودعك بعد\nاضغط "إضافة دواء" للاختيار من الكاتالوج',
-        icon: Icons.medication_outlined,
+    if (items.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: AppSpacing.x3l),
+          EmptyState(
+            icon: Icons.medication_outlined,
+            message: _query.trim().isNotEmpty
+                ? 'لا دواء يطابق بحثك في أدويتك'
+                : 'لا أدوية بعد — أضفها من «الكتالوج العام» لتبني عليها عروضك',
+          ),
+        ],
       );
     }
 
-    final medicines = _filtered;
-    if (medicines.isEmpty) {
-      return const EmptyState(
-          message: 'لا نتائج مطابقة للبحث',
-          icon: Icons.search_off_outlined);
-    }
+    final tk = context.tokens;
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md, AppSpacing.sm, AppSpacing.md, 88),
-        itemCount: medicines.length,
-        itemBuilder: (context, index) {
-          final m = medicines[index];
-          return MedicineListTile(
-            displayName: m.displayName,
-            genericName: m.genericName,
-            manufacturerName: m.manufacturerName,
-            dosageForm: m.dosageForm,
-            strength: m.strength,
-            trailing: IconButton(
-              icon: Icon(Icons.delete_outline,
-                  color: context.colors.error),
-              onPressed: () => _confirmRemove(m),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page, 0, AppSpacing.page, AppSpacing.x3l),
+      children: [
+        for (final m in items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: _MedicineCard(medicine: m, onRemove: () => _remove(m)),
+          ),
+        const SizedBox(height: AppSpacing.xs),
+        // توضيح ما تعنيه القائمة فعلاً — ليست مخزوناً بكميات وأسعار.
+        Text(
+          'أدوية مستودعك بيانات تعريفية من الكتالوج الوطني تُبنى عليها عروضك. '
+          'الأسعار والكميات تُحدَّد داخل كل عرض بيع.',
+          style: context.text.labelSmall?.copyWith(color: tk.hint),
+        ),
+      ],
+    );
+  }
+}
+
+class _MedicineCard extends StatelessWidget {
+  const _MedicineCard({required this.medicine, required this.onRemove});
+
+  final WarehouseMedicine medicine;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final m = medicine;
+
+    final spec = [
+      if (m.genericName.isNotEmpty) m.genericName,
+      m.dosageForm.label,
+      if (m.manufacturerName.isNotEmpty) m.manufacturerName,
+    ].join(' · ');
+
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(m.displayName,
+                    style: context.text.titleSmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text(spec,
+                    style: context.text.bodySmall?.copyWith(color: tk.hint),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                if (m.sakoCode.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text('كود ساكو: ${m.sakoCode}',
+                      style: context.text.labelSmall?.copyWith(color: tk.hint)),
+                ],
+              ],
             ),
-          );
-        },
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          TextButton.icon(
+            onPressed: onRemove,
+            icon: Icon(Icons.close, size: 16, color: cs.error),
+            label: Text('إزالة', style: TextStyle(color: cs.error)),
+          ),
+        ],
       ),
     );
   }

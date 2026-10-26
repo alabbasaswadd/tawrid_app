@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
@@ -8,47 +7,67 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/tender_models.dart';
 import 'package:tawrid_app/repositories/tender_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-// التقدّم بعرض على مناقصة مفتوحة — يصل إليها المستودع من بطاقة المناقصة في
-// الصفحة الرئيسية. لا يرى المستودع أي معلومة عن المنافسين هنا أو في أي
-// مكان آخر.
-class WhSubmitTenderOfferPage extends ConsumerStatefulWidget {
-  const WhSubmitTenderOfferPage({required this.tenderId, super.key});
-  final String tenderId;
-
-  @override
-  ConsumerState<WhSubmitTenderOfferPage> createState() => _WhSubmitTenderOfferPageState();
-}
-
+/// مسوّدة تسعير صنف واحد — ثلاثة حقول وملاحظة.
 class _ItemDraft {
   _ItemDraft(this.item)
       : unitPrice = TextEditingController(),
         bonusPercentage = TextEditingController(),
-        extraBonus = TextEditingController();
+        extraBonus = TextEditingController(),
+        notes = TextEditingController();
 
   final TenderItem item;
   final TextEditingController unitPrice;
   final TextEditingController bonusPercentage;
   final TextEditingController extraBonus;
+  final TextEditingController notes;
+
+  bool get isPriced =>
+      unitPrice.text.trim().isNotEmpty ||
+      bonusPercentage.text.trim().isNotEmpty ||
+      extraBonus.text.trim().isNotEmpty;
 
   void dispose() {
     unitPrice.dispose();
     bonusPercentage.dispose();
     extraBonus.dispose();
+    notes.dispose();
   }
+
+  Map<String, dynamic> toPayload() => {
+        'tenderItemId': item.id,
+        'unitPrice': double.tryParse(unitPrice.text.trim()),
+        'bonusPercentage': double.tryParse(bonusPercentage.text.trim()),
+        'extraBonus': double.tryParse(extraBonus.text.trim()),
+        'notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
+      };
 }
 
-class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _notes = TextEditingController();
+// تقديم عرض سعر (Figma: المستودع / تقديم عرض سعر).
+//
+// لا يرى المستودع هنا — ولا في أي مكان — شيئاً عن عروض منافسيه: الخادم
+// لا يُرجعها أصلاً قبل انتهاء المهلة.
+class WhSubmitTenderOfferPage extends ConsumerStatefulWidget {
+  const WhSubmitTenderOfferPage({required this.tenderId, super.key});
+  final String tenderId;
 
-  TenderDetail? _tender;
+  @override
+  ConsumerState<WhSubmitTenderOfferPage> createState() =>
+      _WhSubmitTenderOfferPageState();
+}
+
+class _WhSubmitTenderOfferPageState
+    extends ConsumerState<WhSubmitTenderOfferPage> {
+  TenderDetail? _request;
+  final List<_ItemDraft> _drafts = [];
+  final _notes = TextEditingController();
+  TenderOfferType _type = TenderOfferType.mixed;
+
   bool _loading = true;
-  String? _error;
-  TenderOfferType _offerType = TenderOfferType.priceBased;
-  List<_ItemDraft> _items = [];
   bool _saving = false;
+  String? _error;
 
   @override
   void initState() {
@@ -58,10 +77,10 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
 
   @override
   void dispose() {
-    _notes.dispose();
-    for (final d in _items) {
+    for (final d in _drafts) {
       d.dispose();
     }
+    _notes.dispose();
     super.dispose();
   }
 
@@ -71,14 +90,22 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
       _error = null;
     });
     try {
-      final tender =
-          await ref.read(tenderRepositoryProvider).getTenderDetailsForWarehouse(widget.tenderId);
+      final t = await ref
+          .read(tenderRepositoryProvider)
+          .getTenderDetailsForWarehouse(widget.tenderId);
+      if (!mounted) return;
       setState(() {
-        _tender = tender;
-        _items = tender.items.map(_ItemDraft.new).toList();
+        _request = t;
+        for (final d in _drafts) {
+          d.dispose();
+        }
+        _drafts
+          ..clear()
+          ..addAll(t.items.map(_ItemDraft.new));
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = ApiException.from(e).message;
         _loading = false;
@@ -86,34 +113,37 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
     }
   }
 
-  Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  bool get _showPrice =>
+      _type == TenderOfferType.priceBased || _type == TenderOfferType.mixed;
+  bool get _showBonus =>
+      _type == TenderOfferType.bonusBased || _type == TenderOfferType.mixed;
+
+  Future<void> _submit({required bool asDraft}) async {
+    final priced = _drafts.where((d) => d.isPriced).toList();
+
+    // المسودة تُحفظ ناقصة عمداً، أمّا الإرسال فيحتاج صنفاً مسعَّراً واحداً
+    // على الأقل — عرضٌ فارغ لا معنى له عند الصيدلية.
+    if (!asDraft && priced.isEmpty) {
+      AppSnackbar.error(context, 'سعّر صنفاً واحداً على الأقل قبل الإرسال');
+      return;
+    }
 
     setState(() => _saving = true);
     try {
-      final items = _items
-          .map((d) => {
-                'tenderItemId': d.item.id,
-                'unitPrice': d.unitPrice.text.trim().isEmpty ? null : double.tryParse(d.unitPrice.text),
-                'bonusPercentage': d.bonusPercentage.text.trim().isEmpty
-                    ? null
-                    : double.tryParse(d.bonusPercentage.text),
-                'extraBonus':
-                    d.extraBonus.text.trim().isEmpty ? null : double.tryParse(d.extraBonus.text),
-              })
-          .toList();
-
       await ref.read(tenderRepositoryProvider).submitOffer(
             tenderId: widget.tenderId,
-            offerType: _offerType.code,
+            offerType: _type.code,
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-            items: items,
+            items: priced.map((d) => d.toPayload()).toList(),
+            asDraft: asDraft,
           );
-
-      if (mounted) {
-        AppSnackbar.success(context, 'تم تقديم عرضك على المناقصة');
-        context.pop();
-      }
+      if (!mounted) return;
+      AppSnackbar.success(
+          context,
+          asDraft
+              ? 'حُفظت المسودة — لا تصل الصيدلية حتى ترسلها'
+              : 'أُرسل عرض السعر');
+      Navigator.pop(context, true);
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
@@ -124,8 +154,9 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('التقدّم بعرض')),
+      appBar: const InnerTopBar(title: 'تقديم عرض سعر'),
       body: _buildBody(),
+      bottomNavigationBar: _request == null ? null : _buildActions(),
     );
   }
 
@@ -133,103 +164,226 @@ class _WhSubmitTenderOfferPageState extends ConsumerState<WhSubmitTenderOfferPag
     if (_loading) return const LoadingState();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
-    final tender = _tender!;
-    final showPrice = _offerType == TenderOfferType.priceBased || _offerType == TenderOfferType.mixed;
-    final showBonus = _offerType == TenderOfferType.bonusBased || _offerType == TenderOfferType.mixed;
+    final t = _request!;
+    final tk = context.tokens;
+    final area = [t.tenantGovernorate, t.tenantCity]
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .join(' — ');
 
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(tender.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text('رقم المناقصة: ${tender.tenderNumber}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          if (tender.description != null && tender.description!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(tender.description!,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          DropdownButtonFormField<TenderOfferType>(
-            initialValue: _offerType,
-            decoration: const InputDecoration(labelText: 'نوع العرض'),
-            items: TenderOfferType.values
-                .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
-                .toList(),
-            onChanged: (v) => setState(() => _offerType = v ?? TenderOfferType.priceBased),
+          // رأس الطلب على سطح باهت — سياق لا بطاقة قرار.
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: tk.brandSurface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.title, style: context.text.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  [
+                    '${t.items.length} ${t.items.length == 1 ? 'صنف' : 'أصناف'}',
+                    if (area.isNotEmpty) 'من $area',
+                    'يُغلق ${formatSmartTimestamp(t.expiresAt)}',
+                  ].join(' · '),
+                  style: context.text.bodySmall?.copyWith(color: tk.goldStrong),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          TextFormField(
-            controller: _notes,
-            maxLines: 2,
-            decoration: const InputDecoration(labelText: 'ملاحظات عامة (اختياري)'),
-          ),
+
           const SizedBox(height: AppSpacing.lg),
-          Text('الأصناف المطلوبة (${_items.length})',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('نوع عرض السعر', style: context.text.labelMedium),
           const SizedBox(height: AppSpacing.sm),
-          ..._items.map((draft) => Card(
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(draft.item.medicineName,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                      Text('${draft.item.quantity} ${draft.item.unit}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                      if (draft.item.notes != null && draft.item.notes!.isNotEmpty)
-                        Text(draft.item.notes!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                      const SizedBox(height: AppSpacing.xs),
-                      Row(
-                        children: [
-                          if (showPrice)
-                            Expanded(
-                              child: TextFormField(
-                                controller: draft.unitPrice,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'سعر الوحدة', isDense: true),
-                              ),
-                            ),
-                          if (showPrice && showBonus) const SizedBox(width: AppSpacing.xs),
-                          if (showBonus)
-                            Expanded(
-                              child: TextFormField(
-                                controller: draft.bonusPercentage,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'بونص %', isDense: true),
-                              ),
-                            ),
-                          if (showBonus) const SizedBox(width: AppSpacing.xs),
-                          if (showBonus)
-                            Expanded(
-                              child: TextFormField(
-                                controller: draft.extraBonus,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'بونص إضافي (اختياري)', isDense: true),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+          // الشرائح تتحكّم بأي الحقول تظهر: لا معنى لحقل سعر في عرض بونص.
+          Row(
+            children: [
+              for (final ty in TenderOfferType.values)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: AppFilterChip(
+                    label: switch (ty) {
+                      TenderOfferType.priceBased => 'بالسعر',
+                      TenderOfferType.bonusBased => 'بالبونص',
+                      TenderOfferType.mixed => 'مختلط',
+                    },
+                    selected: _type == ty,
+                    onTap: () => setState(() => _type = ty),
                   ),
                 ),
-              )),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'بالسعر: تُسعّر الأصناف · بالبونص: تمنح نسبة بونص · مختلط: الاثنان معاً.',
+            style: context.text.labelSmall?.copyWith(color: tk.hint),
+          ),
+
           const SizedBox(height: AppSpacing.lg),
-          AppButton(
-            label: 'تقديم العرض',
-            icon: Icons.send_outlined,
-            loading: _saving,
-            onPressed: _saving ? null : _submit,
+          Text('تسعير الأصناف المطلوبة', style: context.text.titleLarge),
+          const SizedBox(height: AppSpacing.sm),
+
+          for (final d in _drafts)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _ItemCard(
+                draft: d,
+                showPrice: _showPrice,
+                showBonus: _showBonus,
+                onChanged: () => setState(() {}),
+              ),
+            ),
+
+          const SizedBox(height: AppSpacing.sm),
+          Text('ملاحظات على عرضك (اختياري)', style: context.text.labelMedium),
+          const SizedBox(height: 6),
+          AppTextField(
+            controller: _notes,
+            hint: 'التسليم خلال ٤٨ ساعة من قبولكم العرض، والأسعار سارية ما دام '
+                'طلب التسعير مفتوحاً.',
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: tk.goldSurface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: tk.gold),
+            ),
+            child: Text(
+              'يبقى عرضك مخفياً عن الصيدلية وعن بقية المستودعات حتى انتهاء '
+              'المهلة، ويمكنك تعديله ما دام الطلب مفتوحاً.',
+              style: context.text.bodySmall?.copyWith(color: tk.goldStrong),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions() {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          border: Border(top: BorderSide(color: cs.outline)),
+          boxShadow: tk.navShadow,
+        ),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: AppButton(
+                label: 'إرسال عرض السعر',
+                loading: _saving,
+                onPressed: _saving ? null : () => _submit(asDraft: false),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              flex: 2,
+              child: AppButton(
+                label: 'حفظ مسودة',
+                variant: AppButtonVariant.outline,
+                onPressed: _saving ? null : () => _submit(asDraft: true),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// بطاقة تسعير صنف (Figma): الاسم والمطلوب، ثم الحقول الثلاثة في صفّ،
+// ثم ملاحظة الصنف.
+class _ItemCard extends StatelessWidget {
+  const _ItemCard({
+    required this.draft,
+    required this.showPrice,
+    required this.showBonus,
+    required this.onChanged,
+  });
+
+  final _ItemDraft draft;
+  final bool showPrice;
+  final bool showBonus;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final item = draft.item;
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(item.medicineName, style: context.text.titleSmall),
+          const SizedBox(height: 2),
+          Text(
+            'المطلوب: ${item.quantity.toStringAsFixed(0)} ${item.unit}'
+            '${item.notes != null && item.notes!.isNotEmpty ? ' · ${item.notes}' : ''}',
+            style: context.text.bodySmall?.copyWith(color: tk.hint),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showPrice)
+                Expanded(
+                  child: AppTextField(
+                    controller: draft.unitPrice,
+                    label: 'سعر الوحدة',
+                    hint: 'ل.س',
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+              if (showPrice && showBonus) const SizedBox(width: AppSpacing.sm),
+              if (showBonus) ...[
+                Expanded(
+                  child: AppTextField(
+                    controller: draft.bonusPercentage,
+                    label: 'نسبة البونص',
+                    hint: '٪',
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppTextField(
+                    controller: draft.extraBonus,
+                    label: 'بونص إضافي',
+                    hint: 'عبوة',
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            controller: draft.notes,
+            hint: 'ملاحظة على الصنف — مثال: متوفر بالكامل، تسليم خلال ٤٨ ساعة',
           ),
         ],
       ),

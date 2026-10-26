@@ -18,10 +18,11 @@ class TargetRegion {
   String get label => city != null && city!.isNotEmpty ? '$governorate - $city' : governorate;
 }
 
+// ملاحظة: حُذف offerType من الباك إند — من يرى العرض تحدّده المناطق
+// المستهدَفة ومدن خدمة المستودع، لا تصنيف نوع للعرض.
 class SalesOfferSummary {
   final String id;
   final String title;
-  final SalesOfferType offerType;
   final SalesOfferStatus status;
   final String warehouseName;
   final String currency;
@@ -32,10 +33,18 @@ class SalesOfferSummary {
   final DateTime expiresAt;
   final DateTime createdOn;
 
+  // البونص على مستويين: على أصناف بعينها، وعلى العرض كاملاً (دواء يُهدى مع
+  // الطلبية). تُقرأ متساهلةً: خادم لم يُحدَّث بعد لا يرسلها فتبقى false
+  // ولا تظهر الشارة الذهبية — تدهور لطيف بدل انكسار القائمة.
+  final bool hasItemBonus;
+  final bool hasOfferBonus;
+  final String? offerBonusMedicineName;
+
+  bool get hasAnyBonus => hasItemBonus || hasOfferBonus;
+
   SalesOfferSummary({
     required this.id,
     required this.title,
-    required this.offerType,
     required this.status,
     required this.warehouseName,
     required this.currency,
@@ -45,12 +54,14 @@ class SalesOfferSummary {
     required this.startsAt,
     required this.expiresAt,
     required this.createdOn,
+    this.hasItemBonus = false,
+    this.hasOfferBonus = false,
+    this.offerBonusMedicineName,
   });
 
   factory SalesOfferSummary.fromJson(Map<String, dynamic> j) => SalesOfferSummary(
         id: j['id'] as String,
         title: j['title'] as String,
-        offerType: SalesOfferType.fromCode(j['offerType'] as int),
         status: SalesOfferStatus.fromCode(j['status'] as int),
         warehouseName: j['warehouseName'] as String,
         currency: j['currency'] as String? ?? 'SYP',
@@ -62,6 +73,9 @@ class SalesOfferSummary {
         startsAt: DateTime.parse(j['startsAt'] as String),
         expiresAt: DateTime.parse(j['expiresAt'] as String),
         createdOn: DateTime.parse(j['createdOn'] as String),
+        hasItemBonus: j['hasItemBonus'] as bool? ?? false,
+        hasOfferBonus: j['hasOfferBonus'] as bool? ?? false,
+        offerBonusMedicineName: j['offerBonusMedicineName'] as String?,
       );
 }
 
@@ -154,7 +168,6 @@ class SalesOfferDetail {
   final String warehousePhone;
   final String title;
   final String? description;
-  final SalesOfferType offerType;
   final SalesOfferStatus status;
   final DateTime startsAt;
   final DateTime expiresAt;
@@ -178,7 +191,6 @@ class SalesOfferDetail {
     required this.warehousePhone,
     required this.title,
     this.description,
-    required this.offerType,
     required this.status,
     required this.startsAt,
     required this.expiresAt,
@@ -203,7 +215,6 @@ class SalesOfferDetail {
         warehousePhone: j['warehousePhone'] as String,
         title: j['title'] as String,
         description: j['description'] as String?,
-        offerType: SalesOfferType.fromCode(j['offerType'] as int),
         status: SalesOfferStatus.fromCode(j['status'] as int),
         startsAt: DateTime.parse(j['startsAt'] as String),
         expiresAt: DateTime.parse(j['expiresAt'] as String),

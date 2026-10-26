@@ -40,8 +40,13 @@ class AppBottomNav extends StatelessWidget {
         top: false,
         child: SizedBox(
           height: 68,
+          // الحشوة السفلية ٦ لا ١٠: محتوى العنصر (مؤشر ٣ + أيقونة ٢٤ +
+          // تسمية + فواصل) يحتاج ٥١ بكسل، وكانت المساحة ٤٤ فقط — فكان
+          // الشريط يُفيض ٧ بكسل بأشرطة التحذير المخططة على الأجهزة التي
+          // تُسند الخط العربي إلى بديل أطول سطراً. SafeArea تتكفّل أصلاً
+          // بشريط الإيماءات، فالحشوة الزائدة لم تكن تشتري شيئاً.
           child: Padding(
-            padding: const EdgeInsets.only(top: 2, bottom: 10),
+            padding: const EdgeInsets.only(top: 2, bottom: 6),
             child: Row(
               children: [
                 for (var i = 0; i < items.length; i++)
@@ -80,7 +85,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -97,6 +102,9 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: context.text.labelSmall?.copyWith(color: color),
             ),
           ],

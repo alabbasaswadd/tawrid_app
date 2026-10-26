@@ -31,7 +31,8 @@ class WarehouseServiceAreaRepository {
   final ApiClient _api;
 
   Future<List<String>> getMyServiceAreas() async {
-    final data = await _api.get(ApiEndpoints.whServiceAreas) as List;
+    final raw = await _api.get(ApiEndpoints.whServiceAreas);
+    final data = ApiClient.itemsOf(raw);
     return data.cast<String>();
   }
 

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
+import 'package:tawrid_app/core/notifications/push_service.dart';
 import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 
 import 'session_state.dart';
@@ -67,6 +70,11 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
         accountStatus: accountStatus,
       ),
     );
+
+    // تسجيل الجهاز بعد قيام الجلسة لا قبلها: الطلب يحتاج توكناً، ولا
+    // نعرف قبلها لأي جهة نُسجّل. لا ننتظره حتى لا يؤخّر دخول المستخدم.
+    unawaited(
+        ref.read(pushServiceProvider).registerForSession(isWarehouse: true));
   }
 
   // تحديث حالة الحساب فقط (من /warehouse/auth/me) دون المساس بالتوكن.
@@ -88,6 +96,9 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
   }
 
   Future<void> clear() async {
+    // إلغاء تسجيل الجهاز قبل محو التوكن — بعده يصبح الطلب بلا مصادقة.
+    await ref.read(pushServiceProvider).unregisterForSession(isWarehouse: true);
+
     const store = appSecureStorage;
     await store.delete(key: StorageKeys.warehouseToken);
     await store.delete(key: StorageKeys.warehouseUserId);

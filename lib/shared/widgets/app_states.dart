@@ -5,12 +5,71 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 // حالات موحّدة متكيّفة مع الثيم (فاتح/داكن). أسماء الأصناف ثابتة حتى لا تتغيّر
 // مواضع الاستدعاء عبر التطبيق.
 
-class LoadingState extends StatelessWidget {
-  const LoadingState({super.key});
+// مؤشّر التحميل الموحّد: شعار توريد نابض + «جارٍ التحميل».
+//
+// تعريف واحد تستعمله كل الشاشات، فتغييره هنا يغيّرها جميعاً. النبض بطيء
+// ولطيف (١٢٠٠ مللي ذهاباً وإياباً) — حركة تقول «يعمل» بلا أن تخطف
+// الانتباه عن المحتوى القادم.
+class LoadingState extends StatefulWidget {
+  const LoadingState({this.message = 'جارٍ التحميل…', super.key});
+
+  /// نصّ بديل حين يكون سبب الانتظار معروفاً: «جارٍ تجهيز الملف…».
+  final String message;
 
   @override
-  Widget build(BuildContext context) =>
-      Center(child: CircularProgressIndicator(color: context.colors.primary));
+  State<LoadingState> createState() => _LoadingStateState();
+}
+
+class _LoadingStateState extends State<LoadingState>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            // لا يختفي تماماً: من ٠٫٤٥ إلى ١ يبقي الشعار حاضراً وهو ينبض.
+            opacity: Tween<double>(begin: 0.45, end: 1).animate(curve),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.94, end: 1).animate(curve),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                child: Image.asset(
+                  'assets/images/logo.jpg',
+                  width: 84,
+                  height: 84,
+                  fit: BoxFit.contain,
+                  // غياب الأصل لا يجوز أن يُسقط كل شاشة تُحمِّل.
+                  errorBuilder: (_, _, _) => Icon(
+                      Icons.local_pharmacy_outlined,
+                      size: 48,
+                      color: context.colors.primary),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(widget.message,
+              style: context.text.bodySmall?.copyWith(color: tk.hint)),
+        ],
+      ),
+    );
+  }
 }
 
 class ErrorState extends StatelessWidget {

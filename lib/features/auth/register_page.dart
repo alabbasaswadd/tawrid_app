@@ -10,6 +10,7 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/repositories/geo_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/location_field.dart';
 import 'package:tawrid_app/shared/widgets/governorate_city_selector.dart';
 
 // تسجيل صيدلية جديدة — بالحقول التي يطلبها الباك إند:
@@ -31,6 +32,8 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
   final _confirm = TextEditingController();
   String? _governorateId;
   String? _cityId;
+  double? _latitude;
+  double? _longitude;
   bool _loading = false;
 
   @override
@@ -48,6 +51,12 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_governorateId == null) {
       AppSnackbar.error(context, 'اختر المحافظة');
+      return;
+    }
+    // الموقع إجباري: المستودعات تُصفّى بمدينة الصيدلية، والإحداثيات هي ما
+    // يسمح لاحقاً بحساب الأقرب فعلاً لا الأقرب بالاسم.
+    if (_latitude == null || _longitude == null) {
+      AppSnackbar.error(context, 'حدّد موقع الصيدلية قبل إنشاء الحساب');
       return;
     }
     setState(() => _loading = true);
@@ -72,6 +81,8 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
           'email': _email.text.trim(),
           'phone': _phone.text.trim(),
           'password': _password.text,
+          'latitude': _latitude,
+          'longitude': _longitude,
         },
       );
       if (mounted) {
@@ -193,6 +204,16 @@ class _PhRegisterPageState extends ConsumerState<PhRegisterPage> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                LocationField(
+                  latitude: _latitude,
+                  longitude: _longitude,
+                  onCaptured: (lat, lng) => setState(() {
+                    _latitude = lat;
+                    _longitude = lng;
+                  }),
                 ),
                 const SizedBox(height: AppSpacing.x2l),
 

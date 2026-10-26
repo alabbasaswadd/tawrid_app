@@ -4,6 +4,10 @@ import 'enums.dart';
 class WarehouseMedicine {
   final String id;
   final String catalogItemId;
+
+  /// كود ساكو من الكتالوج الوطني — مرجع الصنف المعتمد.
+  /// فارغ إن كان الخادم أقدم من إضافة الحقل، فيُخفى سطره بدل أن يظهر فارغاً.
+  final String sakoCode;
   final String brandName;
   final String brandNameArabic;
   final String genericName;
@@ -15,6 +19,7 @@ class WarehouseMedicine {
   WarehouseMedicine({
     required this.id,
     required this.catalogItemId,
+    this.sakoCode = '',
     required this.brandName,
     required this.brandNameArabic,
     required this.genericName,
@@ -27,6 +32,7 @@ class WarehouseMedicine {
   factory WarehouseMedicine.fromJson(Map<String, dynamic> j) => WarehouseMedicine(
         id: j['id'] as String,
         catalogItemId: j['catalogItemId'] as String,
+        sakoCode: j['sakoCode'] as String? ?? '',
         brandName: j['brandName'] as String? ?? '',
         brandNameArabic: j['brandNameArabic'] as String? ?? '',
         genericName: j['genericName'] as String? ?? '',

@@ -12,8 +12,19 @@ abstract final class ApiEndpoints {
   static const String whRegister = '$_wh/auth/register';
   static const String whMe       = '$_wh/auth/me';
 
-  // ── Supply Warehouses list (pharmacy side) ─────────────────────────────────
+  // ── Supply Warehouses (pharmacy side) ──────────────────────────────────────
+  // القائمة = المستودعات النشطة للاختيار؛ والتفاصيل = ملف المستودع العام
+  // (بيانات تعريفية + مدن الخدمة + عدد العروض السارية، بلا شيء داخلي).
   static const String supplyWarehouses = '$_ph/supply-warehouses';
+  static String supplyWarehouseById(String id) => '$_ph/supply-warehouses/$id';
+
+  // ── Warehouse: Users (إدارة الموظّفين — للمدير فقط) ────────────────────────
+  // الخادم يفرض سياسة Warehouse.Admin؛ الواجهة تُخفي المدخل عن الموظّف
+  // بدل أن تتركه يصطدم بـ403.
+  static const String whUsers = '$_wh/users';
+  static String whUserById(String id)       => '$_wh/users/$id';
+  static String whUserActive(String id)     => '$_wh/users/$id/active';
+  static String whUserPassword(String id)   => '$_wh/users/$id/password';
 
   // ── Geo (محافظات/مدن — عام، بلا توكن) ───────────────────────────────────────
   static const String geoGovernorates = '$_ph/geo/governorates';
@@ -37,11 +48,16 @@ abstract final class ApiEndpoints {
   static String phOrderHistory(String id)     => '$_ph/supply-orders/$id/history';
   static String phOrderGenerateInvoice(String id) => '$_ph/supply-orders/$id/generate-invoice';
 
-  // ── Pharmacy: Tenders ─────────────────────────────────────────────────────
-  static const String phTenders = '$_ph/tenders';
-  static String phTenderById(String id)    => '$_ph/tenders/$id';
-  static String phTenderCancel(String id)  => '$_ph/tenders/$id/cancel';
-  static String phTenderSelectOffer(String tid, String oid) => '$_ph/tenders/$tid/select-offer/$oid';
+  // ── Pharmacy: Quotation Requests (طلبات التسعير — كانت tenders) ───────────
+  // أُعيدت التسمية في الباك إند إلى quotation-requests. أسماء الثوابت هنا
+  // مُبقاة بصيغة Tender* عمداً حتى لا يُعاد تسمية كل الصفحات دفعةً واحدة،
+  // والمسارات نفسها هي المصدر الذي يجب أن يطابق الخادم.
+  static const String phTenders = '$_ph/quotation-requests';
+  static String phTenderById(String id)    => '$_ph/quotation-requests/$id';
+  static String phTenderCancel(String id)  => '$_ph/quotation-requests/$id/cancel';
+  static String phTenderPublish(String id) => '$_ph/quotation-requests/$id/publish';
+  static String phTenderSelectOffer(String tid, String oid) =>
+      '$_ph/quotation-requests/$tid/select-quotation/$oid';
 
   // ── Pharmacy: Browse Offers ───────────────────────────────────────────────
   static const String phOffers = '$_ph/offers';
@@ -64,11 +80,11 @@ abstract final class ApiEndpoints {
   static String whOrderStatus(String id)   => '$_wh/orders/$id/status';
   static String whOrderHistory(String id)  => '$_wh/orders/$id/history';
 
-  // ── Warehouse: Tenders ────────────────────────────────────────────────────
-  static const String whTendersOpen = '$_wh/tenders/open';
-  static const String whMyOffers    = '$_wh/tenders/my-offers';
-  static String whTenderById(String id)         => '$_wh/tenders/$id';
-  static String whTenderSubmit(String tenderId) => '$_wh/tenders/$tenderId/offers';
+  // ── Warehouse: Quotation Requests (طلبات التسعير) ─────────────────────────
+  static const String whTendersOpen = '$_wh/quotation-requests/open';
+  static const String whMyOffers    = '$_wh/quotation-requests/my-quotations';
+  static String whTenderById(String id)         => '$_wh/quotation-requests/$id';
+  static String whTenderSubmit(String tenderId) => '$_wh/quotation-requests/$tenderId/quotations';
 
   // ── Warehouse: Sales Offers ───────────────────────────────────────────────
   static const String whSalesOffers = '$_wh/offers';
@@ -84,4 +100,29 @@ abstract final class ApiEndpoints {
   static String whListingById(String id)     => '$_wh/listings/$id';
   static String whListingComments(String id) => '$_wh/listings/$id/comments';
   static String whListingCommentById(String id, String commentId) => '$_wh/listings/$id/comments/$commentId';
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  // الصندوق والإعدادات متطابقان في الجهتين؛ ما يختلف هو البادئة فقط، لذلك
+  // تُبنى المسارات من جذر يُمرَّر إليه (`_ph` للصيدلية، `_wh` للمستودع) بدل
+  // نسخ ثمانية ثوابت مرّتين. انتبه: `_AuthInterceptor` يختار التوكن بوجود
+  // «/warehouse/» في المسار، فبادئة المستودع تُلزِم توكنه تلقائياً.
+  static String _notifRoot(bool warehouse) =>
+      '${warehouse ? _wh : _ph}/notifications';
+
+  static String notifications(bool warehouse) => _notifRoot(warehouse);
+  static String notificationsUnreadCount(bool warehouse) =>
+      '${_notifRoot(warehouse)}/unread-count';
+  static String notificationRead(bool warehouse, String id) =>
+      '${_notifRoot(warehouse)}/$id/read';
+  static String notificationsReadAll(bool warehouse) =>
+      '${_notifRoot(warehouse)}/read-all';
+  static String notificationSettings(bool warehouse) =>
+      '${_notifRoot(warehouse)}/settings';
+
+  // ── Device tokens (تسجيل جهاز الإشعارات) ─────────────────────────────────
+  // تحت مسار المصادقة لا الإشعارات — الجهاز يُسجَّل باسم الحساب.
+  static String devices(bool warehouse) =>
+      '${warehouse ? _wh : _ph}/auth/devices';
+  static String deviceByToken(bool warehouse, String token) =>
+      '${warehouse ? _wh : _ph}/auth/devices/$token';
 }

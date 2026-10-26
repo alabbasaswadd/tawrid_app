@@ -1,26 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tawrid_app/app/theme/app_colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/features/wh_home/wh_home_page.dart' show WhOrderCard;
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-Color _statusColor(SupplyOrderStatus s) => switch (s) {
-      SupplyOrderStatus.pending => TawridColors.statusPending,
-      SupplyOrderStatus.confirmed => TawridColors.statusAccepted,
-      SupplyOrderStatus.processing => TawridColors.statusProcessing,
-      SupplyOrderStatus.shipped => TawridColors.statusReady,
-      SupplyOrderStatus.delivered => TawridColors.statusDelivering,
-      SupplyOrderStatus.completed => TawridColors.statusCompleted,
-      SupplyOrderStatus.cancelled => TawridColors.statusCancelled,
+/// نغمة شارة حالة الطلبية عند المستودع — مشتركة مع الرئيسية والتفاصيل.
+StatusTone whOrderTone(SupplyOrderStatus s) => switch (s) {
+      SupplyOrderStatus.pending => StatusTone.warning,
+      SupplyOrderStatus.confirmed => StatusTone.brand,
+      SupplyOrderStatus.processing => StatusTone.brand,
+      SupplyOrderStatus.shipped => StatusTone.info,
+      SupplyOrderStatus.delivered => StatusTone.info,
+      SupplyOrderStatus.completed => StatusTone.success,
+      SupplyOrderStatus.cancelled => StatusTone.danger,
     };
 
+// تبويبات الطلبات الواردة (Figma): الجديدة، المؤكدة، قيد التجهيز، المكتملة.
+//
+// «المكتملة» تضم كل ما خرج من دورة العمل — مشحونة ومسلَّمة ومكتملة وملغاة:
+// بعدها لا يبقى على المستودع إجراء، والتفريق بينها يخصّ السجلّ لا القائمة.
+enum _WhOrdersTab {
+  isNew('الجديدة'),
+  confirmed('المؤكدة'),
+  processing('قيد التجهيز'),
+  done('المكتملة');
+
+  const _WhOrdersTab(this.label);
+  final String label;
+
+  bool matches(SupplyOrderStatus s) => switch (this) {
+        _WhOrdersTab.isNew => s == SupplyOrderStatus.pending,
+        _WhOrdersTab.confirmed => s == SupplyOrderStatus.confirmed,
+        _WhOrdersTab.processing => s == SupplyOrderStatus.processing,
+        _WhOrdersTab.done => s == SupplyOrderStatus.shipped ||
+            s == SupplyOrderStatus.delivered ||
+            s == SupplyOrderStatus.completed ||
+            s == SupplyOrderStatus.cancelled,
+      };
+
+  String countLabel(int n) => switch (this) {
+        _WhOrdersTab.isNew =>
+          '$n ${n == 1 ? 'طلب جديد' : 'طلبات جديدة'} بانتظار قرارك',
+        _WhOrdersTab.confirmed => '$n ${n == 1 ? 'طلب مؤكَّد' : 'طلبات مؤكَّدة'}',
+        _WhOrdersTab.processing => '$n ${n == 1 ? 'طلب' : 'طلبات'} قيد التجهيز',
+        _WhOrdersTab.done => '$n ${n == 1 ? 'طلب منتهٍ' : 'طلبات منتهية'}',
+      };
+
+  String get emptyMessage => switch (this) {
+        _WhOrdersTab.isNew => 'لا طلبات جديدة بانتظار قرارك',
+        _WhOrdersTab.confirmed => 'لا طلبات مؤكَّدة حالياً',
+        _WhOrdersTab.processing => 'لا طلبات قيد التجهيز',
+        _WhOrdersTab.done => 'لا طلبات منتهية بعد',
+      };
+}
+
+// الطلبات الواردة للمستودع (Figma: المستودع / الطلبات).
 class WhOrdersPage extends ConsumerStatefulWidget {
   const WhOrdersPage({super.key});
 
@@ -32,6 +74,7 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
   List<SupplyOrderSummary>? _orders;
   bool _loading = true;
   String? _error;
+  _WhOrdersTab _tab = _WhOrdersTab.isNew;
 
   @override
   void initState() {
@@ -39,18 +82,23 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
     _load();
   }
 
-  Future<void> _load() async {
+  /// [silent] يُحدّث بلا مؤشّر تحميل — عند العودة من التفاصيل.
+  Future<void> _load({bool silent = false}) async {
     setState(() {
-      _loading = true;
+      if (!silent) _loading = true;
       _error = null;
     });
     try {
-      final list = await ref.read(supplyOrderRepositoryProvider).getWarehouseOrders();
+      final list = await ref
+          .read(supplyOrderRepositoryProvider)
+          .getWarehouseOrders(limit: 50);
+      if (!mounted) return;
       setState(() {
         _orders = list;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = ApiException.from(e).message;
         _loading = false;
@@ -59,25 +107,21 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
   }
 
   Future<void> _openDetails(SupplyOrderSummary order) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _OrderDetailSheet(orderId: order.id, onChanged: _load),
-    );
+    await context.push(TRoutes.whOrderDetail(order.id));
+    if (mounted) await _load(silent: true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الطلبيات الواردة'),
+        title: const Text('الطلبات الواردة'),
         actions: [
           IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'تحديث',
-              onPressed: _loading ? null : _load),
+            icon: const Icon(Icons.refresh),
+            tooltip: 'تحديث',
+            onPressed: _loading ? null : _load,
+          ),
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
@@ -88,225 +132,64 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
     if (_loading) return const LoadingState();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
-    final orders = _orders ?? [];
-    if (orders.isEmpty) {
-      return ListView(
-        children: const [
-          SizedBox(height: 120),
-          EmptyState(message: 'لا توجد طلبيات واردة بعد', icon: Icons.inbox_outlined),
-        ],
-      );
-    }
+    final all = _orders ?? const <SupplyOrderSummary>[];
+    final shown = all.where((o) => _tab.matches(o.status)).toList();
+    final tk = context.tokens;
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        final order = orders[index];
-        final color = _statusColor(order.status);
-        final cs = context.colors;
-        final tk = context.tokens;
-        return Container(
-          margin: const EdgeInsets.only(bottom: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: cs.outline),
+    return Column(
+      children: [
+        // الشرائح أفقية: أربع شرائح عربية لا تتّسع لعرض الشاشة في صفّ ثابت.
+        SizedBox(
+          height: 34,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            itemCount: _WhOrdersTab.values.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (_, i) {
+              final t = _WhOrdersTab.values[i];
+              return AppFilterChip(
+                label: t.label,
+                selected: _tab == t,
+                onTap: () => setState(() => _tab = t),
+              );
+            },
           ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => _openDetails(order),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(width: 4, color: color),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text('طلبية ${order.orderNumber}',
-                                  style: context.text.titleMedium),
-                            ),
-                            Icon(Icons.chevron_left, size: 18, color: tk.hint),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              margin: const EdgeInsets.only(left: 5),
-                              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                            ),
-                            Text(
-                              '${order.status.label} · ${order.itemCount} صنف · ${formatSmartTimestamp(order.createdOn)}',
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: tk.hint),
-                            ),
-                          ],
-                        ),
-                        if (order.invoiceCreated) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text('تم إصدار فاتورة لهذه الطلبية',
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: tk.success)),
-                        ],
-                      ],
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.sm),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(_tab.countLabel(shown.length),
+                style: context.text.bodySmall?.copyWith(color: tk.hint)),
+          ),
+        ),
+
+        Expanded(
+          child: shown.isEmpty
+              ? ListView(
+                  children: [
+                    const SizedBox(height: AppSpacing.x3l),
+                    EmptyState(
+                      icon: Icons.inbox_outlined,
+                      message: _tab.emptyMessage,
                     ),
+                  ],
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.page, 0, AppSpacing.page, AppSpacing.x3l),
+                  itemCount: shown.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                  itemBuilder: (_, i) => WhOrderCard(
+                    order: shown[i],
+                    onTap: () => _openDetails(shown[i]),
                   ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _OrderDetailSheet extends ConsumerStatefulWidget {
-  const _OrderDetailSheet({required this.orderId, required this.onChanged});
-  final String orderId;
-  final VoidCallback onChanged;
-
-  @override
-  ConsumerState<_OrderDetailSheet> createState() => _OrderDetailSheetState();
-}
-
-class _OrderDetailSheetState extends ConsumerState<_OrderDetailSheet> {
-  SupplyOrderDetail? _order;
-  bool _loading = true;
-  bool _updating = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final order = await ref
-          .read(supplyOrderRepositoryProvider)
-          .getWarehouseOrderById(widget.orderId);
-      setState(() {
-        _order = order;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = ApiException.from(e).message;
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _updateStatus(SupplyOrderStatus next) async {
-    setState(() => _updating = true);
-    try {
-      await ref
-          .read(supplyOrderRepositoryProvider)
-          .updateOrderStatus(widget.orderId, next);
-      widget.onChanged();
-      if (mounted) {
-        AppSnackbar.success(context, 'تم تحديث حالة الطلبية إلى ${next.label}');
-        await _load();
-      }
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
-    } finally {
-      if (mounted) setState(() => _updating = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tk = context.tokens;
-    return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) {
-        if (_loading) {
-          return const SafeArea(
-              child: Padding(
-                  padding: EdgeInsets.all(AppSpacing.lg), child: LoadingState()));
-        }
-        if (_error != null) {
-          return SafeArea(
-            child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: ErrorState(message: _error!, onRetry: _load)),
-          );
-        }
-        final order = _order!;
-        final nextOptions = order.status.nextAllowed;
-
-        return SafeArea(
-          child: ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              Text('طلبية ${order.orderNumber}',
-                  style: context.text.titleLarge),
-              const SizedBox(height: 4),
-              Text(formatSmartTimestamp(order.createdOn),
-                  style: context.text.bodySmall?.copyWith(color: tk.hint)),
-              const SizedBox(height: AppSpacing.md),
-              Text('الحالة: ${order.status.label}',
-                  style: context.text.titleSmall
-                      ?.copyWith(color: _statusColor(order.status))),
-              if (order.notes != null && order.notes!.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(order.notes!, style: context.text.bodyMedium),
-              ],
-              const SizedBox(height: AppSpacing.md),
-              const Divider(),
-              const SizedBox(height: AppSpacing.xs),
-              Text('الأصناف (${order.items.length})',
-                  style: context.text.titleSmall),
-              const SizedBox(height: AppSpacing.sm),
-              for (final item in order.items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  child: Text(
-                      '${item.medicineName} — ${item.quantity} ${item.unit}',
-                      style: context.text.bodyMedium),
-                ),
-              if (nextOptions.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
-                const Divider(),
-                const SizedBox(height: AppSpacing.sm),
-                Text('تحديث الحالة', style: context.text.titleSmall),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: nextOptions
-                      .map((s) => FilledButton.tonal(
-                            onPressed: _updating ? null : () => _updateStatus(s),
-                            child: Text(s.label),
-                          ))
-                      .toList(),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

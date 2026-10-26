@@ -19,18 +19,20 @@ class MedicineCatalogRepository {
     int limit = 30,
     int offset = 0,
   }) async {
-    final data = await _api.get(ApiEndpoints.catalogSearch, queryParameters: {
+    final raw = await _api.get(ApiEndpoints.catalogSearch, queryParameters: {
       'name': ?name,
       'manufacturer': ?manufacturer,
       'limit': limit,
       'offset': offset,
-    }) as List;
+    });
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => MedicineCatalogItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // أسماء الشركات المصنّعة المميّزة — لتعبئة فلتر الشركة.
   Future<List<String>> getManufacturers() async {
-    final data = await _api.get(ApiEndpoints.catalogManufacturers) as List;
+    final raw = await _api.get(ApiEndpoints.catalogManufacturers);
+    final data = ApiClient.itemsOf(raw);
     return data.cast<String>();
   }
 }

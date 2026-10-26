@@ -106,7 +106,7 @@ class SalesOfferPostCard extends StatelessWidget {
                       ),
                       Flexible(
                         child: Text(
-                          '${offer.status.label} · ${offer.offerType.label} · ${formatSmartTimestamp(offer.createdOn)}',
+                          '${offer.status.label} · ${offer.itemCount} صنف · ${formatSmartTimestamp(offer.createdOn)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: context.text.bodySmall,

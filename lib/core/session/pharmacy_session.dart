@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tawrid_app/core/notifications/push_service.dart';
 import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
@@ -64,6 +67,11 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
         accountStatus: accountStatus,
       ),
     );
+
+    // تسجيل الجهاز بعد قيام الجلسة لا قبلها: الطلب يحتاج توكناً، ولا
+    // نعرف قبلها لأي جهة نُسجّل. لا ننتظره حتى لا يؤخّر دخول المستخدم.
+    unawaited(
+        ref.read(pushServiceProvider).registerForSession(isWarehouse: false));
   }
 
   // تحديث حالة الحساب فقط (من /auth/me) دون المساس بالتوكن.
@@ -85,6 +93,10 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
   }
 
   Future<void> clear() async {
+    // إلغاء تسجيل الجهاز قبل محو التوكن — بعده يصبح الطلب بلا مصادقة.
+    // بلا هذا تواصل إشعارات الحساب السابق الوصول إلى الجهاز بعد خروجه.
+    await ref.read(pushServiceProvider).unregisterForSession(isWarehouse: false);
+
     // حذف مفاتيح الصيدلي فقط — deleteAll() كانت تمحو أيضاً جلسة
     // المستودع (نفس الـ secure storage الفعلي لكليهما).
     await _store.delete(key: StorageKeys.pharmacyToken);

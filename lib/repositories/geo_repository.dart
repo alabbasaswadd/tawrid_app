@@ -14,7 +14,8 @@ class GeoRepository {
   // عام بلا توكن — يغذّي واجهة اختيار مناطق التغطية بالكامل من الخادم،
   // فإضافة محافظة/مدينة جديدة لا تحتاج تحديث هذا التطبيق.
   Future<List<Governorate>> getGovernorates() async {
-    final data = await _api.get(ApiEndpoints.geoGovernorates) as List;
+    final raw = await _api.get(ApiEndpoints.geoGovernorates);
+    final data = ApiClient.itemsOf(raw);
     return data.map((e) => Governorate.fromJson(e as Map<String, dynamic>)).toList();
   }
 }
