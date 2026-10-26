@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'tokens.dart';
 
 // LEGACY — تُهجَر تدريجياً إلى ColorScheme / context.tokens. أُعيد توجيه قيمها
@@ -7,21 +8,21 @@ import 'tokens.dart';
 abstract final class TawridColors {
   // ── Brand ──────────────────────────────────────────────────────────
   static const Color primary = AppPalette.brandLight;
-  static const Color primaryLight = Color(0xFF2D9B64);
-  static const Color primaryDark = Color(0xFF0F5030);
+  static const Color primaryLight = Color(0xFF1F8A5B);
+  static const Color primaryDark = AppPalette.brandDeepLight;
   static const Color accent = AppPalette.goldLight;
   static const Color gold = AppPalette.goldLight;
 
-  // ── Gradients (أخضر غابي عميق من اللوغو) ─────────────────────────
+  // ── Gradients (الأخضر الأساسي → الداكن من هوية Figma) ─────────────
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF1A6B44), Color(0xFF0F5030)],
+    colors: [AppPalette.brandLight, AppPalette.brandDeepLight],
   );
   static const LinearGradient goldGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFC4A24A), Color(0xFFAA8530)],
+    colors: [AppPalette.goldLight, AppPalette.goldStrongLight],
   );
   static const LinearGradient warehouseGradient = brandGradient;
   static const LinearGradient pharmacyGradient = brandGradient;

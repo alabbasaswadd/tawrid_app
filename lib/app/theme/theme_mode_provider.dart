@@ -31,8 +31,10 @@ class ThemeModeController extends Notifier<ThemeMode> {
     await prefs.setString(_kThemeModeKey, mode.name);
   }
 
-  Future<void> toggle() => setMode(state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
+  Future<void> toggle() =>
+      setMode(state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
 }
 
-final themeModeProvider =
-    NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
+  ThemeModeController.new,
+);

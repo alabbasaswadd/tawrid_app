@@ -3,7 +3,13 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 
 // ترويسة قسم موحّدة — عنوان + أيقونة اختيارية + إجراء جانبي اختياري.
 class AppSectionHeader extends StatelessWidget {
-  const AppSectionHeader({required this.title, this.icon, this.trailing, this.subtitle, super.key});
+  const AppSectionHeader({
+    required this.title,
+    this.icon,
+    this.trailing,
+    this.subtitle,
+    super.key,
+  });
 
   final String title;
   final IconData? icon;

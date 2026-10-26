@@ -95,7 +95,9 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ref.read(warehouseServiceAreaRepositoryProvider).setServiceAreas(_selected.toList());
+      await ref
+          .read(warehouseServiceAreaRepositoryProvider)
+          .setServiceAreas(_selected.toList());
       if (mounted) context.go(TRoutes.whHome);
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
@@ -121,7 +123,11 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -131,16 +137,25 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(Icons.map_outlined, color: Colors.white, size: 32),
+                      child: const Icon(
+                        Icons.map_outlined,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    Text('مناطق التخديم',
-                        style: context.text.headlineMedium?.copyWith(color: Colors.white)),
+                    Text(
+                      'مناطق التخديم',
+                      style: context.text.headlineMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'اختر المحافظات والمدن التي يوصّل إليها مستودعك — يمكنك تعديلها لاحقاً',
                       style: context.text.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.85)),
+                        color: Colors.white.withValues(alpha: 0.85),
+                      ),
                     ),
                   ],
                 ),
@@ -151,7 +166,9 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                 // فوق تأثيرات الضغط (ink splashes) وتُخفيها بالكامل.
                 child: Material(
                   color: cs.surface,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(32),
+                  ),
                   clipBehavior: Clip.antiAlias,
                   child: _buildBody(),
                 ),
@@ -169,7 +186,10 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
 
     final governorates = _governorates!;
     if (governorates.isEmpty) {
-      return const EmptyState(message: 'لا توجد محافظات متاحة حالياً', icon: Icons.map_outlined);
+      return const EmptyState(
+        message: 'لا توجد محافظات متاحة حالياً',
+        icon: Icons.map_outlined,
+      );
     }
 
     final cs = context.colors;
@@ -183,7 +203,9 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final g = governorates[index];
-              final selectedCount = g.cities.where((c) => _selected.contains(c.id)).length;
+              final selectedCount = g.cities
+                  .where((c) => _selected.contains(c.id))
+                  .length;
               return ExpansionTile(
                 leading: Checkbox(
                   tristate: true,
@@ -191,18 +213,28 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
                   activeColor: cs.primary,
                   onChanged: (_) => _toggleGovernorate(g),
                 ),
-                title: Text(g.name,
-                    style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                subtitle: Text('$selectedCount من ${g.cities.length} مدينة محدَّدة',
-                    style: context.text.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                title: Text(
+                  g.name,
+                  style: context.text.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  '$selectedCount من ${g.cities.length} مدينة محدَّدة',
+                  style: context.text.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
                 children: g.cities
-                    .map((c) => CheckboxListTile(
-                          value: _selected.contains(c.id),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          activeColor: cs.primary,
-                          title: Text(c.name, style: context.text.bodyMedium),
-                          onChanged: (v) => _toggleCity(c.id, v ?? false),
-                        ))
+                    .map(
+                      (c) => CheckboxListTile(
+                        value: _selected.contains(c.id),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        activeColor: cs.primary,
+                        title: Text(c.name, style: context.text.bodyMedium),
+                        onChanged: (v) => _toggleCity(c.id, v ?? false),
+                      ),
+                    )
                     .toList(),
               );
             },
@@ -212,14 +244,24 @@ class _WhServiceAreasPageState extends ConsumerState<WhServiceAreasPage> {
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: cs.surface,
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, -4))],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('${_selected.length} مدينة محدَّدة',
-                  textAlign: TextAlign.center,
-                  style: context.text.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              Text(
+                '${_selected.length} مدينة محدَّدة',
+                textAlign: TextAlign.center,
+                style: context.text.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(
                 label: 'حفظ ومتابعة',

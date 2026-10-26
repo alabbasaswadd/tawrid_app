@@ -31,6 +31,9 @@ dependencies:
   # Font
   google_fonts: ^6.2.1
 
+  # أيقونات نظام التصميم (SVG من Figma)
+  flutter_svg: ^2.0.10
+
   # Logging
   logger: ^2.7.0
 
@@ -64,3 +67,4 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/icons/

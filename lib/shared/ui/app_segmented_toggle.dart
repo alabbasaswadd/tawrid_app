@@ -59,7 +59,11 @@ class AppSegmentedToggle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (item.icon != null) ...[
-              Icon(item.icon, size: 18, color: active ? cs.onPrimary : cs.onSurfaceVariant),
+              Icon(
+                item.icon,
+                size: 18,
+                color: active ? cs.onPrimary : cs.onSurfaceVariant,
+              ),
               const SizedBox(width: 6),
             ],
             Flexible(

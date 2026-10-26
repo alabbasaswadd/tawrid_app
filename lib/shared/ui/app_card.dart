@@ -6,7 +6,10 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 class AppCard extends StatelessWidget {
   const AppCard({
     this.child,
-    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: AppSpacing.lg,
+      vertical: 14,
+    ),
     this.onTap,
     this.color,
     this.bordered = true,
@@ -28,9 +31,7 @@ class AppCard extends StatelessWidget {
       color: color ?? cs.surface,
       borderRadius: BorderRadius.circular(radius),
       border: bordered ? Border.all(color: cs.outline) : null,
-      boxShadow: [
-        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
-      ],
+      boxShadow: context.tokens.cardShadow,
     );
     final content = Padding(padding: padding, child: child);
 

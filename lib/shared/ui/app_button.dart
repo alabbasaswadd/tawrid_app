@@ -34,29 +34,43 @@ class AppButton extends StatelessWidget {
 
     final Widget child = loading
         ? SizedBox(
-            height: 20, width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2.2, color: spinnerColor),
+            height: 18,
+            width: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: spinnerColor,
+            ),
           )
         : (icon != null
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(label)],
-              )
-            : Text(label));
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18),
+                    const SizedBox(width: 8),
+                    Text(label),
+                  ],
+                )
+              : Text(label));
 
     final Widget btn = switch (variant) {
       AppButtonVariant.filled => FilledButton(onPressed: onTap, child: child),
-      AppButtonVariant.tonal => FilledButton.tonal(onPressed: onTap, child: child),
-      AppButtonVariant.outline => OutlinedButton(onPressed: onTap, child: child),
+      AppButtonVariant.tonal => FilledButton.tonal(
+        onPressed: onTap,
+        child: child,
+      ),
+      AppButtonVariant.outline => OutlinedButton(
+        onPressed: onTap,
+        child: child,
+      ),
       AppButtonVariant.text => TextButton(onPressed: onTap, child: child),
       AppButtonVariant.danger => FilledButton(
-          onPressed: onTap,
-          style: FilledButton.styleFrom(
-            backgroundColor: cs.error,
-            foregroundColor: cs.onError,
-          ),
-          child: child,
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: cs.error,
+          foregroundColor: cs.onError,
         ),
+        child: child,
+      ),
     };
 
     return fullWidth ? SizedBox(width: double.infinity, child: btn) : btn;
