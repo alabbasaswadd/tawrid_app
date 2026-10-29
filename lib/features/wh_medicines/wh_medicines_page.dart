@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
-import 'package:tawrid_app/core/cart/wh_cart.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
@@ -137,8 +136,8 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'اتركه فارغاً لسحب السعر — يبقى الصنف في قائمتك ولا يظهر في '
-              'بحث الصيدليات.',
+              'اتركه فارغاً ليعود السعر إلى التقديري (٧٤٪ من سعر '
+              'المستهلك في النشرة).',
               style: Theme.of(ctx).textTheme.labelSmall,
             ),
           ],
@@ -200,45 +199,11 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
-    final cartCount = ref.watch(whCartProvider).length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('أدوية مستودعي'),
         actions: [
-          // زر السلة: يظهر فقط عند وجود أصناف فيها.
-          if (cartCount > 0)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: AppIcon(AppIcons.shoppingCart,
-                      size: 22, color: cs.primary),
-                  tooltip: 'السلة',
-                  onPressed: () => context.push(TRoutes.whCart),
-                ),
-                PositionedDirectional(
-                  top: 8,
-                  end: 8,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                        color: cs.primary, shape: BoxShape.circle),
-                    child: Center(
-                      child: Text(
-                        cartCount > 9 ? '9+' : '$cartCount',
-                        style: context.text.labelSmall?.copyWith(
-                          color: cs.onPrimary,
-                          fontSize: 9,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
           // زر الكتالوج العام: حدٌّ بلون العلامة — ثانوي لا رئيسي.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -345,8 +310,9 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
         const SizedBox(height: AppSpacing.xs),
         // توضيح ما تعنيه القائمة فعلاً — ليست مخزوناً بكميات وأسعار.
         Text(
-          'الصنف المسعَّر يظهر للصيدليات في البحث المقارن كـ«تسعير مباشر»، '
-          'وغير المسعَّر يبقى في قائمتك لتبني عليه عروضك. الكميات تُحدَّد '
+          'كل صنف في قائمتك يظهر للصيدليات في البحث المقارن. ما لم تحدّد له '
+          'سعراً يُحتسب سعره ٧٤٪ من سعر المستهلك في النشرة الوطنية، '
+          'ويبقى سعرك اليدوي — متى أدخلته — هو المعتمد. الكميات تُحدَّد '
           'داخل كل عرض بيع.',
           style: context.text.labelSmall?.copyWith(color: tk.hint),
         ),
@@ -362,9 +328,7 @@ class _PriceResult {
   final double? value;
 }
 
-// ConsumerWidget لأن البطاقة تقرأ سلّة اختيار المستودع (whCartProvider)
-// إلى جانب سعر الصنف — وظيفتان مستقلتان في بطاقة واحدة.
-class _MedicineCard extends ConsumerWidget {
+class _MedicineCard extends StatelessWidget {
   const _MedicineCard({
     required this.medicine,
     required this.onRemove,
@@ -376,12 +340,10 @@ class _MedicineCard extends ConsumerWidget {
   final VoidCallback onEditPrice;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
     final m = medicine;
-    final inCart = ref.watch(whCartProvider).any(
-        (i) => i.warehouseMedicineId == m.id);
 
     final spec = [
       if (m.genericName.isNotEmpty) m.genericName,
@@ -423,15 +385,22 @@ class _MedicineCard extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // السعر أولاً: هو ما يقرّر ظهور الصنف للصيدليات من عدمه.
-                  if (m.price != null)
+                  // السعر أولاً: هو ما تراه الصيدليات. وحين لا يُدخله
+                  // المستودع يدوياً يُشتقّ من سعر المستهلك (٧٤٪) — فلا
+                  // يظنّ صنفه بلا سعر بينما يُباع فعلاً بسعر مشتقّ.
+                  if (m.effectivePrice != null)
                     Text(
-                      formatMoneyWith(m.price!, kPlatformCurrency),
+                      formatMoneyWith(m.effectivePrice!, kPlatformCurrency),
                       style: context.priceStyle,
                     )
                   else
                     Text(
-                      'لم يُحدَّد سعر',
+                      'لا سعر ولا نشرة',
+                      style: context.text.labelSmall?.copyWith(color: tk.hint),
+                    ),
+                  if (m.isDerivedPrice)
+                    Text(
+                      'تقديري (٧٤٪ من سعر المستهلك)',
                       style: context.text.labelSmall?.copyWith(color: tk.hint),
                     ),
                   const SizedBox(height: 2),
@@ -442,7 +411,7 @@ class _MedicineCard extends ConsumerWidget {
                         onPressed: onEditPrice,
                         style: _denseButton,
                         child: Text(
-                          m.price == null ? 'أضف سعراً' : 'تعديل',
+                          m.price == null ? 'حدّد سعراً' : 'تعديل',
                           style:
                               context.text.bodySmall?.copyWith(color: cs.primary),
                         ),
@@ -461,28 +430,6 @@ class _MedicineCard extends ConsumerWidget {
                 ],
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: inCart
-                ? StatusBadge(
-                    label: 'في السلة',
-                    tone: StatusTone.success,
-                    icon: Icons.check,
-                  )
-                : AppButton(
-                    label: 'أضف للسلة',
-                    icon: Icons.add,
-                    fullWidth: false,
-                    compact: true,
-                    variant: AppButtonVariant.tonal,
-                    onPressed: () {
-                      ref.read(whCartProvider.notifier).add(m);
-                      AppSnackbar.success(
-                          context, 'أُضيف «${m.displayName}» إلى السلة');
-                    },
-                  ),
           ),
         ],
       ),

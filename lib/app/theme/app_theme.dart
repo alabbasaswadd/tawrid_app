@@ -151,9 +151,9 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.buttonPaddingX),
           textStyle: textTheme.labelLarge,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppSizes.buttonHeight),
         ),
       ),
 
@@ -166,9 +166,9 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.buttonPaddingX),
           textStyle: textTheme.labelLarge,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppSizes.buttonHeight),
         ),
       ),
 
@@ -178,7 +178,7 @@ abstract final class AppTheme {
           foregroundColor: brand,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           textStyle: textTheme.labelLarge,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppSizes.buttonHeight),
         ),
       ),
 

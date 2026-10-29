@@ -64,7 +64,6 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   DateTime _expiresAt = DateTime.now().add(const Duration(days: 7));
   String _currency = 'SYP';
   List<TargetRegion> _targetRegions = [];
-  bool _isPublicInRegion = false;
   final List<_OfferItemDraft> _items = [];
   bool _saving = false;
 
@@ -192,7 +191,11 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
             expiresAt: _expiresAt,
             currency: _currency,
             targetRegions: _targetRegions,
-            isPublicInRegion: _isPublicInRegion,
+            // الحقل مُبقًى في الطلب لأن أمر الخادم يطلبه، لكنه لا أثر له:
+            // حارس الرؤية يتجاهله ويعرض العرض لكل صيدلية تغطّيها مناطقه
+            // المستهدَفة. إرسال true يطابق السلوك الفعلي بدل مفتاح يوهم
+            // المستخدم بتحكّمٍ لا يملكه.
+            isPublicInRegion: true,
             upfrontPercentage: _upfrontPercentage.text.trim().isEmpty
                 ? null
                 : double.tryParse(_upfrontPercentage.text),
@@ -239,77 +242,100 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            TextFormField(
-              controller: _title,
-              decoration: const InputDecoration(labelText: 'عنوان العرض'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _description,
-              maxLines: 2,
-              decoration: const InputDecoration(labelText: 'وصف (اختياري)'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<String>(
-              initialValue: _currency,
-              decoration: const InputDecoration(labelText: 'العملة', prefixIcon: Icon(Icons.payments_outlined)),
-              items: const [
-                DropdownMenuItem(value: 'SYP', child: Text('ليرة سورية (SYP)')),
-                DropdownMenuItem(value: 'USD', child: Text('دولار أمريكي (USD)')),
-              ],
-              onChanged: (v) => setState(() => _currency = v ?? 'SYP'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
+            // النموذج مقسوم بطاقات على خلفية الصفحة بدل صفحة حقول بيضاء
+            // متصلة: الأقسام تُقرأ وتُراجَع، والألوان تأتي من الثيم كما في
+            // بقية الشاشات بدل أبيض صريح.
+            _Section(
+              title: 'بيانات العرض',
               children: [
-                Expanded(child: _DatePickerField(label: 'يبدأ في', date: _startsAt, onTap: () => _pickDate(isStart: true))),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: _DatePickerField(label: 'ينتهي في', date: _expiresAt, onTap: () => _pickDate(isStart: false))),
+                AppTextField(
+                  controller: _title,
+                  label: 'عنوان العرض',
+                  hint: 'مثال: حزمة المضادات الحيوية',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _description,
+                  label: 'وصف (اختياري)',
+                  hint: 'ما يميّز هذا العرض',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  initialValue: _currency,
+                  decoration: const InputDecoration(
+                      labelText: 'العملة',
+                      prefixIcon: Icon(Icons.payments_outlined)),
+                  items: const [
+                    DropdownMenuItem(value: 'SYP', child: Text('ليرة سورية (SYP)')),
+                    DropdownMenuItem(value: 'USD', child: Text('دولار أمريكي (USD)')),
+                  ],
+                  onChanged: (v) => setState(() => _currency = v ?? 'SYP'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(child: _DatePickerField(label: 'يبدأ في', date: _startsAt, onTap: () => _pickDate(isStart: true))),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: _DatePickerField(label: 'ينتهي في', date: _expiresAt, onTap: () => _pickDate(isStart: false))),
+                  ],
+                ),
               ],
             ),
+
             const SizedBox(height: AppSpacing.md),
-            Text('المنطقة المستهدفة (يمكن إضافة أكثر من محافظة/مدينة)',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.xs),
-            MultiRegionPicker(
-              regions: _targetRegions,
-              onChanged: (v) => setState(() => _targetRegions = v),
+            _Section(
+              title: 'من يرى العرض',
+              children: [
+                Text('المنطقة المستهدفة (يمكن إضافة أكثر من محافظة/مدينة)',
+                    style: context.text.labelMedium),
+                const SizedBox(height: AppSpacing.xs),
+                MultiRegionPicker(
+                  regions: _targetRegions,
+                  onChanged: (v) => setState(() => _targetRegions = v),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'يراه كل صيدلية تقع ضمن المناطق المختارة.',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: context.tokens.hint),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('متاح لكل صيدليات المناطق المستهدفة'),
-              subtitle: const Text('إيقافه يقصر العرض على الصيدليات المحددة'),
-              value: _isPublicInRegion,
-              onChanged: (v) => setState(() => _isPublicInRegion = v),
-            ),
+
             // شروط الدفع صارت اختيارية لكل عرض بعد حذف «نوع العرض»
-            ...[
-              const SizedBox(height: AppSpacing.md),
-              TextFormField(
-                controller: _upfrontPercentage,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'نسبة الدفع المقدَّم (%)'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextFormField(
-                controller: _paymentPeriodDays,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'مدة السداد (أيام)'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextFormField(
-                controller: _consignmentTerms,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'الشروط (اختياري)'),
-              ),
-            ],
+            const SizedBox(height: AppSpacing.md),
+            _Section(
+              title: 'شروط الدفع (اختيارية)',
+              children: [
+                AppTextField(
+                  controller: _upfrontPercentage,
+                  label: 'نسبة الدفع المقدَّم (%)',
+                  hint: '0',
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _paymentPeriodDays,
+                  label: 'مدة السداد (أيام)',
+                  hint: '30',
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _consignmentTerms,
+                  label: 'الشروط (اختياري)',
+                  hint: 'تفاصيل إضافية للاتفاق',
+                ),
+              ],
+            ),
+
             const SizedBox(height: AppSpacing.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('الأصناف', style: Theme.of(context).textTheme.titleMedium),
+                Text('الأصناف', style: context.text.titleLarge),
                 TextButton.icon(
                   onPressed: _addMedicine,
                   icon: const Icon(Icons.add),
@@ -330,7 +356,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
 
             const SizedBox(height: AppSpacing.lg),
             Text('بونص العرض (دواء مجاني — اختياري)',
-                style: Theme.of(context).textTheme.titleSmall),
+                style: context.text.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             if (_bonusMedicine == null)
               OutlinedButton.icon(
@@ -642,6 +668,35 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
           ),
         );
       },
+    );
+  }
+}
+
+// قسم في نموذج العرض: عنوان فوق بطاقة من نظام التصميم. الخلفية والحدّ
+// والظل من الثيم (AppCard) لا من أبيض صريح، فيتبع الوضعين الفاتح والداكن.
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm, right: 2),
+          child: Text(title, style: context.text.titleSmall),
+        ),
+        AppCard(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
+      ],
     );
   }
 }

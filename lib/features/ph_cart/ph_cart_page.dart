@@ -150,7 +150,7 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
       body: RefreshIndicator(
         onRefresh: () => ref.read(cartProvider.notifier).refresh(),
         child: switch (cartAsync) {
-          AsyncLoading() => const LoadingState(),
+          AsyncLoading() => const AppListSkeleton(count: 3),
           AsyncError(:final error) => ErrorState(
             message: ApiException.from(error).message,
             onRetry: () => ref.read(cartProvider.notifier).refresh(),
@@ -162,7 +162,6 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
   }
 
   Widget _buildBody(Cart cart) {
-    final tk = context.tokens;
 
     if (cart.isEmpty) {
       return ListView(
@@ -217,14 +216,18 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: AppIcon(AppIcons.warehouse, size: 14, color: tk.hint),
+              child: AppIcon(
+                AppIcons.warehouse,
+                size: 14,
+                color: context.colors.onSurface,
+              ),
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'أكمل كل طلبية مستودع بشكل مستقل — يمكنك إرسال طلبية مستودع '
                 'الآن وترك أصناف مستودع آخر في السلّة لإكمالها لاحقاً.',
-                style: context.text.bodySmall?.copyWith(color: tk.hint),
+                style: context.text.bodySmall,
               ),
             ),
           ],
@@ -258,7 +261,6 @@ class _WarehouseGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
-    final tk = context.tokens;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -277,10 +279,7 @@ class _WarehouseGroup extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(
-              group.itemsLabel,
-              style: context.text.bodySmall?.copyWith(color: tk.hint),
-            ),
+            Text(group.itemsLabel, style: context.text.bodySmall),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -288,12 +287,20 @@ class _WarehouseGroup extends StatelessWidget {
         for (final item in group.items)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _CartLineCard(
-              item: item,
-              currency: group.currency,
-              busy: busyLineId == item.id,
-              onQuantityChanged: (v) => onQuantityChanged(item, v),
-              onRemove: () => onRemoveItem(item),
+            // السحب هو طريقة الحذف (مع إنقاص الكمية إلى صفر) — لا أيقونة
+            // حذف في البطاقة، فالتصميم يُبقي الصفّ للكمية وحدها.
+            child: Dismissible(
+              key: ValueKey(item.id),
+              direction: DismissDirection.horizontal,
+              background: const _SwipeToDeleteBackground(),
+              secondaryBackground: const _SwipeToDeleteBackground(),
+              onDismissed: (_) => onRemoveItem(item),
+              child: _CartLineCard(
+                item: item,
+                currency: group.currency,
+                busy: busyLineId == item.id,
+                onQuantityChanged: (v) => onQuantityChanged(item, v),
+              ),
             ),
           ),
 
@@ -303,7 +310,7 @@ class _WarehouseGroup extends StatelessWidget {
           child: Text(
             'إجمالي هذا المستودع: '
             '${formatMoneyWith(group.total, group.currency)}',
-            style: context.text.labelSmall?.copyWith(color: tk.hint),
+            style: context.text.labelSmall,
           ),
         ),
 
@@ -327,27 +334,24 @@ class _WarehouseGroup extends StatelessWidget {
   }
 }
 
-// بطاقة صنف في السلّة: الإجمالي في الطرف، والاسم وسعر الوحدة في بداية
-// القراءة، ثم صف الحذف ومنتقي الكمية.
+// بطاقة صنف في السلّة (Figma): الإجمالي في الطرف، والاسم وسعر الوحدة في
+// بداية القراءة، ثم منتقي الكمية وحده. سطح بلا حدّ وزاوية ١٢ وحشوة ١٣.
 class _CartLineCard extends StatelessWidget {
   const _CartLineCard({
     required this.item,
     required this.currency,
     required this.busy,
     required this.onQuantityChanged,
-    required this.onRemove,
   });
 
   final CartItem item;
   final String currency;
   final bool busy;
   final ValueChanged<int> onQuantityChanged;
-  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
-    final tk = context.tokens;
     final qty = item.quantityInt;
 
     return Container(
@@ -355,7 +359,6 @@ class _CartLineCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: cs.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -377,13 +380,13 @@ class _CartLineCard extends StatelessWidget {
                     Text(
                       'سعر الوحدة: '
                       '${formatMoneyWith(item.unitPrice, item.currency)}',
-                      style: context.text.bodySmall?.copyWith(color: tk.hint),
+                      style: context.text.bodySmall,
                     ),
                     if (item.fromOffer && item.salesOfferTitle != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'ضمن عرض: ${item.salesOfferTitle}',
-                        style: context.text.labelSmall?.copyWith(color: tk.hint),
+                        style: context.text.labelSmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -395,10 +398,7 @@ class _CartLineCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'الإجمالي',
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                  ),
+                  Text('الإجمالي', style: context.text.bodySmall),
                   Text(
                     formatMoneyWith(item.lineTotal, item.currency),
                     style: context.priceStyle,
@@ -419,35 +419,19 @@ class _CartLineCard extends StatelessWidget {
           ],
 
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              // الحذف في بداية القراءة، والمنتقي في نهايتها (كما في Figma).
-              InkWell(
-                onTap: busy ? null : onRemove,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppIcon(AppIcons.x, size: 14, color: tk.danger),
-                      const SizedBox(width: 4),
-                      Text(
-                        'حذف',
-                        style: context.text.bodySmall?.copyWith(color: tk.danger),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Spacer(),
-              QuantityStepper(
-                value: '$qty',
-                // الإنقاص عند ١ يحذف السطر — الخادم يعامل الصفر حذفاً.
-                onDecrement: busy ? null : () => onQuantityChanged(qty - 1),
-                onIncrement: busy ? null : () => onQuantityChanged(qty + 1),
-              ),
-            ],
+          // المنتقي وحده في نهاية القراءة (كما في Figma) — لا زرّ حذف:
+          // الحذف بالسحب أفقياً أو بإنقاص الكمية إلى صفر.
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: QuantityStepper(
+              value: '$qty',
+              enabled: !busy,
+              // الإنقاص عند ١ يحذف السطر — الخادم يعامل الصفر حذفاً.
+              onDecrement: () => onQuantityChanged(qty - 1),
+              onIncrement: () => onQuantityChanged(qty + 1),
+              // الكتابة المباشرة: كمية ٢٤٠ لا تُبلَغ بالضغط ٢٤٠ مرة.
+              onValueChanged: onQuantityChanged,
+            ),
           ),
         ],
       ),
@@ -519,7 +503,15 @@ class _CartSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
       child: Column(
         children: [
           _row(context, 'عدد الأصناف', '${cart.totalLines}'),
@@ -542,4 +534,33 @@ class _CartSummary extends StatelessWidget {
       Text(value, style: context.priceStyle),
     ],
   );
+}
+
+
+// خلفية السحب للحذف — تظهر خلف البطاقة أثناء السحب في أي اتجاه، فيرى
+// المستخدم ما سيحدث قبل أن يُفلت.
+class _SwipeToDeleteBackground extends StatelessWidget {
+  const _SwipeToDeleteBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    return Container(
+      decoration: BoxDecoration(
+        color: tk.dangerSurface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Row(
+        children: [
+          AppIcon(AppIcons.x, size: 18, color: tk.danger),
+          const Spacer(),
+          Text(
+            'حذف',
+            style: context.text.bodySmall?.copyWith(color: tk.danger),
+          ),
+        ],
+      ),
+    );
+  }
 }

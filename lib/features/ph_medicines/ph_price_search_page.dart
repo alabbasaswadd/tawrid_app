@@ -23,10 +23,20 @@ import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 // مقسومة إلى قسمين يسمّيان مصدرهما، لأن «ضمن عرض» و«سعر مباشر» قراران
 // مختلفان ولو تساوى الرقمان.
 class PhPriceSearchPage extends ConsumerStatefulWidget {
-  const PhPriceSearchPage({this.initialQuery, super.key});
+  const PhPriceSearchPage({
+    this.initialQuery,
+    this.warehouseId,
+    this.warehouseName,
+    super.key,
+  });
 
   /// نصّ بحث قادم من شاشة أخرى (مثل بحث الرئيسية) — يُعبَّأ ويُنفَّذ مباشرة.
   final String? initialQuery;
+
+  /// يحصر البحث بمستودع واحد — يُفتح من ملف المستودع. الخادم يفلتر
+  /// بالمعرّف، والاسم للعنوان وحده.
+  final String? warehouseId;
+  final String? warehouseName;
 
   @override
   ConsumerState<PhPriceSearchPage> createState() => _PhPriceSearchPageState();
@@ -93,6 +103,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     try {
       final page = await ref.read(medicineSearchRepositoryProvider).search(
         name: _searchController.text,
+        warehouseId: widget.warehouseId,
         source: _source,
         sort: _sort,
         limit: _pageSize,
@@ -178,10 +189,11 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   @override
   Widget build(BuildContext context) {
     final cartCount = ref.watch(cartCountProvider);
+    final scoped = widget.warehouseId != null;
 
     return Scaffold(
       appBar: InnerTopBar(
-        title: 'بحث الأسعار',
+        title: scoped ? 'البحث في المستودع' : 'بحث الأسعار',
         // زر السلّة في الطرف المقابل لزر الرجوع (Figma).
         trailing: CartButton(
           count: cartCount,
@@ -199,12 +211,46 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
             ),
             child: AppSearchBar(
               controller: _searchController,
-              hint: 'ابحث عن دواء، مادة فعالة، أو مستودع…',
+              hint: scoped
+                  ? 'ابحث عن دواء داخل هذا المستودع…'
+                  : 'ابحث عن دواء، مادة فعالة، أو مستودع…',
               onChanged: _onSearchChanged,
               onSubmitted: (_) => _run(reset: true),
               onScanTap: _scanBarcode,
             ),
           ),
+
+          // نطاق البحث محصور بمستودع: نقوله صراحةً، فنتيجة واحدة بلا سياق
+          // تُقرأ كأنها كل ما في السوق.
+          if (scoped && widget.warehouseName != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                AppSpacing.sm,
+                AppSpacing.page,
+                0,
+              ),
+              child: Row(
+                children: [
+                  AppIcon(
+                    AppIcons.warehouse,
+                    size: 14,
+                    color: context.colors.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'النتائج من «${widget.warehouseName}» وحده',
+                      style: context.text.labelSmall?.copyWith(
+                        color: context.colors.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // صفّ الفلاتر: زر دائري بشارة عدد الفلاتر، واسم الترتيب الحالي.
           Padding(
@@ -250,7 +296,9 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    // هيكل بطاقات شبيه بنتائج البحث — انتظارٌ يُظهر شكل ما سيأتي
+    // بدل دوّارة لا تقول شيئاً.
+    if (_loading) return const AppListSkeleton(count: 4);
     if (_error != null && _results.isEmpty) {
       return ErrorState(message: _error!, onRetry: () => _run(reset: true));
     }
@@ -338,6 +386,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       result: r,
       adding: _adding == _keyOf(r),
       onAdd: () => _addToCart(r),
+      onRequestQuote: () => context.push(TRoutes.phCreateTender),
       onOfferDetails: r.salesOfferId == null
           ? null
           : () => context.push(TRoutes.phOfferDetail(r.salesOfferId!)),
@@ -354,12 +403,14 @@ class _PriceResultCard extends StatelessWidget {
     required this.result,
     required this.adding,
     required this.onAdd,
+    required this.onRequestQuote,
     this.onOfferDetails,
   });
 
   final MedicineSearchResult result;
   final bool adding;
   final VoidCallback onAdd;
+  final VoidCallback onRequestQuote;
   final VoidCallback? onOfferDetails;
 
   @override
@@ -463,16 +514,27 @@ class _PriceResultCard extends StatelessWidget {
 
           Row(
             children: [
-              SizedBox(
-                height: 36,
-                child: AppButton(
+              // الصنف غير المسعَّر يُعرَض ليعرف الصيدلي أن المستودع يتعامل
+              // به، لكن السلّة تُجمِّد سعراً فلا تقبله — فيُستبدل زرّ
+              // الإضافة بمخرج مفيد: طلب تسعيره.
+              if (r.isUnpriced)
+                AppButton(
+                  label: 'اطلب تسعيره',
+                  icon: Icons.request_quote_outlined,
+                  fullWidth: false,
+                  compact: true,
+                  variant: AppButtonVariant.tonal,
+                  onPressed: onRequestQuote,
+                )
+              else
+                AppButton(
                   label: 'أضف للسلة',
                   icon: Icons.add,
                   fullWidth: false,
+                  compact: true,
                   loading: adding,
                   onPressed: onAdd,
                 ),
-              ),
               if (onOfferDetails != null) ...[
                 const SizedBox(width: AppSpacing.md),
                 InkWell(
@@ -502,13 +564,21 @@ class _PriceResultCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'سعر الوحدة',
+                    // السعر المشتقّ سعرٌ يُشترى به، لكن تسميته تقول مصدره:
+                    // قد يعدّله المستودع متى أدخل سعره يدوياً.
+                    r.isDerivedPrice ? 'سعر تقديري' : 'سعر الوحدة',
                     style: context.text.bodySmall?.copyWith(color: tk.hint),
                   ),
-                  Text(
-                    formatMoneyWith(r.netUnitPrice, r.currency),
-                    style: context.priceStyle,
-                  ),
+                  if (r.isUnpriced)
+                    Text(
+                      'لم يُسعَّر بعد',
+                      style: context.text.bodyMedium?.copyWith(color: tk.hint),
+                    )
+                  else
+                    Text(
+                      formatMoneyWith(r.netUnitPrice!, r.currency),
+                      style: context.priceStyle,
+                    ),
                 ],
               ),
             ],

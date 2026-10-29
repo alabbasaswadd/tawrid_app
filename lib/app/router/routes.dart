@@ -31,6 +31,12 @@ abstract final class TRoutes {
   // بحث الأسعار المقارن (عروض + تسعير مباشر) والسلّة المبنيّة من نتائجه.
   // السلّة محفوظة على الخادم ومجمَّعة فيه حسب المستودع.
   static const String phPriceSearch = '/medicines/prices';
+
+  /// بحث الأسعار محصوراً بمستودع واحد — يُفتح من ملف المستودع.
+  /// الاسم يُمرَّر للعنوان فقط؛ الخادم يفلتر بالمعرّف.
+  static String phPriceSearchInWarehouse(String warehouseId, String name) =>
+      '$phPriceSearch?warehouseId=$warehouseId'
+      '&warehouseName=${Uri.encodeComponent(name)}';
   static const String phCart = '/cart';
 
   // تفاصيل عرض بيع عند الصيدلي — منها تُنشأ الطلبية باختيار الأصناف
@@ -58,10 +64,6 @@ abstract final class TRoutes {
       '/wh/tenders/:tenderId/submit-offer';
   static String whSubmitTenderOffer(String tenderId) =>
       '/wh/tenders/$tenderId/submit-offer';
-
-  // سلة المستودع (أصناف مختارة لإنشاء عرض) — سلّة اختيار داخل تطبيق
-  // المستودع، لا علاقة لها بسلّة الشراء عند الصيدلي.
-  static const String whCart = '/wh/cart';
 
   // الملف الشخصي للصيدلية
   static const String phProfile = '/profile';

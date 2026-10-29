@@ -346,24 +346,18 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
                       label: 'في مخزونك',
                       tone: StatusTone.success,
                       icon: Icons.check)
-                else if (adding)
-                  const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
                 else
-                  Tooltip(
-                    message: 'أضف لمخزونك',
-                    child: IconButton.filledTonal(
-                      iconSize: 18,
-                      style: const ButtonStyle(
-                        minimumSize: WidgetStatePropertyAll(Size(32, 32)),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: WidgetStatePropertyAll(EdgeInsets.zero),
-                      ),
-                      icon: const Icon(Icons.add),
-                      onPressed: () => _add(item),
-                    ),
+                  // زرّ بنصّ لا أيقونة مجرَّدة: «+» وحدها لا تقول إلى أين
+                  // يُضاف الصنف، والشارة المقابلة له نصّية («في مخزونك»)
+                  // فيُقرأ الصفّ كزوج مفهوم. والانتظار على الزرّ نفسه
+                  // (نقاط) لا دوّارة تحلّ مكانه: اختفاؤه يُفقد الصفّ مرساه.
+                  AppButton(
+                    label: 'أضف لمخزونك',
+                    fullWidth: false,
+                    compact: true,
+                    loading: adding,
+                    variant: AppButtonVariant.tonal,
+                    onPressed: () => _add(item),
                   ),
               ],
             ),

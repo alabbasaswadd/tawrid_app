@@ -29,3 +29,19 @@ abstract final class AppRadius {
   static const double lg = 16.0;
   static const double full = 999.0;
 }
+
+// مقاسات عناصر التحكّم — مصدر واحد يقرأ منه الثيم والمكوّنات معاً.
+// تغيير الارتفاع هنا يسري على كل أزرار التطبيق بلا مطاردة قيم متناثرة.
+abstract final class AppSizes {
+  /// ارتفاع الزرّ الأساسي (Figma: زر ٤٨ بحشو أفقي ٢٤).
+  static const double buttonHeight = 48.0;
+  static const double buttonPaddingX = 24.0;
+
+  /// زرّ داخل بطاقة: ارتفاع ٣٢ بحشو أفقي ١٢. الحشو الأوسع كان يمدّ الزرّ
+  /// عرضاً أكثر مما يرتفع فيبدو شريطاً مسطّحاً لا زرّاً.
+  static const double buttonHeightCompact = 32.0;
+  static const double buttonPaddingXCompact = 12.0;
+
+  /// الأزرار الدائرية في الأشرطة العلوية.
+  static const double iconButton = 40.0;
+}

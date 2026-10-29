@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+
+import 'dots_loader.dart';
 
 enum AppButtonVariant { filled, tonal, outline, text, danger }
 
@@ -35,50 +38,59 @@ class AppButton extends StatelessWidget {
       _ => cs.primary,
     };
 
-    final Widget child = loading
-        ? SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: spinnerColor,
-            ),
-          )
-        // سطر واحد دائماً: زرّان متجاوران في شريط سفلي يُضيّقان بعضهما،
-        // فكان «حفظ كمسودة» ينكسر سطرين ويخرج عن ارتفاع الزرّ.
-        : (icon != null
+    // محتوى الحالة العادية — يُبنى دائماً، ويُستعمل أثناء الانتظار شفافاً
+    // ليحجز المقاس نفسه: الزرّ لا يقفز بين حالتيه ولا ينكمش حول ثلاث نقاط
+    // فيبدو شريطاً عريضاً مسطّحاً.
+    final Widget label = icon != null
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 18),
-                    const SizedBox(width: 8),
+                    Icon(icon, size: compact ? 14 : 18),
+                    SizedBox(width: compact ? 6 : 8),
                     Flexible(
-                      child: Text(label,
+                      child: Text(this.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center),
                     ),
                   ],
                 )
-              : Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center));
+        : Text(this.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center);
 
-    // الأزرار العادية: حشو أفقي مختصر قليلاً عن قيمة Material الافتراضية (24→18).
+    // أثناء الانتظار: النقاط فوق النصّ المخفيّ — نفس العرض ونفس الارتفاع.
+    final Widget child = loading
+        ? Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(opacity: 0, child: label),
+              DotsLoader(color: spinnerColor, size: compact ? 5 : 6),
+            ],
+          )
+        : label;
+
+    // الارتفاع يأتي من الثيم وحده (Figma: ٤٨ وحشو أفقي ٢٤) — لا يُعاد
+    // تعريفه هنا، وإلا لم يُطبَّق مقاس Figma في أي زرّ بالتطبيق لأن هذا
+    // المكوّن هو كل الأزرار.
     const baseStyle = ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(Size(0, 40)),
-      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
 
+    // compact: زرّ داخل بطاقة (Figma: حشو ١٤×٨ بنصّ ١٢ ⇒ ارتفاع ٣٤).
+    // النصّ يصغر مع الصندوق: ترك نصّ الزرّ ١٥ داخل ارتفاع ٣٤ يملأ الزرّ
+    // حرفاً بلا هامش، فيبدو مضغوطاً لا صغيراً.
     final compactStyle = compact
-        ? const ButtonStyle(
-            minimumSize: WidgetStatePropertyAll(Size(0, 32)),
-            padding: WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 12),
+        ? ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(
+              Size(0, AppSizes.buttonHeightCompact),
+            ),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: AppSizes.buttonPaddingXCompact),
             ),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: WidgetStatePropertyAll(context.text.bodySmall),
           )
         : baseStyle;
 

@@ -68,10 +68,19 @@ class MedicineSearchResult {
   final double? minimumOrderAmount;
 
   // ── السعر ──────────────────────────────────────────────────────────
-  final double unitPrice;
+  /// null في نتائج التسعير المباشر وحدها: المستودع يتعامل بالصنف ولم يضع
+  /// له سعراً بعد — يُعرَض ليُعرَف أنه متوفّر لديه، ولا يُضاف إلى السلّة.
+  final double? unitPrice;
 
   /// السعر بعد الحسم — هو ما يُثبَّت في السلّة وما رتّب به الخادم.
-  final double netUnitPrice;
+  final double? netUnitPrice;
+
+  /// هل للصنف سعر يصلح للإضافة إلى السلّة؟ نتائج العروض دائماً نعم.
+  final bool hasPrice;
+
+  /// السعر مشتقٌّ تلقائياً (٧٤٪ من سعر المستهلك) لأن المستودع لم يُدخله
+  /// يدوياً. سعرٌ فعلي يُشترى به، لكن تمييزه يهمّ الصيدلي.
+  final bool isDerivedPrice;
   final String currency;
   final String unit;
 
@@ -101,8 +110,10 @@ class MedicineSearchResult {
     required this.governorate,
     this.distanceKm,
     this.minimumOrderAmount,
-    required this.unitPrice,
-    required this.netUnitPrice,
+    this.unitPrice,
+    this.netUnitPrice,
+    this.hasPrice = true,
+    this.isDerivedPrice = false,
     required this.currency,
     required this.unit,
     required this.medicineName,
@@ -135,9 +146,12 @@ class MedicineSearchResult {
       governorate: j['governorate'] as String? ?? '',
       distanceKm: d('distanceKm'),
       minimumOrderAmount: d('minimumOrderAmount'),
-      unitPrice: d('unitPrice') ?? 0,
+      unitPrice: d('unitPrice'),
       // خادم أقدم من إضافة الحقل: نعود إلى السعر المعلن بدل صفر صامت.
-      netUnitPrice: d('netUnitPrice') ?? d('unitPrice') ?? 0,
+      netUnitPrice: d('netUnitPrice') ?? d('unitPrice'),
+      // خادم أقدم لا يرسل العلَم: وجود سعر هو الدليل.
+      hasPrice: j['hasPrice'] as bool? ?? (j['netUnitPrice'] ?? j['unitPrice']) != null,
+      isDerivedPrice: j['isDerivedPrice'] as bool? ?? false,
       currency: j['currency'] as String? ?? 'SYP',
       unit: j['unit'] as String? ?? 'عبوة',
       medicineName: j['medicineName'] as String? ?? '',
@@ -154,6 +168,9 @@ class MedicineSearchResult {
   }
 
   bool get isOffer => resultType == MedicineResultType.offer;
+
+  /// صنف يتعامل به المستودع بلا سعر معلن — يُعرَض ولا يُضاف إلى السلّة.
+  bool get isUnpriced => !hasPrice || netUnitPrice == null;
 
   /// «أموكسيسيلين · كبسولات ٥٠٠» — السطر الثانوي تحت اسم الدواء.
   String get specLine => [

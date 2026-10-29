@@ -75,7 +75,23 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
                 children: [
                   const SizedBox(height: AppSpacing.xl),
                   const _BrandHeader(subtitle: 'المنصة الذكية للتوريد الدوائي'),
-                  const SizedBox(height: AppSpacing.x3l),
+                  const SizedBox(height: AppSpacing.x2l),
+
+                  // اختيار نوع الحساب في الأعلى لا في ذيل الشاشة: من يفتح
+                  // التطبيق يقرّر «من أنا» قبل أن يكتب بياناته، لا بعد أن
+                  // يملأ حقلين ويكتشف زرّاً باهتاً تحت فاصل.
+                  AppSegmentedToggle(
+                    items: const [
+                      SegmentItem(label: 'صيدلية', icon: Icons.local_pharmacy_outlined),
+                      SegmentItem(label: 'مستودع', icon: Icons.warehouse_outlined),
+                    ],
+                    selected: 0,
+                    onChanged: (i) {
+                      if (i == 0) return;
+                      context.go(TRoutes.whLogin);
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
 
                   Text('دخول الصيدلية', style: context.text.titleLarge),
                   const SizedBox(height: AppSpacing.xs),
@@ -125,15 +141,6 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
                         onPressed: () => context.push(TRoutes.phRegister),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const Divider(),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  AppButton(
-                    label: 'دخول كمستودع',
-                    variant: AppButtonVariant.outline,
-                    onPressed: () => context.go(TRoutes.whLogin),
                   ),
                 ],
               ),

@@ -12,7 +12,7 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
     required this.name,
     this.onNotificationsTap,
     this.hasUnread = false,
-    this.leading,
+    this.actions = const [],
     super.key,
   });
 
@@ -21,8 +21,8 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onNotificationsTap;
   final bool hasUnread;
 
-  /// إجراء إضافي قبل زر الإشعارات (زر السلّة في رئيسية الصيدلي).
-  final Widget? leading;
+  /// إجراءات تسبق زرّ الإشعارات (بحث الأسعار والسلّة في رئيسية الصيدلي).
+  final List<Widget> actions;
 
   @override
   Size get preferredSize => const Size.fromHeight(68);
@@ -49,8 +49,8 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
             ),
-            if (leading != null) ...[
-              leading!,
+            for (final action in actions) ...[
+              action,
               const SizedBox(width: AppSpacing.sm),
             ],
             Stack(

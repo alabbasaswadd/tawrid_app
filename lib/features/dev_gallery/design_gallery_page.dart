@@ -144,6 +144,38 @@ class _DesignGalleryPageState extends State<DesignGalleryPage> {
             ],
           ),
 
+          _section(context, 'انتظار الأزرار (نقاط)'),
+          Row(
+            children: [
+              AppButton(
+                label: 'أضف للسلة',
+                fullWidth: false,
+                compact: true,
+                loading: true,
+                onPressed: () {},
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              AppButton(
+                label: 'حفظ',
+                fullWidth: false,
+                loading: true,
+                onPressed: () {},
+              ),
+            ],
+          ),
+
+          _section(context, 'أزرار أيقونة دائرية'),
+          Row(
+            children: [
+              CircleIconButton(icon: AppIcons.search, onTap: () {}),
+              const SizedBox(width: AppSpacing.lg),
+              CircleIconButton(
+                  icon: AppIcons.warehouse, bordered: true, onTap: () {}),
+              const SizedBox(width: AppSpacing.lg),
+              CircleIconButton(icon: AppIcons.sliders, bordered: true, onTap: () {}),
+            ],
+          ),
+
           _section(context, 'عدادات الملخص'),
           Row(
             children: [

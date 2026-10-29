@@ -237,6 +237,9 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
         activeFilters: _filters.activeCount,
         onFiltersTap: _openFilterSheet,
         onCatalogTap: () => context.push(TRoutes.phMedicineSearch),
+        // المستودعات انتقلت إلى هنا من الرئيسية: مكانها الطبيعي حيث
+        // يتصفّح الصيدلي ما يُعرَض عليه، لا بطاقة عدّاد في الرئيسية.
+        onWarehousesTap: () => context.push(TRoutes.phWarehouses),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -364,11 +367,13 @@ class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
     required this.activeFilters,
     required this.onFiltersTap,
     required this.onCatalogTap,
+    required this.onWarehousesTap,
   });
 
   final int activeFilters;
   final VoidCallback onFiltersTap;
   final VoidCallback onCatalogTap;
+  final VoidCallback onWarehousesTap;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -408,7 +413,15 @@ class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
+            const SizedBox(width: AppSpacing.sm),
+            CircleIconButton(
+              icon: AppIcons.warehouse,
+              tooltip: 'المستودعات المتاحة',
+              bordered: true,
+              size: 18,
+              onTap: onWarehousesTap,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             // الشارة تخرج عن حدود الزر، فـ clipBehavior لا بدّ أن يسمح بذلك
             // وإلا قُصَّت — وهو ما حدث في نسخة سابقة.
             Stack(

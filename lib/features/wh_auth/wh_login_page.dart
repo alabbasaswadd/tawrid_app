@@ -90,7 +90,23 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
                       Text('بوابة المستودع', style: context.text.bodySmall),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.x3l),
+                  const SizedBox(height: AppSpacing.x2l),
+
+                  // اختيار نوع الحساب في الأعلى لا في ذيل الشاشة: من يفتح
+                  // التطبيق يقرّر «من أنا» قبل أن يكتب بياناته، لا بعد أن
+                  // يملأ حقلين ويكتشف زرّاً باهتاً تحت فاصل.
+                  AppSegmentedToggle(
+                    items: const [
+                      SegmentItem(label: 'صيدلية', icon: Icons.local_pharmacy_outlined),
+                      SegmentItem(label: 'مستودع', icon: Icons.warehouse_outlined),
+                    ],
+                    selected: 1,
+                    onChanged: (i) {
+                      if (i == 1) return;
+                      context.go(TRoutes.phLogin);
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
 
                   Text('دخول المستودع', style: context.text.titleLarge),
                   const SizedBox(height: AppSpacing.xs),
@@ -139,15 +155,6 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
                         onPressed: () => context.push(TRoutes.whRegister),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const Divider(),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  AppButton(
-                    label: 'دخول كصيدلية',
-                    variant: AppButtonVariant.outline,
-                    onPressed: () => context.go(TRoutes.phLogin),
                   ),
                 ],
               ),

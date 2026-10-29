@@ -24,6 +24,15 @@ class WarehouseMedicine {
   /// البيع الذي يضبطه المستودع لنفسه وتُقارَن به الأسعار.
   final double? price;
 
+  /// سعر المستهلك من النشرة الوطنية — أساس اشتقاق السعر.
+  final double pricePublic;
+
+  /// ما تراه الصيدليات فعلاً: اليدوي إن وُجد، وإلا ٧٤٪ من سعر المستهلك.
+  final double? effectivePrice;
+
+  /// السعر المعروض مشتقٌّ تلقائياً لا مُدخَلاً يدوياً.
+  final bool isDerivedPrice;
+
   final DateTime createdOn;
 
   WarehouseMedicine({
@@ -38,6 +47,9 @@ class WarehouseMedicine {
     required this.manufacturerName,
     this.pricePharmacist = 0,
     this.price,
+    this.pricePublic = 0,
+    this.effectivePrice,
+    this.isDerivedPrice = false,
     required this.createdOn,
   });
 
@@ -53,6 +65,9 @@ class WarehouseMedicine {
         manufacturerName: j['manufacturerName'] as String? ?? '',
         pricePharmacist: (j['pricePharmacist'] as num?)?.toDouble() ?? 0,
         price: (j['price'] as num?)?.toDouble(),
+        pricePublic: (j['pricePublic'] as num?)?.toDouble() ?? 0,
+        effectivePrice: (j['effectivePrice'] as num?)?.toDouble(),
+        isDerivedPrice: j['isDerivedPrice'] as bool? ?? false,
         createdOn: DateTime.parse(j['createdOn'] as String),
       );
 

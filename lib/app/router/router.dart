@@ -11,7 +11,6 @@ import 'package:tawrid_app/features/auth/account_status_page.dart';
 import 'package:tawrid_app/features/auth/login_page.dart';
 import 'package:tawrid_app/features/dev_gallery/design_gallery_page.dart';
 import 'package:tawrid_app/features/ph_cart/ph_cart_page.dart';
-import 'package:tawrid_app/features/wh_cart/wh_cart_page.dart';
 import 'package:tawrid_app/features/notifications/notification_settings_page.dart';
 import 'package:tawrid_app/features/notifications/notifications_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
@@ -159,7 +158,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whOrderSettings,
         TRoutes.whNotifications,
         TRoutes.whNotificationSettings,
-        TRoutes.whCart,
       };
       final isSubmitOfferRoute =
           loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
@@ -329,8 +327,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: TRoutes.phPriceSearch,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, state) =>
-            PhPriceSearchPage(initialQuery: state.uri.queryParameters['q']),
+        builder: (_, state) => PhPriceSearchPage(
+          initialQuery: state.uri.queryParameters['q'],
+          warehouseId: state.uri.queryParameters['warehouseId'],
+          warehouseName: state.uri.queryParameters['warehouseName'],
+        ),
       ),
 
       // السلّة — محفوظة على الخادم ومجمَّعة حسب المستودع، وكل مجموعة
@@ -346,14 +347,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.phProfile,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const PhProfilePage(),
-      ),
-
-      // سلة المستودع — اختيار أصناف داخل تطبيق المستودع لبناء عرض،
-      // لا سلّة شراء (سلّة الشراء عند الصيدلي وحدها، وهي على الخادم).
-      GoRoute(
-        path: TRoutes.whCart,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const WhCartPage(),
       ),
 
       // تفاصيل عرض بيع — شاشة كاملة لأن منها تُنشأ الطلبية (اختيار أصناف

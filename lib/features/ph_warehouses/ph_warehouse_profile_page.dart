@@ -156,6 +156,19 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                 text: '${p.activeOffersCount} '
                     '${p.activeOffersCount == 1 ? 'عرض ساري' : 'عروض سارية'}',
               ),
+
+              const SizedBox(height: AppSpacing.md),
+              // عروضه السارية أدناه لا تُظهر إلا ما جمّعه في عروض. البحث
+              // هنا يصل إلى كل أصنافه — عروضاً وتسعيراً مباشراً — بالاسم
+              // أو بالباركود، ومنه تُضاف الأصناف إلى السلّة.
+              AppButton(
+                label: 'ابحث عن دواء في هذا المستودع',
+                icon: Icons.search,
+                variant: AppButtonVariant.tonal,
+                onPressed: () => context.push(
+                  TRoutes.phPriceSearchInWarehouse(p.id, p.name),
+                ),
+              ),
             ],
           ),
         ),

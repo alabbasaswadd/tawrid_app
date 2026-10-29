@@ -103,7 +103,7 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
     return Scaffold(
       appBar: const InnerTopBar(title: 'إعدادات الطلبيات'),
       body: _loading
-          ? const LoadingState()
+          ? const AppDetailSkeleton()
           : _error != null
           ? ErrorState(message: _error!, onRetry: _load)
           : ListView(
