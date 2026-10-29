@@ -11,7 +11,9 @@
 // الاختيار:       GovernorateRow · CityRow (منتقي مناطق التغطية)
 // الهيكل:         WelcomeTopBar · InnerTopBar · AppBottomNav
 // الحالات:        ui_states (فارغ/خطأ/تحميل)
+// الهياكل:        app_shimmer (AppListSkeleton · AppDetailSkeleton · ShimmerBox)
 export 'app_bottom_nav.dart';
+export 'app_shimmer.dart';
 export 'app_button.dart';
 export 'app_card.dart';
 export 'app_filter_chip.dart';

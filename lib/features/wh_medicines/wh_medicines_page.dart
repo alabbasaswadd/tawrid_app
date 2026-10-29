@@ -198,7 +198,7 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
   }
 
   Widget _buildList(List<WarehouseMedicine> items) {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     if (items.isEmpty) {

@@ -8,6 +8,7 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/medicine_catalog_models.dart';
 import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/ui/app_shimmer.dart';
 import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
 
@@ -165,7 +166,7 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
     if (_error != null) return ErrorState(message: _error!, onRetry: () => _runSearch(reset: true));
     if (_results.isEmpty) {
       return const EmptyState(message: 'لا توجد نتائج', icon: Icons.search_off_outlined);

@@ -11,6 +11,7 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/ui/app_shimmer.dart';
 import 'package:tawrid_app/shared/widgets/status_chip.dart';
 
 double _priceAfter(SalesOfferItem i) => i.unitPrice * (1 - (i.discountPercentage ?? 0) / 100);
@@ -104,7 +105,7 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
       expand: false,
       builder: (context, scrollController) {
         if (_loading) {
-          return const SafeArea(child: Padding(padding: EdgeInsets.all(AppSpacing.lg), child: LoadingState()));
+          return const SafeArea(child: AppDetailSkeleton());
         }
         if (_error != null) {
           return SafeArea(

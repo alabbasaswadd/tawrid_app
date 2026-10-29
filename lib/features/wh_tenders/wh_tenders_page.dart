@@ -155,7 +155,7 @@ class _WhTendersPageState extends ConsumerState<WhTendersPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final all = _entries ?? const <_BoardEntry>[];

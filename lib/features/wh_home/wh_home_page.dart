@@ -138,7 +138,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppDetailSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final newOrders =

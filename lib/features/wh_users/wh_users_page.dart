@@ -235,7 +235,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final users = _users ?? const <WarehouseUser>[];

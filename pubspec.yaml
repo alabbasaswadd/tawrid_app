@@ -34,6 +34,9 @@ dependencies:
   # أيقونات نظام التصميم (SVG من Figma)
   flutter_svg: ^2.0.10
 
+  # هياكل تحميل متلألئة (shimmer skeletons) — مكان مركزي في shared/ui
+  shimmer: ^3.0.0
+
   # Logging
   logger: ^2.7.0
 

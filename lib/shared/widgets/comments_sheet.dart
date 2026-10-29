@@ -6,6 +6,7 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/ui/app_shimmer.dart';
 
 // ورقة تعليقات عامة — تُعاد استخدامها لأي مصدر تعليقات (عرض بيع، طلب تسعير،
 // إعلان) عبر تمرير دالّتَي التحميل والإضافة فقط.
@@ -140,7 +141,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
   }
 
   Widget _buildList(ScrollController scrollController) {
-    if (_loading) return const LoadingState();
+    if (_loading) {
+      return const AppListSkeleton(variant: SkeletonVariant.row, count: 4);
+    }
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final comments = _comments ?? [];
