@@ -271,7 +271,7 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
     if (_error != null) return ErrorState(message: _error!, onRetry: () => _runSearch(reset: true));
 
     if (_results.isEmpty) {

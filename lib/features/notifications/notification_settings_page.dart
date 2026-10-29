@@ -81,7 +81,7 @@ class _NotificationSettingsPageState
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppDetailSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final settings = _settings ?? const <NotificationSetting>[];

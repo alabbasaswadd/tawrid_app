@@ -313,7 +313,7 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
   }
 
   Widget _buildList(List<SalesOfferSummary> offers) {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     if (offers.isEmpty) {

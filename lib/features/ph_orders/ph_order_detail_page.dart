@@ -201,7 +201,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppDetailSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final order = _order!;

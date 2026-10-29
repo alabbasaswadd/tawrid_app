@@ -5,6 +5,7 @@ import 'package:tawrid_app/app/theme/app_colors.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/repositories/warehouse_service_area_repository.dart';
+import 'package:tawrid_app/shared/ui/app_shimmer.dart';
 
 // مُنتقي مناطق مستهدفة متعددة لعرض البيع — يعرض المناطق المختارة كرقاقات
 // مقروءة، ويفتح ورقة اختيار تعرض **مناطق خدمة المستودع فقط** (لا كل سوريا)
@@ -186,7 +187,7 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
             const Divider(height: 1),
             Expanded(
               child: areas.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const AppListSkeleton(variant: SkeletonVariant.row, count: 5),
                 error: (e, _) => Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),

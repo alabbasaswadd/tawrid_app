@@ -556,7 +556,7 @@ class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
 
           Expanded(
             child: _loading
-                ? const LoadingState()
+                ? const AppListSkeleton(variant: SkeletonVariant.row)
                 : _error != null
                     ? ErrorState(message: _error!, onRetry: () => _search(''))
                     : _results.isEmpty

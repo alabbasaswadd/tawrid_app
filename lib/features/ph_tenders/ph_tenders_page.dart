@@ -139,7 +139,7 @@ class _PhTendersPageState extends ConsumerState<PhTendersPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppListSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final all = _requests ?? const <TenderSummary>[];

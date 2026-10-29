@@ -580,7 +580,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
   }
 
   Widget _buildList(ScrollController scrollController) {
-    if (_loading) return const LoadingState();
+    if (_loading) return const AppDetailSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final query = _search.text.trim();
