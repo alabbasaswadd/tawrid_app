@@ -12,6 +12,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.fullWidth = true,
+    this.compact = false,
     super.key,
   });
 
@@ -21,6 +22,8 @@ class AppButton extends StatelessWidget {
   final IconData? icon;
   final bool loading;
   final bool fullWidth;
+  // compact: يُصغّر الحشو والارتفاع للاستخدام داخل بطاقات القوائم.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -62,25 +65,45 @@ class AppButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center));
 
+    final compactStyle = compact
+        ? const ButtonStyle(
+            minimumSize: WidgetStatePropertyAll(Size(0, 32)),
+            padding: WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 12),
+            ),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          )
+        : null;
+
     final Widget btn = switch (variant) {
-      AppButtonVariant.filled => FilledButton(onPressed: onTap, child: child),
-      AppButtonVariant.tonal => FilledButton.tonal(
-        onPressed: onTap,
-        child: child,
-      ),
-      AppButtonVariant.outline => OutlinedButton(
-        onPressed: onTap,
-        child: child,
-      ),
-      AppButtonVariant.text => TextButton(onPressed: onTap, child: child),
-      AppButtonVariant.danger => FilledButton(
-        onPressed: onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: cs.error,
-          foregroundColor: cs.onError,
+      AppButtonVariant.filled => FilledButton(
+          onPressed: onTap,
+          style: compactStyle,
+          child: child,
         ),
-        child: child,
-      ),
+      AppButtonVariant.tonal => FilledButton.tonal(
+          onPressed: onTap,
+          style: compactStyle,
+          child: child,
+        ),
+      AppButtonVariant.outline => OutlinedButton(
+          onPressed: onTap,
+          style: compactStyle,
+          child: child,
+        ),
+      AppButtonVariant.text => TextButton(
+          onPressed: onTap,
+          style: compactStyle,
+          child: child,
+        ),
+      AppButtonVariant.danger => FilledButton(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: cs.error,
+            foregroundColor: cs.onError,
+          ).merge(compactStyle),
+          child: child,
+        ),
     };
 
     return fullWidth ? SizedBox(width: double.infinity, child: btn) : btn;

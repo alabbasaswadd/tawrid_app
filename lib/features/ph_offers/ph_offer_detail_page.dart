@@ -54,6 +54,9 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
   /// معرّف الصنف ← الكمية المطلوبة. وجود المفتاح يعني أن الصنف مُحدَّد.
   final Map<String, int> _selected = {};
 
+  /// متحكّمات حقول الكمية — تُنشأ عند التحديد وتُتلف عند الإلغاء.
+  final Map<String, TextEditingController> _qtyControllers = {};
+
   @override
   void initState() {
     super.initState();
@@ -85,12 +88,23 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
   // الكمية الافتراضية هي كامل ما يعرضه المستودع للصنف، والصيدلي ينزل منها.
   int _maxFor(SalesOfferItem i) => i.quantity < 1 ? 1 : i.quantity.round();
 
+  @override
+  void dispose() {
+    for (final c in _qtyControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
   void _toggle(SalesOfferItem item, bool selected) {
     setState(() {
       if (selected) {
-        _selected[item.id] = _maxFor(item);
+        final initial = _maxFor(item);
+        _selected[item.id] = initial;
+        _qtyControllers[item.id] = TextEditingController(text: '$initial');
       } else {
         _selected.remove(item.id);
+        _qtyControllers.remove(item.id)?.dispose();
       }
     });
   }
@@ -99,6 +113,17 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     final max = _maxFor(item);
     final clamped = value.clamp(1, max);
     setState(() => _selected[item.id] = clamped);
+    // تصحيح النص في الحقل إذا تجاوز الحد الأقصى.
+    if (clamped != value) {
+      final ctrl = _qtyControllers[item.id];
+      if (ctrl != null) {
+        final text = '$clamped';
+        ctrl.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+    }
   }
 
   double get _selectedTotal {
@@ -247,8 +272,7 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
             selected: _selected.containsKey(item.id),
             onSelectedChanged: (v) => _toggle(item, v),
           ),
-          // منتقي الكمية يظهر عند التحديد فقط: قبله لا معنى لكمية صنف
-          // لم يُطلب، وإظهاره دائماً يُثقل القائمة.
+          // حقل الكمية يظهر عند التحديد فقط — حقل نصي للإدخال المباشر.
           if (_selected.containsKey(item.id))
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -257,12 +281,33 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
                   Text('الكمية المطلوبة',
                       style: context.text.bodySmall?.copyWith(color: tk.hint)),
                   const Spacer(),
-                  QuantityStepper(
-                    value: '${_selected[item.id]}',
-                    onDecrement: () =>
-                        _setQuantity(item, (_selected[item.id] ?? 1) - 1),
-                    onIncrement: () =>
-                        _setQuantity(item, (_selected[item.id] ?? 1) + 1),
+                  SizedBox(
+                    width: 72,
+                    child: TextFormField(
+                      controller: _qtyControllers[item.id],
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: context.text.bodyMedium,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                      ),
+                      onChanged: (v) {
+                        final n = int.tryParse(v.trim());
+                        if (n != null && n > 0) _setQuantity(item, n);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '/ ${_maxFor(item)} ${item.unit}',
+                    style: context.text.bodySmall?.copyWith(color: tk.hint),
                   ),
                 ],
               ),

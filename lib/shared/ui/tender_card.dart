@@ -88,49 +88,51 @@ class TenderCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Divider(color: cs.outline),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    if (offersCountLabel != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: t.brandSurface,
-                          borderRadius: BorderRadius.circular(AppRadius.full),
-                        ),
-                        child: Text(
-                          offersCountLabel!,
-                          style: context.text.labelSmall?.copyWith(
-                            color: cs.primary,
+                if (offersCountLabel != null || onCompare != null)
+                  Row(
+                    children: [
+                      if (offersCountLabel != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3,
                           ),
-                        ),
-                      ),
-                    const Spacer(),
-                    InkWell(
-                      onTap: onCompare,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            compareLabel,
-                            style: context.text.bodySmall?.copyWith(
+                          decoration: BoxDecoration(
+                            color: t.brandSurface,
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                          ),
+                          child: Text(
+                            offersCountLabel!,
+                            style: context.text.labelSmall?.copyWith(
                               color: cs.primary,
                             ),
                           ),
-                          const SizedBox(width: 2),
-                          AppIcon(
-                            AppIcons.chevronForwardRtl,
-                            size: 14,
-                            color: cs.primary,
+                        ),
+                      const Spacer(),
+                      if (onCompare != null)
+                        InkWell(
+                          onTap: onCompare,
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                compareLabel,
+                                style: context.text.bodySmall?.copyWith(
+                                  color: cs.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              AppIcon(
+                                AppIcons.chevronForwardRtl,
+                                size: 14,
+                                color: cs.primary,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                        ),
+                    ],
+                  ),
               ],
             ),
           ),

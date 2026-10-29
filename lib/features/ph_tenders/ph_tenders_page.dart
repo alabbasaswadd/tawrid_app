@@ -225,8 +225,18 @@ class _PhTendersPageState extends ConsumerState<PhTendersPage> {
               : '${t.offerCount} ${t.offerCount == 1 ? 'عرض مستلم' : 'عروض مستلمة'}',
       compareLabel: t.status == TenderStatus.draft
           ? 'إكمال المسودة'
-          : 'عرض العروض والمقارنة',
-      onCompare: () => _open(t),
+          : t.status == TenderStatus.awarded || t.status == TenderStatus.cancelled
+              ? 'مراجعة النتيجة'
+              : 'عرض العروض والمقارنة',
+      // زر المقارنة يظهر فقط عند: المسودة (للتحرير) أو ما بعد انتهاء المهلة
+      // (isExpired=true) أو عند الطلبات المرساة/الملغاة للمراجعة.
+      // قبل انتهاء المهلة لا يوجد ما يُقارَن، والخادم يحجب التفاصيل أصلاً.
+      onCompare: (t.status == TenderStatus.draft ||
+              t.isExpired ||
+              t.status == TenderStatus.awarded ||
+              t.status == TenderStatus.cancelled)
+          ? () => _open(t)
+          : null,
       onTap: () => _open(t),
     );
   }

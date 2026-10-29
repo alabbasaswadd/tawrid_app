@@ -9,21 +9,29 @@ class PhShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: navigationShell.currentIndex,
-        onTap: (i) => navigationShell.goBranch(
-          i,
-          initialLocation: i == navigationShell.currentIndex,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, _) {
+        if (navigationShell.currentIndex != 0) {
+          navigationShell.goBranch(0, initialLocation: true);
+        }
+      },
+      child: Scaffold(
+        body: navigationShell,
+        bottomNavigationBar: AppBottomNav(
+          currentIndex: navigationShell.currentIndex,
+          onTap: (i) => navigationShell.goBranch(
+            i,
+            initialLocation: i == navigationShell.currentIndex,
+          ),
+          items: const [
+            AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
+            AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبيات'),
+            AppBottomNavItem(icon: AppIcons.fileText, label: 'التسعير'),
+            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
+            AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
+          ],
         ),
-        items: const [
-          AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
-          AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبيات'),
-          AppBottomNavItem(icon: AppIcons.fileText, label: 'التسعير'),
-          AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
-          AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
-        ],
       ),
     );
   }

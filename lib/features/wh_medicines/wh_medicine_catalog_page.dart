@@ -356,6 +356,8 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
                     label: 'أضف لمخزونك',
                     icon: Icons.add,
                     fullWidth: false,
+                    compact: true,
+                    variant: AppButtonVariant.tonal,
                     onPressed: () => _add(item),
                   ),
               ],
