@@ -46,7 +46,8 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
           .read(pharmacySessionProvider.notifier)
           .establish(
             token: data['token'] as String,
-            userId: data['userId'] as String?,
+            // الباك يُرجع tenantId لا userId — نستخدمه كمعرّف للمستخدم
+            userId: (data['userId'] ?? data['tenantId']) as String?,
             tenantId: data['tenantId'] as String?,
             accountStatus: AccountStatus.fromApi(data['accountStatus']),
           );

@@ -1,3 +1,5 @@
+import 'package:tawrid_app/core/session/session_state.dart';
+
 // الصيدلية الحالية كما يُرجعها `GET /auth/me` (TenantMeDto).
 class PharmacyMe {
   final String tenantId;
@@ -7,6 +9,7 @@ class PharmacyMe {
   final String governorate;
   final String city;
   final String address;
+  final AccountStatus accountStatus;
 
   const PharmacyMe({
     required this.tenantId,
@@ -16,6 +19,7 @@ class PharmacyMe {
     required this.governorate,
     required this.city,
     required this.address,
+    this.accountStatus = AccountStatus.approved,
   });
 
   /// «إدلب - سراقب» — منطقة الصيدلية كما تُعرض في الواجهة.
@@ -29,5 +33,6 @@ class PharmacyMe {
         governorate: j['governorate'] as String? ?? '',
         city: j['city'] as String? ?? '',
         address: j['address'] as String? ?? '',
+        accountStatus: AccountStatus.fromApi(j['accountStatus']),
       );
 }

@@ -98,7 +98,10 @@
       "Bash(python -)",
       "PowerShell($conns = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue; $procIds = $conns | Select-Object -ExpandProperty OwningProcess -Unique; foreach \\($procId in $procIds\\) { $p = Get-Process -Id $procId -ErrorAction SilentlyContinue; Write-Output \"killing $procId $\\($p.ProcessName\\)\"; Stop-Process -Id $procId -Force -Confirm:$false })",
       "Bash(git add *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git -C \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\" log --oneline --follow -- \"Tawrid.api/firebase-service-account.json\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.api\" -Recurse | Where-Object { $_.Name -eq \"Program.cs\" })",
+      "Bash(Get-ChildItem *)"
     ]
   }
 }

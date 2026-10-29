@@ -1,3 +1,4 @@
+import 'package:tawrid_app/core/session/session_state.dart';
 import 'enums.dart';
 
 class WarehouseAuthResponse {
@@ -41,6 +42,8 @@ class WarehouseMe {
   final String city;
   final String governorate;
   final String? logoUrl;
+  final String? shamCashAccount;
+  final AccountStatus accountStatus;
 
   WarehouseMe({
     required this.warehouseUserId,
@@ -56,6 +59,8 @@ class WarehouseMe {
     required this.city,
     required this.governorate,
     this.logoUrl,
+    this.shamCashAccount,
+    this.accountStatus = AccountStatus.approved,
   });
 
   factory WarehouseMe.fromJson(Map<String, dynamic> j) => WarehouseMe(
@@ -72,5 +77,7 @@ class WarehouseMe {
         city: j['city'] as String,
         governorate: j['governorate'] as String,
         logoUrl: j['logoUrl'] as String?,
+        shamCashAccount: j['shamCashAccount'] as String?,
+        accountStatus: AccountStatus.fromApi(j['accountStatus']),
       );
 }
