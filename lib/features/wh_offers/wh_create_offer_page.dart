@@ -8,7 +8,6 @@ import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
-import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
@@ -67,16 +66,6 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   final List<_OfferItemDraft> _items = [];
   bool _saving = false;
 
-  // نسبة الحسم من سعر الصيدلاني في الكاتالوج:
-  // إدلب (محافظة أو مدينة) ← 26%، وباقي المحافظات ← 16%.
-  double get _discountRate {
-    final me = ref.read(warehouseMeProvider).value;
-    if (me == null) return 0.16;
-    const idlib = 'إدلب';
-    if (me.governorate == idlib || me.city == idlib) return 0.26;
-    return 0.16;
-  }
-
   // بونص على مستوى العرض كله = دواء مجاني (اختياري)
   WarehouseMedicine? _bonusMedicine;
   final _bonusQuantity = TextEditingController(text: '1');
@@ -126,12 +115,13 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
       ),
     );
     if (picked != null && picked.isNotEmpty) {
-      final rate = _discountRate;
       setState(() => _items.addAll(picked.map((m) => _OfferItemDraft(
             m,
-            defaultPrice: m.pricePharmacist > 0
-                ? m.pricePharmacist * (1 - rate)
-                : null,
+            // السعر المقترح هو سعر بيع المستودع نفسه: اليدوي إن حدّده،
+            // وإلا ٧٤٪ من سعر المستهلك في النشرة. هو الرقم الذي تراه
+            // الصيدليات في البحث المقارن، فيبدأ العرض منه بدل حقل فارغ —
+            // والمستودع يعدّله إن أراد سعراً خاصاً بالعرض.
+            defaultPrice: m.effectivePrice,
           ))));
     }
   }
@@ -343,6 +333,18 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                 ),
               ],
             ),
+            // الرقم المقترح ليس التزاماً: نقول من أين جاء حتى يعرف المستودع
+            // ما الذي يعدّله حين يعدّله.
+            if (_items.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm, right: 2),
+                child: Text(
+                  'سعر الوحدة مقترح من سعر بيعك للصنف (٧٤٪ من سعر المستهلك '
+                  'ما لم تحدّد سعراً) — عدّله كما تشاء.',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: context.tokens.hint),
+                ),
+              ),
             if (_items.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
