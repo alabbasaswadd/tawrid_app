@@ -9,7 +9,7 @@
 // البطاقات:       OfferCard · OrderCard · OfferItemRow ·
 //                 WarehouseOfferCard · TenderCard (طلب تسعير)
 // الاختيار:       GovernorateRow · CityRow (منتقي مناطق التغطية)
-// الهيكل:         WelcomeTopBar · InnerTopBar · AppBottomNav
+// الهيكل:         WelcomeTopBar · InnerTopBar · AppBottomNav · CartButton
 // الحالات:        ui_states (فارغ/خطأ/تحميل)
 // الهياكل:        app_shimmer (AppListSkeleton · AppDetailSkeleton · ShimmerBox)
 export 'app_bottom_nav.dart';
@@ -23,6 +23,7 @@ export 'app_section_header.dart';
 export 'app_segmented_toggle.dart';
 export 'app_text_field.dart';
 export 'app_top_bar.dart';
+export 'cart_button.dart';
 export 'bonus_badge.dart';
 export 'offer_card.dart';
 export 'offer_item_row.dart';

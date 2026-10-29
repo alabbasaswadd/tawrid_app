@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
-import 'package:tawrid_app/core/cart/ph_cart.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
@@ -105,16 +104,6 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     _runSearch();
   }
 
-  void _addToCart(SalesOfferSummary offer) {
-    final cart = ref.read(phCartProvider.notifier);
-    if (cart.contains(offer.id)) {
-      AppSnackbar.success(context, 'العرض موجود بالفعل في السلة');
-      return;
-    }
-    cart.add(offer);
-    AppSnackbar.success(context, 'أُضيف «${offer.title}» إلى السلة');
-  }
-
   void _showSortSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -134,44 +123,14 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = ref.watch(phCartProvider).length;
-
     return Scaffold(
       appBar: InnerTopBar(
         title: 'البحث في العروض',
-        trailing: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              icon: AppIcon(AppIcons.sliders, size: 20,
-                  color: context.colors.onSurface),
-              tooltip: 'الترتيب',
-              onPressed: _showSortSheet,
-            ),
-            if (cartCount > 0)
-              PositionedDirectional(
-                top: 4,
-                end: 4,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: context.colors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      cartCount > 9 ? '9+' : '$cartCount',
-                      style: context.text.labelSmall?.copyWith(
-                        color: context.colors.onPrimary,
-                        fontSize: 8,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+        trailing: IconButton(
+          icon: AppIcon(AppIcons.sliders, size: 20,
+              color: context.colors.onSurface),
+          tooltip: 'الترتيب',
+          onPressed: _showSortSheet,
         ),
       ),
       body: Column(
@@ -273,7 +232,10 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
         final offer = _results[i];
         return OfferSummaryCard(
           offer: offer,
-          onAdd: () => _addToCart(offer),
+          // السلّة على مستوى الصنف لا العرض: إضافة عرض كاملاً بلا اختيار
+          // أصنافه وكمياتها لا معنى لها، فالزرّ يقود إلى التفاصيل حيث
+          // تُختار الأصناف وتُضاف بأسعارها المجمَّدة.
+          onAdd: () => context.push(TRoutes.phOfferDetail(offer.id)),
           onDetails: () => context.push(TRoutes.phOfferDetail(offer.id)),
         );
       },

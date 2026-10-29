@@ -27,9 +27,22 @@ class WarehouseMedicineRepository {
     return data.map((e) => WarehouseMedicine.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<WarehouseMedicine> add(String catalogItemId) async {
-    final data = await _api.post(ApiEndpoints.whMedicines, data: {'catalogItemId': catalogItemId})
-        as Map<String, dynamic>;
+  /// [price] اختياري عند الإضافة، فلا تلزم خطوة تسعير منفصلة لمن يملكه الآن.
+  Future<WarehouseMedicine> add(String catalogItemId, {double? price}) async {
+    final data = await _api.post(ApiEndpoints.whMedicines, data: {
+      'catalogItemId': catalogItemId,
+      'price': ?price,
+    }) as Map<String, dynamic>;
+    return WarehouseMedicine.fromJson(data);
+  }
+
+  /// تعديل السعر وحده. [price] فارغاً يسحب السعر: يختفي الصنف من البحث
+  /// المقارن ويبقى في «أدويتي» — سحب التسعير ليس حذفاً.
+  Future<WarehouseMedicine> setPrice(String id, double? price) async {
+    final data = await _api.patch(
+      ApiEndpoints.whMedicinePrice(id),
+      data: {'price': price},
+    ) as Map<String, dynamic>;
     return WarehouseMedicine.fromJson(data);
   }
 

@@ -16,6 +16,9 @@ abstract final class TRoutes {
   static const String whProfile = '/wh/profile';
   static const String whUsers = '/wh/users';
 
+  // إعدادات الطلبيات (الحدّ الأدنى) — إعداد بائع يضبطه كل مستودع لنفسه.
+  static const String whOrderSettings = '/wh/settings/orders';
+
   // تفاصيل عرض البيع عند المستودع (مالك العرض)
   static const String whOfferDetailPattern = '/wh/offers/:offerId';
   static String whOfferDetail(String id) => '/wh/offers/$id';
@@ -24,6 +27,11 @@ abstract final class TRoutes {
   static const String whOrderDetailPattern = '/wh/orders/:orderId';
   static String whOrderDetail(String id) => '/wh/orders/$id';
   static const String phMedicineSearch = '/medicines/search';
+
+  // بحث الأسعار المقارن (عروض + تسعير مباشر) والسلّة المبنيّة من نتائجه.
+  // السلّة محفوظة على الخادم ومجمَّعة فيه حسب المستودع.
+  static const String phPriceSearch = '/medicines/prices';
+  static const String phCart = '/cart';
 
   // تفاصيل عرض بيع عند الصيدلي — منها تُنشأ الطلبية باختيار الأصناف
   static const String phOfferDetailPattern = '/offers/:offerId';
@@ -51,14 +59,9 @@ abstract final class TRoutes {
   static String whSubmitTenderOffer(String tenderId) =>
       '/wh/tenders/$tenderId/submit-offer';
 
-  // سلة الصيدلي (العروض المحفوظة)
-  static const String phCart = '/cart';
-
-  // سلة المستودع (أصناف مختارة لإنشاء عرض)
+  // سلة المستودع (أصناف مختارة لإنشاء عرض) — سلّة اختيار داخل تطبيق
+  // المستودع، لا علاقة لها بسلّة الشراء عند الصيدلي.
   static const String whCart = '/wh/cart';
-
-  // إعداد الحد الأدنى للطلبية
-  static const String whMinOrder = '/wh/settings/min-order';
 
   // الملف الشخصي للصيدلية
   static const String phProfile = '/profile';

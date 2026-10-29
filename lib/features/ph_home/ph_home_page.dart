@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
-import 'package:tawrid_app/core/cart/ph_cart.dart';
+import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
@@ -186,6 +186,17 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   void _openOffer(SalesOfferSummary offer) =>
       context.push(TRoutes.phOfferDetail(offer.id));
 
+  // «قارن الأسعار»: نفس كلمة البحث تُمرَّر إلى شاشة البحث المقارن، حيث
+  // تُعرض أسعار كل المستودعات لهذا الدواء — عروضاً وتسعيراً مباشراً.
+  void _openPriceSearch([String? query]) {
+    final q = (query ?? _searchController.text).trim();
+    context.push(
+      q.isEmpty
+          ? TRoutes.phPriceSearch
+          : '${TRoutes.phPriceSearch}?q=${Uri.encodeComponent(q)}',
+    );
+  }
+
   static String _greeting() {
     final h = DateTime.now().hour;
     if (h < 12) return 'صباح الخير،';
@@ -208,7 +219,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   Widget build(BuildContext context) {
     final me = ref.watch(pharmacyMeProvider);
     final unread = ref.watch(phUnreadCountProvider).value ?? 0;
-    final cartCount = ref.watch(phCartProvider).length;
 
     return Scaffold(
       appBar: WelcomeTopBar(
@@ -216,8 +226,11 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         name: me.value?.pharmacyName ?? 'صيدليتي',
         hasUnread: unread > 0,
         onNotificationsTap: () => context.push(TRoutes.phNotifications),
-        cartCount: cartCount,
-        onCartTap: () => context.push(TRoutes.phCart),
+        // السلّة تعيش عبر الشاشات، فمدخلها في الشريط العلوي لا داخل قائمة.
+        leading: CartButton(
+          count: ref.watch(cartCountProvider),
+          onTap: () => context.push(TRoutes.phCart),
+        ),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -251,6 +264,9 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
             controller: _searchController,
             hint: 'ابحث عن دواء داخل العروض…',
             onChanged: _onSearchChanged,
+            // الإرسال ينقل البحث نفسه إلى «بحث الأسعار»: الرئيسية تبحث داخل
+            // العروض، وهناك تُقارَن أسعار المستودعات كلها لنفس الدواء.
+            onSubmitted: _openPriceSearch,
             onScanTap: _scanBarcode,
           ),
         ),
@@ -281,7 +297,14 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
             title: _search.isEmpty
                 ? 'عروض مختارة لك'
                 : 'نتائج البحث (${_offers.length})',
-            trailing: _SeeAllLink(onTap: () => context.go(TRoutes.phOffers)),
+            // أثناء البحث يصير الرابط مدخلاً إلى مقارنة الأسعار: من يبحث عن
+            // دواء بعينه يريد أرخص مصدر له، لا قائمة العروض كاملةً.
+            trailing: _search.isEmpty
+                ? _SeeAllLink(
+                    label: 'عرض الكل',
+                    onTap: () => context.go(TRoutes.phOffers),
+                  )
+                : _SeeAllLink(label: 'قارن الأسعار', onTap: _openPriceSearch),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -404,8 +427,9 @@ class _OrderAlert extends StatelessWidget {
 
 // رابط «عرض الكل ›» في ترويسة القسم.
 class _SeeAllLink extends StatelessWidget {
-  const _SeeAllLink({required this.onTap});
+  const _SeeAllLink({required this.onTap, this.label = 'عرض الكل'});
   final VoidCallback onTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +440,7 @@ class _SeeAllLink extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('عرض الكل',
+          Text(label,
               style: context.text.bodySmall?.copyWith(color: cs.primary)),
           const SizedBox(width: 2),
           AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),

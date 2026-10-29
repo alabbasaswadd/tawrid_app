@@ -63,6 +63,16 @@ class PhMorePage extends ConsumerWidget {
               onTap: () => context.push(TRoutes.phNotificationSettings),
             ),
             _Row(
+              icon: Icons.shopping_cart_outlined,
+              label: 'السلة',
+              onTap: () => context.push(TRoutes.phCart),
+            ),
+            _Row(
+              icon: Icons.price_change_outlined,
+              label: 'بحث الأسعار',
+              onTap: () => context.push(TRoutes.phPriceSearch),
+            ),
+            _Row(
               icon: Icons.storefront_outlined,
               label: 'المستودعات المتاحة',
               onTap: () => context.push(TRoutes.phWarehouses),

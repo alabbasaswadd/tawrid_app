@@ -12,12 +12,12 @@ import 'package:tawrid_app/features/auth/login_page.dart';
 import 'package:tawrid_app/features/dev_gallery/design_gallery_page.dart';
 import 'package:tawrid_app/features/ph_cart/ph_cart_page.dart';
 import 'package:tawrid_app/features/wh_cart/wh_cart_page.dart';
-import 'package:tawrid_app/features/wh_settings/wh_min_order_page.dart';
 import 'package:tawrid_app/features/notifications/notification_settings_page.dart';
 import 'package:tawrid_app/features/notifications/notifications_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
 import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
+import 'package:tawrid_app/features/ph_medicines/ph_price_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_profile_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offer_detail_page.dart';
@@ -37,6 +37,7 @@ import 'package:tawrid_app/features/wh_home/wh_home_page.dart';
 import 'package:tawrid_app/features/wh_medicines/wh_medicine_catalog_page.dart';
 import 'package:tawrid_app/features/wh_medicines/wh_medicines_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_more_page.dart';
+import 'package:tawrid_app/features/wh_more/wh_order_settings_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_profile_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_create_offer_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offer_detail_page.dart';
@@ -125,10 +126,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phMore,
         TRoutes.phListings,
         TRoutes.phMedicineSearch,
+        TRoutes.phPriceSearch,
+        TRoutes.phCart,
         TRoutes.phNotifications,
         TRoutes.phNotificationSettings,
         TRoutes.phWarehouses,
-        TRoutes.phCart,
         TRoutes.phProfile,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
@@ -154,10 +156,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whCreateOffer,
         TRoutes.whProfile,
         TRoutes.whUsers,
+        TRoutes.whOrderSettings,
         TRoutes.whNotifications,
         TRoutes.whNotificationSettings,
         TRoutes.whCart,
-        TRoutes.whMinOrder,
       };
       final isSubmitOfferRoute =
           loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
@@ -301,6 +303,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const WhTendersPage(),
       ),
 
+      // إعدادات الطلبيات — الحدّ الأدنى الذي يضبطه كل مستودع لنفسه
+      GoRoute(
+        path: TRoutes.whOrderSettings,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhOrderSettingsPage(),
+      ),
+
       // موظّفو المستودع — للمدير فقط (الخادم يفرضها، والمدخل مخفيّ عن الموظّف)
       GoRoute(
         path: TRoutes.whUsers,
@@ -315,7 +324,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PhMedicineSearchPage(),
       ),
 
-      // سلة الصيدلي
+      // بحث الأسعار المقارن — عروض وتسعير مباشر معاً، ومنه تُبنى السلّة.
+      // `q` يأتي من بحث الرئيسية فيُعبَّأ ويُنفَّذ مباشرةً.
+      GoRoute(
+        path: TRoutes.phPriceSearch,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            PhPriceSearchPage(initialQuery: state.uri.queryParameters['q']),
+      ),
+
+      // السلّة — محفوظة على الخادم ومجمَّعة حسب المستودع، وكل مجموعة
+      // تُتمّ طلبيةً مستقلّة.
       GoRoute(
         path: TRoutes.phCart,
         parentNavigatorKey: _rootNavigatorKey,
@@ -329,18 +348,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PhProfilePage(),
       ),
 
-      // سلة المستودع
+      // سلة المستودع — اختيار أصناف داخل تطبيق المستودع لبناء عرض،
+      // لا سلّة شراء (سلّة الشراء عند الصيدلي وحدها، وهي على الخادم).
       GoRoute(
         path: TRoutes.whCart,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const WhCartPage(),
-      ),
-
-      // إعداد الحد الأدنى للطلبية
-      GoRoute(
-        path: TRoutes.whMinOrder,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const WhMinOrderPage(),
       ),
 
       // تفاصيل عرض بيع — شاشة كاملة لأن منها تُنشأ الطلبية (اختيار أصناف

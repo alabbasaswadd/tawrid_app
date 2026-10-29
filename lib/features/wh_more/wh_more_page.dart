@@ -62,6 +62,13 @@ class WhMorePage extends ConsumerWidget {
               label: 'الإشعارات',
               onTap: () => context.push(TRoutes.whNotificationSettings),
             ),
+            // الحدّ الأدنى إعداد بائع يضبطه كل مستودع لنفسه — متاح للدورين
+            // كمناطق التغطية، لا للمدير وحده.
+            _Row(
+              icon: Icons.receipt_long_outlined,
+              label: 'إعدادات الطلبيات',
+              onTap: () => context.push(TRoutes.whOrderSettings),
+            ),
             // إدارة الموظّفين للمدير وحده — الخادم يفرضها بسياسة
             // Warehouse.Admin، فإظهارها للموظّف إرسالٌ إلى 403.
             if (isAdmin)
@@ -74,11 +81,6 @@ class WhMorePage extends ConsumerWidget {
               icon: Icons.campaign_outlined,
               label: 'إعلاناتي وأخباري',
               onTap: () => context.push(TRoutes.whListings),
-            ),
-            _Row(
-              icon: Icons.shopping_bag_outlined,
-              label: 'الحد الأدنى للطلبية',
-              onTap: () => context.push(TRoutes.whMinOrder),
             ),
           ]),
 
