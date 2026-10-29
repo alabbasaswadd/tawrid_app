@@ -12,6 +12,8 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
     required this.name,
     this.onNotificationsTap,
     this.hasUnread = false,
+    this.onCartTap,
+    this.cartCount = 0,
     super.key,
   });
 
@@ -19,6 +21,8 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
   final String name;
   final VoidCallback? onNotificationsTap;
   final bool hasUnread;
+  final VoidCallback? onCartTap;
+  final int cartCount;
 
   @override
   Size get preferredSize => const Size.fromHeight(68);
@@ -45,6 +49,55 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
             ),
+            if (onCartTap != null) ...[
+              Stack(
+                children: [
+                  Material(
+                    color: cs.surface,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onCartTap,
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Center(
+                          child: AppIcon(
+                            AppIcons.shoppingCart,
+                            size: 20,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (cartCount > 0)
+                    PositionedDirectional(
+                      end: 2,
+                      top: 2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            cartCount > 9 ? '9+' : '$cartCount',
+                            style: context.text.labelSmall?.copyWith(
+                              color: cs.onPrimary,
+                              fontSize: 9,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
             Stack(
               children: [
                 Material(

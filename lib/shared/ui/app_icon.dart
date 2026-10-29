@@ -31,7 +31,8 @@ enum AppIcons {
   eye('eye'),
   chevronDown('chevron_down'),
   chevronUp('chevron_up'),
-  logOut('log_out');
+  logOut('log_out'),
+  shoppingCart('shopping_cart');
 
   const AppIcons(this._name);
   final String _name;

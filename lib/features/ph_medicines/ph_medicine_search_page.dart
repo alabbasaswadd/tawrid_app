@@ -2,163 +2,248 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:tawrid_app/core/cart/ph_cart.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
-import 'package:tawrid_app/models/medicine_catalog_models.dart';
-import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
+import 'package:tawrid_app/models/enums.dart';
+import 'package:tawrid_app/models/sales_offer_models.dart';
+import 'package:tawrid_app/repositories/sales_offer_repository.dart';
+import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/ui/app_shimmer.dart';
 import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
-import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
+import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 
-// البحث عن تفاصيل الأدوية (نشرة الأسعار) — بحث أونلاين حيّ + ترقيم صفحات +
-// مسح باركود، مع عرض تفاصيل الدواء عند الضغط عليه.
+// فلتر سريع في صفحة البحث عن عروض الأسعار.
+enum _OfferFilter {
+  all('الكل'),
+  bonus('عروض البونص'),
+  expiringSoon('ينتهي قريباً');
+
+  const _OfferFilter(this.label);
+  final String label;
+}
+
+// البحث في عروض الأسعار (Figma: الصيدلي / البحث عن دواء).
+//
+// تعرض هذه الشاشة العروض المتاحة مباشرةً (لا الكتالوج العام)، مع بحث حيّ
+// وفلاتر سريعة وترتيب.
 class PhMedicineSearchPage extends ConsumerStatefulWidget {
   const PhMedicineSearchPage({super.key});
 
   @override
-  ConsumerState<PhMedicineSearchPage> createState() => _PhMedicineSearchPageState();
+  ConsumerState<PhMedicineSearchPage> createState() =>
+      _PhMedicineSearchPageState();
 }
 
 class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
-  static const int _pageSize = 30;
-
   final _searchController = TextEditingController();
-  final _scrollController = ScrollController();
   Timer? _debounce;
 
-  final List<MedicineCatalogItem> _results = [];
-  int _offset = 0;
-  bool _hasMore = true;
-  bool _loadingMore = false;
+  List<SalesOfferSummary> _results = const [];
   bool _loading = true;
   String? _error;
+
+  _OfferFilter _filter = _OfferFilter.all;
+  OfferSort _sort = OfferSort.newest;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
-    _runSearch(reset: true);
+    _runSearch();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged(String _) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () => _runSearch(reset: true));
+    _debounce =
+        Timer(const Duration(milliseconds: 350), () => _runSearch());
   }
 
-  void _onScroll() {
-    if (!_hasMore || _loadingMore || _loading) return;
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 320) {
-      _loadMore();
-    }
-  }
-
-  Future<void> _runSearch({required bool reset}) async {
+  Future<void> _runSearch() async {
     final query = _searchController.text.trim();
-    if (reset) {
-      setState(() {
-        _loading = true;
-        _error = null;
-        _offset = 0;
-        _hasMore = true;
-      });
-    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final list = await ref.read(medicineCatalogRepositoryProvider).search(
-            name: query.isEmpty ? null : query,
-            limit: _pageSize,
-            offset: reset ? 0 : _offset,
+      final list = await ref.read(salesOfferRepositoryProvider).getAvailableOffers(
+            search: query.isEmpty ? null : query,
+            hasBonus: _filter == _OfferFilter.bonus ? true : null,
+            expiringWithinDays: _filter == _OfferFilter.expiringSoon ? 7 : null,
+            sort: _sort,
+            limit: 40,
           );
       if (!mounted) return;
       setState(() {
-        if (reset) {
-          _results
-            ..clear()
-            ..addAll(list);
-        } else {
-          _results.addAll(list);
-        }
-        _offset = _results.length;
-        _hasMore = list.length == _pageSize;
+        _results = list;
         _loading = false;
-        _loadingMore = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = ApiException.from(e).message;
         _loading = false;
-        _loadingMore = false;
       });
     }
-  }
-
-  Future<void> _loadMore() async {
-    setState(() => _loadingMore = true);
-    await _runSearch(reset: false);
   }
 
   Future<void> _scanBarcode() async {
     final code = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
     );
-    if (code == null || code.isEmpty) return;
+    if (code == null || code.isEmpty || !mounted) return;
     _searchController.text = code;
-    _runSearch(reset: true);
+    _runSearch();
   }
 
-  void _showDetails(MedicineCatalogItem item) {
+  void _addToCart(SalesOfferSummary offer) {
+    final cart = ref.read(phCartProvider.notifier);
+    if (cart.contains(offer.id)) {
+      AppSnackbar.success(context, 'العرض موجود بالفعل في السلة');
+      return;
+    }
+    cart.add(offer);
+    AppSnackbar.success(context, 'أُضيف «${offer.title}» إلى السلة');
+  }
+
+  void _showSortSheet() {
     showModalBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => _MedicineDetailSheet(item: item),
+      builder: (_) => _SortSheet(
+        current: _sort,
+        onSelect: (s) {
+          setState(() => _sort = s);
+          _runSearch();
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final cartCount = ref.watch(phCartProvider).length;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('البحث عن دواء')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onChanged: _onSearchChanged,
-              onSubmitted: (_) => _runSearch(reset: true),
-              decoration: InputDecoration(
-                hintText: 'ابحث بالاسم أو الباركود (أونلاين)...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: Container(
-                  margin: const EdgeInsetsDirectional.only(end: 6),
+      appBar: InnerTopBar(
+        title: 'البحث في العروض',
+        trailing: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: AppIcon(AppIcons.sliders, size: 20,
+                  color: context.colors.onSurface),
+              tooltip: 'الترتيب',
+              onPressed: _showSortSheet,
+            ),
+            if (cartCount > 0)
+              PositionedDirectional(
+                top: 4,
+                end: 4,
+                child: Container(
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
-                    color: context.colors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    color: context.colors.primary,
+                    shape: BoxShape.circle,
                   ),
-                  child: IconButton(
-                    icon: Icon(Icons.qr_code_scanner, color: context.colors.primary),
-                    tooltip: 'مسح باركود',
-                    onPressed: _scanBarcode,
+                  child: Center(
+                    child: Text(
+                      cartCount > 9 ? '9+' : '$cartCount',
+                      style: context.text.labelSmall?.copyWith(
+                        color: context.colors.onPrimary,
+                        fontSize: 8,
+                        height: 1,
+                      ),
+                    ),
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page, AppSpacing.xs, AppSpacing.page, 0),
+            child: AppSearchBar(
+              controller: _searchController,
+              hint: 'ابحث بالاسم أو المادة الفعالة…',
+              onChanged: _onSearchChanged,
+              onSubmitted: (_) => _runSearch(),
+              onScanTap: _scanBarcode,
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+              itemCount: _OfferFilter.values.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (_, i) {
+                final f = _OfferFilter.values[i];
+                return AppFilterChip(
+                  label: f.label,
+                  selected: _filter == f,
+                  onTap: () {
+                    setState(() => _filter = f);
+                    _runSearch();
+                  },
+                );
+              },
+            ),
+          ),
+          if (!_loading && _error == null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, AppSpacing.sm, AppSpacing.page, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_results.length} ${_results.length == 1 ? 'عرض' : 'عروض'}',
+                      style: context.text.bodySmall
+                          ?.copyWith(color: context.tokens.hint),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _showSortSheet,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'ترتيب: ${_sort.label}',
+                          style: context.text.bodySmall?.copyWith(
+                              color: context.colors.primary),
+                        ),
+                        const SizedBox(width: 4),
+                        AppIcon(AppIcons.chevronDown,
+                            size: 14, color: context.colors.primary),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -166,104 +251,78 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: () => _runSearch(reset: true));
-    if (_results.isEmpty) {
-      return const EmptyState(message: 'لا توجد نتائج', icon: Icons.search_off_outlined);
+    if (_loading) return const AppListSkeleton();
+    if (_error != null) {
+      return ErrorState(message: _error!, onRetry: _runSearch);
     }
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-      itemCount: _results.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= _results.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
-          );
-        }
-        final item = _results[index];
-        return MedicineListTile(
-          displayName: item.displayName,
-          genericName: item.genericName,
-          manufacturerName: item.manufacturerName,
-          dosageForm: item.dosageForm,
-          strength: item.strength,
-          trailing: IconButton(
-            icon: Icon(Icons.info_outline, color: context.colors.primary),
-            tooltip: 'التفاصيل',
-            onPressed: () => _showDetails(item),
-          ),
+    if (_results.isEmpty) {
+      return UiEmpty(
+        message: 'لا عروض مطابقة',
+        description: _searchController.text.trim().isNotEmpty
+            ? 'جرّب تعديل كلمات البحث أو إزالة الفلتر'
+            : 'لا توجد عروض متاحة حالياً في منطقتك',
+        appIcon: AppIcons.tag,
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page, 0, AppSpacing.page, AppSpacing.x3l),
+      itemCount: _results.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+      itemBuilder: (_, i) {
+        final offer = _results[i];
+        return OfferSummaryCard(
+          offer: offer,
+          onAdd: () => _addToCart(offer),
+          onDetails: () => context.push(TRoutes.phOfferDetail(offer.id)),
         );
       },
     );
   }
 }
 
-class _MedicineDetailSheet extends StatelessWidget {
-  const _MedicineDetailSheet({required this.item});
-  final MedicineCatalogItem item;
+class _SortSheet extends StatelessWidget {
+  const _SortSheet({required this.current, required this.onSelect});
+  final OfferSort current;
+  final ValueChanged<OfferSort> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.colors;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
               child: Container(
-                width: 42, height: 4,
+                width: 42,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(color: cs.outline, borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             ),
-            Text(item.displayName, style: context.text.titleLarge),
-            if (item.foreignName.isNotEmpty)
-              Text(item.foreignName, style: context.text.bodySmall),
+            Text('ترتيب النتائج', style: context.text.titleMedium),
             const SizedBox(height: AppSpacing.md),
-            _row(context, 'الاسم العلمي', item.genericName),
-            _row(context, 'الشركة', item.manufacturerName),
-            _row(context, 'الشكل الدوائي',
-                item.strength > 0 ? '${item.dosageForm.label} ${item.strength}' : item.dosageForm.label),
-            if (item.barcode.isNotEmpty) _row(context, 'الباركود', item.barcode),
-            if (item.sakoCode.isNotEmpty) _row(context, 'رمز ساكو', item.sakoCode),
-            const Divider(height: AppSpacing.lg),
-            _priceRow(context, 'سعر الصيدلي', item.pricePharmacist, item.currency),
-            _priceRow(context, 'سعر الجمهور', item.pricePublic, item.currency),
+            for (final s in OfferSort.values)
+              ListTile(
+                dense: true,
+                title: Text(s.label),
+                trailing: current == s
+                    ? Icon(Icons.check, color: context.colors.primary)
+                    : null,
+                onTap: () {
+                  Navigator.pop(context);
+                  onSelect(s);
+                },
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _row(BuildContext context, String label, String value) {
-    if (value.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 110, child: Text(label, style: context.text.bodySmall)),
-          Expanded(child: Text(value, style: context.text.bodyMedium)),
-        ],
-      ),
-    );
-  }
-
-  Widget _priceRow(BuildContext context, String label, double value, String currency) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          SizedBox(width: 110, child: Text(label, style: context.text.bodySmall)),
-          Text('${value.toStringAsFixed(0)} $currency',
-              style: context.text.titleSmall?.copyWith(color: context.colors.primary)),
-        ],
       ),
     );
   }

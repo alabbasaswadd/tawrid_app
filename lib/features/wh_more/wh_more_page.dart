@@ -75,6 +75,11 @@ class WhMorePage extends ConsumerWidget {
               label: 'إعلاناتي وأخباري',
               onTap: () => context.push(TRoutes.whListings),
             ),
+            _Row(
+              icon: Icons.shopping_bag_outlined,
+              label: 'الحد الأدنى للطلبية',
+              onTap: () => context.push(TRoutes.whMinOrder),
+            ),
           ]),
 
           const SizedBox(height: AppSpacing.lg),

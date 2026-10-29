@@ -51,6 +51,15 @@ abstract final class TRoutes {
   static String whSubmitTenderOffer(String tenderId) =>
       '/wh/tenders/$tenderId/submit-offer';
 
+  // سلة الصيدلي (العروض المحفوظة)
+  static const String phCart = '/cart';
+
+  // سلة المستودع (أصناف مختارة لإنشاء عرض)
+  static const String whCart = '/wh/cart';
+
+  // إعداد الحد الأدنى للطلبية
+  static const String whMinOrder = '/wh/settings/min-order';
+
   // Pharmacy shell tabs
   static const String phHome = '/home';
   static const String phOrders = '/orders';

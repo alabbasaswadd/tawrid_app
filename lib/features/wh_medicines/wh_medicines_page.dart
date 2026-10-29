@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:tawrid_app/core/cart/wh_cart.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
@@ -122,11 +123,45 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
+    final cartCount = ref.watch(whCartProvider).length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('أدوية مستودعي'),
         actions: [
+          // زر السلة: يظهر فقط عند وجود أصناف فيها.
+          if (cartCount > 0)
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: AppIcon(AppIcons.shoppingCart,
+                      size: 22, color: cs.primary),
+                  tooltip: 'السلة',
+                  onPressed: () => context.push(TRoutes.whCart),
+                ),
+                PositionedDirectional(
+                  top: 8,
+                  end: 8,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                        color: cs.primary, shape: BoxShape.circle),
+                    child: Center(
+                      child: Text(
+                        cartCount > 9 ? '9+' : '$cartCount',
+                        style: context.text.labelSmall?.copyWith(
+                          color: cs.onPrimary,
+                          fontSize: 9,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           // زر الكتالوج العام: حدٌّ بلون العلامة — ثانوي لا رئيسي.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -238,17 +273,19 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
   }
 }
 
-class _MedicineCard extends StatelessWidget {
+class _MedicineCard extends ConsumerWidget {
   const _MedicineCard({required this.medicine, required this.onRemove});
 
   final WarehouseMedicine medicine;
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = context.colors;
     final tk = context.tokens;
     final m = medicine;
+    final inCart = ref.watch(whCartProvider).any(
+        (i) => i.warehouseMedicineId == m.id);
 
     final spec = [
       if (m.genericName.isNotEmpty) m.genericName,
@@ -257,35 +294,64 @@ class _MedicineCard extends StatelessWidget {
     ].join(' · ');
 
     return AppCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(m.displayName,
-                    style: context.text.titleSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text(spec,
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                if (m.sakoCode.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text('كود ساكو: ${m.sakoCode}',
-                      style: context.text.labelSmall?.copyWith(color: tk.hint)),
-                ],
-              ],
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(m.displayName,
+                        style: context.text.titleSmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 3),
+                    Text(spec,
+                        style:
+                            context.text.bodySmall?.copyWith(color: tk.hint),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    if (m.sakoCode.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text('كود ساكو: ${m.sakoCode}',
+                          style: context.text.labelSmall
+                              ?.copyWith(color: tk.hint)),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TextButton.icon(
+                onPressed: onRemove,
+                icon: Icon(Icons.close, size: 16, color: cs.error),
+                label: Text('إزالة', style: TextStyle(color: cs.error)),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          TextButton.icon(
-            onPressed: onRemove,
-            icon: Icon(Icons.close, size: 16, color: cs.error),
-            label: Text('إزالة', style: TextStyle(color: cs.error)),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: inCart
+                ? StatusBadge(
+                    label: 'في السلة',
+                    tone: StatusTone.success,
+                    icon: Icons.check,
+                  )
+                : AppButton(
+                    label: 'أضف للسلة',
+                    icon: Icons.add,
+                    fullWidth: false,
+                    compact: true,
+                    variant: AppButtonVariant.tonal,
+                    onPressed: () {
+                      ref.read(whCartProvider.notifier).add(m);
+                      AppSnackbar.success(
+                          context, 'أُضيف «${m.displayName}» إلى السلة');
+                    },
+                  ),
           ),
         ],
       ),

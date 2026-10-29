@@ -10,6 +10,9 @@ import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/features/auth/account_status_page.dart';
 import 'package:tawrid_app/features/auth/login_page.dart';
 import 'package:tawrid_app/features/dev_gallery/design_gallery_page.dart';
+import 'package:tawrid_app/features/ph_cart/ph_cart_page.dart';
+import 'package:tawrid_app/features/wh_cart/wh_cart_page.dart';
+import 'package:tawrid_app/features/wh_settings/wh_min_order_page.dart';
 import 'package:tawrid_app/features/notifications/notification_settings_page.dart';
 import 'package:tawrid_app/features/notifications/notifications_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
@@ -124,6 +127,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phNotifications,
         TRoutes.phNotificationSettings,
         TRoutes.phWarehouses,
+        TRoutes.phCart,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
       final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
@@ -150,6 +154,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whUsers,
         TRoutes.whNotifications,
         TRoutes.whNotificationSettings,
+        TRoutes.whCart,
+        TRoutes.whMinOrder,
       };
       final isSubmitOfferRoute =
           loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
@@ -305,6 +311,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.phMedicineSearch,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const PhMedicineSearchPage(),
+      ),
+
+      // سلة الصيدلي
+      GoRoute(
+        path: TRoutes.phCart,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhCartPage(),
+      ),
+
+      // سلة المستودع
+      GoRoute(
+        path: TRoutes.whCart,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhCartPage(),
+      ),
+
+      // إعداد الحد الأدنى للطلبية
+      GoRoute(
+        path: TRoutes.whMinOrder,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhMinOrderPage(),
       ),
 
       // تفاصيل عرض بيع — شاشة كاملة لأن منها تُنشأ الطلبية (اختيار أصناف

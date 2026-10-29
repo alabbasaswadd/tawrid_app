@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:tawrid_app/core/cart/ph_cart.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
@@ -185,6 +186,16 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   void _openOffer(SalesOfferSummary offer) =>
       context.push(TRoutes.phOfferDetail(offer.id));
 
+  void _addToCart(SalesOfferSummary offer) {
+    final cart = ref.read(phCartProvider.notifier);
+    if (cart.contains(offer.id)) {
+      AppSnackbar.success(context, 'العرض موجود بالفعل في السلة');
+      return;
+    }
+    cart.add(offer);
+    AppSnackbar.success(context, 'أُضيف «${offer.title}» إلى السلة');
+  }
+
   static String _greeting() {
     final h = DateTime.now().hour;
     if (h < 12) return 'صباح الخير،';
@@ -207,6 +218,7 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   Widget build(BuildContext context) {
     final me = ref.watch(pharmacyMeProvider);
     final unread = ref.watch(phUnreadCountProvider).value ?? 0;
+    final cartCount = ref.watch(phCartProvider).length;
 
     return Scaffold(
       appBar: WelcomeTopBar(
@@ -214,6 +226,8 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         name: me.value?.pharmacyName ?? 'صيدليتي',
         hasUnread: unread > 0,
         onNotificationsTap: () => context.push(TRoutes.phNotifications),
+        cartCount: cartCount,
+        onCartTap: () => context.push(TRoutes.phCart),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -299,7 +313,7 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
                   AppSpacing.page, 0, AppSpacing.page, AppSpacing.md),
               child: OfferSummaryCard(
                 offer: offer,
-                onAdd: () => _openOffer(offer),
+                onAdd: () => _addToCart(offer),
                 onDetails: () => _openOffer(offer),
               ),
             ),
