@@ -4,21 +4,21 @@ import 'package:flutter/material.dart';
 // التصميم). لا تُستهلك مباشرة في الشاشات، بل عبر الثيم / TawridTokens.
 // الوضع الداكن مشتقّ من نفس الهوية (Figma يعرّف الوضع الفاتح فقط).
 abstract final class AppPalette {
-  // ── الأخضر الأساسي (#086653) والداكن (#064A3F) من اللوحة ────────────
-  static const brandLight = Color(0xFF086653);
+  // ── الأخضر الأساسي (#042623) — تيل غابوي داكن ──────────────────────
+  static const brandLight = Color(0xFF042623);
   static const brandDark = Color(0xFF3FA98D);
   static const onBrandLight = Color(0xFFFFFFFF);
-  static const onBrandDark = Color(0xFF04291F);
+  static const onBrandDark = Color(0xFF011210);
 
   // الأخضر الداكن — للتدرّجات والظلال وحالات الضغط.
-  static const brandDeepLight = Color(0xFF064A3F);
+  static const brandDeepLight = Color(0xFF021815);
   static const brandDeepDark = Color(0xFF2E8A72);
 
-  // أسطح العلامة — خلفية خضراء فاتحة (#E8F3EF) وأفتح منها (#F1F8F5).
-  static const brandSurfaceLight = Color(0xFFE8F3EF);
-  static const brandSurfaceDark = Color(0xFF143027);
-  static const brandSurfaceSubtleLight = Color(0xFFF1F8F5);
-  static const brandSurfaceSubtleDark = Color(0xFF102721);
+  // أسطح العلامة — تلوين خفيف مشتقّ من اللون الأساسي.
+  static const brandSurfaceLight = Color(0xFFE2EDEB);
+  static const brandSurfaceDark = Color(0xFF0F2420);
+  static const brandSurfaceSubtleLight = Color(0xFFEEF4F3);
+  static const brandSurfaceSubtleDark = Color(0xFF0C1E1B);
 
   // ── الذهبي — الأساسي (#C6A45A)، الغامق للنص (#A9873F)، الفاتح (#F7F1E3) ──
   static const goldLight = Color(0xFFC6A45A);

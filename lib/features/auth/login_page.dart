@@ -121,7 +121,7 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
                         label: 'إنشاء حساب',
                         variant: AppButtonVariant.text,
                         fullWidth: false,
-                        onPressed: () => context.go(TRoutes.phRegister),
+                        onPressed: () => context.push(TRoutes.phRegister),
                       ),
                     ],
                   ),

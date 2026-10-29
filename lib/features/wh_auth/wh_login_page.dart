@@ -136,7 +136,7 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
                         label: 'تسجيل المستودع',
                         variant: AppButtonVariant.text,
                         fullWidth: false,
-                        onPressed: () => context.go(TRoutes.whRegister),
+                        onPressed: () => context.push(TRoutes.whRegister),
                       ),
                     ],
                   ),

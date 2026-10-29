@@ -67,6 +67,18 @@ abstract final class AppTheme {
       primaryTextTheme: textTheme,
       extensions: [tokens],
 
+      // انتقال مخصص لجميع الصفحات: انزلاق أفقي خفيف من اليمين + fade (280ms).
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _TawridPageTransition(),
+          TargetPlatform.iOS: _TawridPageTransition(),
+          TargetPlatform.fuchsia: _TawridPageTransition(),
+          TargetPlatform.linux: _TawridPageTransition(),
+          TargetPlatform.macOS: _TawridPageTransition(),
+          TargetPlatform.windows: _TawridPageTransition(),
+        },
+      ),
+
       // الأشرطة العلوية تجلس على خلفية الصفحة نفسها (بلا سطح مرتفع).
       appBarTheme: AppBarTheme(
         elevation: 0,
@@ -252,6 +264,37 @@ abstract final class AppTheme {
                 : textSecondary,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// انتقال الصفحات: fade + انزلاق خفيف من اليمين (٢٨٠ms / easeOut).
+// يُطبَّق تلقائياً على كل صفحات GoRouter عبر PageTransitionsTheme.
+class _TawridPageTransition extends PageTransitionsBuilder {
+  const _TawridPageTransition();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // الأنيميشن ينتهي عند 60% من مدة الـ route (300ms) → ≈ 180ms فعلياً.
+    final curvedAnim = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.0, 0.60, curve: Curves.easeOut),
+    );
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.06, 0),
+          end: Offset.zero,
+        ).animate(curvedAnim),
+        child: child,
       ),
     );
   }
