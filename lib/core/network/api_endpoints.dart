@@ -38,8 +38,31 @@ abstract final class ApiEndpoints {
   static String catalogById(String id) => '$_ph/catalog/$id';
 
   // ── Warehouse: My Medicines (أدوية المستودع — بلا ربط مخزون) ───────────────
+  // السعر اختياري: صنف بلا سعر يبقى في القائمة الداخلية ولا يظهر في البحث
+  // المقارن عند الصيدليات.
   static const String whMedicines = '$_wh/medicines';
   static String whMedicineById(String id) => '$_wh/medicines/$id';
+  static String whMedicinePrice(String id) => '$_wh/medicines/$id/price';
+
+  // ── Warehouse: Settings (إعدادات الطلبيات — الحدّ الأدنى) ──────────────────
+  static const String whSettings = '$_wh/settings';
+
+  // ── Pharmacy: Medicine price search (البحث المقارن) ───────────────────────
+  // يدمج أصناف العروض السارية مع التسعير المباشر من المستودعات في قائمة
+  // واحدة مُرقَّمة. السلّة تُبنى من نتائجه محلياً ثم تُتمّ عبر phOrders.
+  static const String phMedicinePriceSearch = '$_ph/medicines/search';
+
+  // ── Pharmacy: Cart (السلّة — محفوظة على الخادم ومجمَّعة حسب المستودع) ─────
+  // كل مسار هنا يُعيد السلّة كاملةً بعد التعديل، فتُرسم الشاشة من الاستجابة
+  // بلا طلب ثانٍ. والإضافة ترسل مرجع الصنف وكميته فقط — السعر يُشتقّ في
+  // الخادم من المصدر فلا يُسعّر العميل ما يشتريه.
+  static const String phCart = '$_ph/cart';
+  static const String phCartItems = '$_ph/cart/items';
+  static String phCartItemById(String id) => '$_ph/cart/items/$id';
+  static String phCartWarehouse(String warehouseId) =>
+      '$_ph/cart/warehouses/$warehouseId';
+  static String phCartCheckout(String warehouseId) =>
+      '$_ph/cart/warehouses/$warehouseId/checkout';
 
   // ── Pharmacy: Supply Orders ────────────────────────────────────────────────
   static const String phOrders = '$_ph/supply-orders';

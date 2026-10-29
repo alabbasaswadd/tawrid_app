@@ -133,6 +133,17 @@ class _DesignGalleryPageState extends State<DesignGalleryPage> {
             ),
           ),
 
+          _section(context, 'زر السلة'),
+          Row(
+            children: [
+              CartButton(count: 0, onTap: () {}),
+              const SizedBox(width: AppSpacing.lg),
+              CartButton(count: 3, onTap: () {}),
+              const SizedBox(width: AppSpacing.lg),
+              CartButton(count: 128, onTap: () {}),
+            ],
+          ),
+
           _section(context, 'عدادات الملخص'),
           Row(
             children: [

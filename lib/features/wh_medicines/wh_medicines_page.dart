@@ -11,12 +11,14 @@ import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
 // أدوية مستودعي (Figma: المستودع / أدوية مستودعي).
 //
-// قائمة تعريفية لا مخزون: الأسعار والكميات تُحدَّد داخل كل عرض بيع، وما
-// هنا هو «أي أصناف يتعامل بها مستودعي» ليُبنى منها العرض.
+// قائمة أصناف لا مخزون بكميات. لكل صنف **سعر اختياري**: الصنف المسعَّر يظهر
+// للصيدليات في البحث المقارن كـ«تسعير مباشر»، وغير المسعَّر يبقى بياناً
+// تعريفياً تُبنى عليه العروض فقط. الكميات تبقى داخل كل عرض بيع.
 class WhMedicinesPage extends ConsumerStatefulWidget {
   const WhMedicinesPage({super.key});
 
@@ -102,6 +104,81 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
       await ref.read(warehouseMedicineRepositoryProvider).remove(m.id);
       if (!mounted) return;
       AppSnackbar.success(context, 'أُزيل الدواء من قائمتك');
+      await _load(silent: true);
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    }
+  }
+
+  // تحرير السعر في حوار صغير: الحقل وحده هو القرار ولا يستحق شاشة.
+  // إفراغ الحقل يسحب السعر — يختفي الصنف من بحث الصيدليات ويبقى في قائمتك.
+  Future<void> _editPrice(WarehouseMedicine m) async {
+    final controller = TextEditingController(
+      text: m.price == null ? '' : m.price!.toStringAsFixed(0),
+    );
+
+    final result = await showDialog<_PriceResult>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(m.price == null ? 'إضافة سعر' : 'تعديل السعر'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(m.displayName, style: Theme.of(ctx).textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              controller: controller,
+              label: 'سعر الوحدة (${currencySymbol(kPlatformCurrency)})',
+              hint: '12500',
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'اتركه فارغاً لسحب السعر — يبقى الصنف في قائمتك ولا يظهر في '
+              'بحث الصيدليات.',
+              style: Theme.of(ctx).textTheme.labelSmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('تراجع'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final raw = controller.text.trim().replaceAll(',', '');
+              if (raw.isEmpty) {
+                Navigator.pop(ctx, const _PriceResult(null));
+                return;
+              }
+              final value = double.tryParse(raw);
+              if (value == null || value <= 0) {
+                AppSnackbar.error(ctx, 'أدخل سعراً أكبر من صفر');
+                return;
+              }
+              Navigator.pop(ctx, _PriceResult(value));
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    if (result == null) return;
+
+    try {
+      await ref
+          .read(warehouseMedicineRepositoryProvider)
+          .setPrice(m.id, result.value);
+      if (!mounted) return;
+      AppSnackbar.success(
+        context,
+        result.value == null ? 'سُحب سعر الصنف' : 'حُفظ السعر',
+      );
       await _load(silent: true);
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
@@ -224,13 +301,18 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
         for (final m in items)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: _MedicineCard(medicine: m, onRemove: () => _remove(m)),
+            child: _MedicineCard(
+              medicine: m,
+              onRemove: () => _remove(m),
+              onEditPrice: () => _editPrice(m),
+            ),
           ),
         const SizedBox(height: AppSpacing.xs),
         // توضيح ما تعنيه القائمة فعلاً — ليست مخزوناً بكميات وأسعار.
         Text(
-          'أدوية مستودعك بيانات تعريفية من الكتالوج الوطني تُبنى عليها عروضك. '
-          'الأسعار والكميات تُحدَّد داخل كل عرض بيع.',
+          'الصنف المسعَّر يظهر للصيدليات في البحث المقارن كـ«تسعير مباشر»، '
+          'وغير المسعَّر يبقى في قائمتك لتبني عليه عروضك. الكميات تُحدَّد '
+          'داخل كل عرض بيع.',
           style: context.text.labelSmall?.copyWith(color: tk.hint),
         ),
       ],
@@ -238,11 +320,23 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
   }
 }
 
+/// نتيجة حوار السعر — تميّز «أُلغي الحوار» (null) عن «سُحب السعر» (قيمة
+/// بداخلها null)، وهما قراران مختلفان لا يصحّ خلطهما.
+class _PriceResult {
+  const _PriceResult(this.value);
+  final double? value;
+}
+
 class _MedicineCard extends StatelessWidget {
-  const _MedicineCard({required this.medicine, required this.onRemove});
+  const _MedicineCard({
+    required this.medicine,
+    required this.onRemove,
+    required this.onEditPrice,
+  });
 
   final WarehouseMedicine medicine;
   final VoidCallback onRemove;
+  final VoidCallback onEditPrice;
 
   @override
   Widget build(BuildContext context) {
@@ -282,13 +376,53 @@ class _MedicineCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          TextButton.icon(
-            onPressed: onRemove,
-            icon: Icon(Icons.close, size: 16, color: cs.error),
-            label: Text('إزالة', style: TextStyle(color: cs.error)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // السعر أولاً: هو ما يقرّر ظهور الصنف للصيدليات من عدمه.
+              if (m.price != null)
+                Text(
+                  formatMoneyWith(m.price!, kPlatformCurrency),
+                  style: context.priceStyle,
+                )
+              else
+                Text(
+                  'لم يُحدَّد سعر',
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: onEditPrice,
+                    style: _denseButton,
+                    child: Text(
+                      m.price == null ? 'أضف سعراً' : 'تعديل',
+                      style: context.text.bodySmall?.copyWith(color: cs.primary),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onRemove,
+                    style: _denseButton,
+                    child: Text(
+                      'إزالة',
+                      style: context.text.bodySmall?.copyWith(color: cs.error),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+  // إجراءان متجاوران داخل بطاقة — الحشوة الافتراضية تجعلهما يزاحمان النص.
+  static final ButtonStyle _denseButton = TextButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    minimumSize: Size.zero,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
 }

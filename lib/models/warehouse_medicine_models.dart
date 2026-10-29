@@ -14,6 +14,11 @@ class WarehouseMedicine {
   final double strength;
   final DosageForm dosageForm;
   final String manufacturerName;
+
+  /// سعر المستودع لهذا الصنف — null يعني «لم يُحدَّد سعر»، فلا يظهر الصنف
+  /// في البحث المقارن عند الصيدليات ويبقى في القائمة الداخلية.
+  final double? price;
+
   final DateTime createdOn;
 
   WarehouseMedicine({
@@ -26,6 +31,7 @@ class WarehouseMedicine {
     required this.strength,
     required this.dosageForm,
     required this.manufacturerName,
+    this.price,
     required this.createdOn,
   });
 
@@ -39,6 +45,7 @@ class WarehouseMedicine {
         strength: (j['strength'] as num?)?.toDouble() ?? 0,
         dosageForm: DosageForm.fromCode(j['dosageForm'] as int? ?? 1),
         manufacturerName: j['manufacturerName'] as String? ?? '',
+        price: (j['price'] as num?)?.toDouble(),
         createdOn: DateTime.parse(j['createdOn'] as String),
       );
 

@@ -74,6 +74,13 @@ class ApiClient {
     await _dio.delete(path);
   }
 
+  /// DELETE يُرجع جسماً مفيداً — مسارات السلّة تُعيد السلّة بعد الحذف،
+  /// فتُرسَم الشاشة من الاستجابة بلا طلب ثانٍ.
+  Future<dynamic> deleteJson(String path, {dynamic data}) async {
+    final res = await _dio.delete(path, data: data);
+    return _unwrap(res.data);
+  }
+
   dynamic _unwrap(dynamic data) {
     if (data is Map<String, dynamic> && data.containsKey('data')) {
       return data['data'];
