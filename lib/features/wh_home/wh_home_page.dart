@@ -37,6 +37,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   List<SupplyOrderSummary> _orders = const [];
   List<SalesOfferSummary> _offers = const [];
   List<TenderSummary> _openRequests = const [];
+  final Set<String> _ignoredTenderIds = {};
 
   bool _loading = true;
   String? _error;
@@ -101,6 +102,12 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
 
   List<SalesOfferSummary> get _activeOffers =>
       _offers.where((o) => o.status == SalesOfferStatus.active).toList();
+
+  List<TenderSummary> get _visibleTenders => _openRequests
+      .where((t) => !_ignoredTenderIds.contains(t.id))
+      .toList();
+
+  void _ignoreTender(String id) => setState(() => _ignoredTenderIds.add(id));
 
   // «يقارب على الانتهاء» = ثلاثة أيام أو أقل، نفس عتبة بطاقة العرض.
   List<SalesOfferSummary> get _expiringOffers => _activeOffers
@@ -204,13 +211,45 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
         ],
 
         const SizedBox(height: AppSpacing.md),
-        AppButton(
-          label: 'إنشاء عرض جديد',
-          onPressed: () async {
-            await context.push(TRoutes.whCreateOffer);
-            if (mounted) await _load(silent: true);
-          },
-        ),
+        // زر الإنشاء: يظهر دائماً بلا عروض، ويظهر «العرض الأول» فقط في البداية
+        if (_activeOffers.isEmpty)
+          AppButton(
+            label: 'إنشاء العرض الأول',
+            icon: Icons.add,
+            onPressed: () async {
+              await context.push(TRoutes.whCreateOffer);
+              if (mounted) await _load(silent: true);
+            },
+          )
+        else
+          AppButton(
+            label: 'إنشاء عرض جديد',
+            variant: AppButtonVariant.outline,
+            icon: Icons.add,
+            onPressed: () async {
+              await context.push(TRoutes.whCreateOffer);
+              if (mounted) await _load(silent: true);
+            },
+          ),
+
+        // ── طلبات التسعير في المنطقة ────────────────────────────────────────
+        if (_visibleTenders.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AppSectionHeader(
+            title: 'طلبات تسعير في منطقتك',
+            trailing: _SeeAllLink(onTap: () => context.push(TRoutes.whTenders)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final t in _visibleTenders.take(5))
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _HomeTenderCard(
+                tender: t,
+                onTap: () => context.push(TRoutes.whSubmitTenderOffer(t.id)),
+                onIgnore: () => _ignoreTender(t.id),
+              ),
+            ),
+        ],
 
         const SizedBox(height: AppSpacing.lg),
         AppSectionHeader(
@@ -283,6 +322,84 @@ class _ExpiryAlert extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// بطاقة طلب تسعير مختصرة في الرئيسية — اسم الطلب + الصيدلية + الموعد + زر تجاهل.
+class _HomeTenderCard extends StatelessWidget {
+  const _HomeTenderCard({
+    required this.tender,
+    required this.onTap,
+    required this.onIgnore,
+  });
+
+  final TenderSummary tender;
+  final VoidCallback onTap;
+  final VoidCallback onIgnore;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final daysLeft = tender.expiresAt.difference(DateTime.now()).inDays;
+
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            margin: const EdgeInsets.only(left: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: tk.brandSurface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Center(
+              child: AppIcon(AppIcons.fileText, size: 18, color: cs.primary),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tender.title,
+                    style: context.text.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text(
+                  '${tender.itemCount} ${tender.itemCount == 1 ? 'صنف' : 'أصناف'}'
+                  ' · ${daysLeft > 0 ? 'ينتهي خلال $daysLeft يوم' : 'ينتهي اليوم'}',
+                  style: context.text.bodySmall?.copyWith(color: tk.hint),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // زر تجاهل — لا يحذف من الخادم، فقط يُخفيه من الرئيسية
+              Tooltip(
+                message: 'إخفاء هذا الطلب',
+                child: InkWell(
+                  onTap: onIgnore,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 16, color: tk.hint),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text('تقديم عرض',
+                  style: context.text.bodySmall?.copyWith(color: cs.primary)),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -352,13 +352,18 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2))
                 else
-                  AppButton(
-                    label: 'أضف لمخزونك',
-                    icon: Icons.add,
-                    fullWidth: false,
-                    compact: true,
-                    variant: AppButtonVariant.tonal,
-                    onPressed: () => _add(item),
+                  Tooltip(
+                    message: 'أضف لمخزونك',
+                    child: IconButton.filledTonal(
+                      iconSize: 18,
+                      style: const ButtonStyle(
+                        minimumSize: WidgetStatePropertyAll(Size(32, 32)),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                      ),
+                      icon: const Icon(Icons.add),
+                      onPressed: () => _add(item),
+                    ),
                   ),
               ],
             ),

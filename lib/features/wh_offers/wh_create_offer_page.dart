@@ -8,6 +8,7 @@ import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
+import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
@@ -24,13 +25,14 @@ class WhCreateOfferPage extends ConsumerStatefulWidget {
 }
 
 class _OfferItemDraft {
-  _OfferItemDraft(this.medicine)
+  _OfferItemDraft(this.medicine, {double? defaultPrice})
       : unit = TextEditingController(text: 'علبة'),
-        // الكمية المعروضة: سقف ما يستطيع الصيدلي طلبه من هذا الصنف.
-        // كانت مثبّتة على ١ في الشيفرة فكان كل عرض يقول «المتاح: عبوة
-        // واحدة» ولا يسمح بطلب أكثر — عرضٌ بلا معنى.
         quantity = TextEditingController(text: '100'),
-        unitPrice = TextEditingController(),
+        unitPrice = TextEditingController(
+          text: defaultPrice != null && defaultPrice > 0
+              ? defaultPrice.toStringAsFixed(0)
+              : '',
+        ),
         discount = TextEditingController(),
         bonus = TextEditingController();
 
@@ -65,6 +67,16 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   bool _isPublicInRegion = false;
   final List<_OfferItemDraft> _items = [];
   bool _saving = false;
+
+  // نسبة الحسم من سعر الصيدلاني في الكاتالوج:
+  // إدلب (محافظة أو مدينة) ← 26%، وباقي المحافظات ← 16%.
+  double get _discountRate {
+    final me = ref.read(warehouseMeProvider).value;
+    if (me == null) return 0.16;
+    const idlib = 'إدلب';
+    if (me.governorate == idlib || me.city == idlib) return 0.26;
+    return 0.16;
+  }
 
   // بونص على مستوى العرض كله = دواء مجاني (اختياري)
   WarehouseMedicine? _bonusMedicine;
@@ -115,7 +127,13 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
       ),
     );
     if (picked != null && picked.isNotEmpty) {
-      setState(() => _items.addAll(picked.map(_OfferItemDraft.new)));
+      final rate = _discountRate;
+      setState(() => _items.addAll(picked.map((m) => _OfferItemDraft(
+            m,
+            defaultPrice: m.pricePharmacist > 0
+                ? m.pricePharmacist * (1 - rate)
+                : null,
+          ))));
     }
   }
 

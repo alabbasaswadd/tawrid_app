@@ -259,7 +259,6 @@ class _PhCreateTenderPageState extends ConsumerState<PhCreateTenderPage> {
           child: Row(
             children: [
               Expanded(
-                flex: 3,
                 child: AppButton(
                   label: 'نشر طلب التسعير',
                   loading: _saving,
@@ -268,7 +267,6 @@ class _PhCreateTenderPageState extends ConsumerState<PhCreateTenderPage> {
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                flex: 2,
                 child: AppButton(
                   label: 'حفظ كمسودة',
                   variant: AppButtonVariant.outline,
@@ -284,12 +282,7 @@ class _PhCreateTenderPageState extends ConsumerState<PhCreateTenderPage> {
 }
 
 // بطاقة صنف في الطلب (Figma: الأصناف المطلوبة).
-//
-// التخطيط عمودان: تفاصيل الدواء في بداية القراءة، وكتلة الكمية في الطرف
-// المقابل بعرض ثابت — فلا تتراقص الكميات بين البطاقات باختلاف طول الأسماء.
-// والكمية تُعدَّل في مكانها بمنتقي الكمية: فتح ورقة الكتالوج لتغيير رقم
-// طريقٌ طويل لأبسط تعديل.
-class _DraftItemCard extends StatelessWidget {
+class _DraftItemCard extends StatefulWidget {
   const _DraftItemCard({
     required this.item,
     required this.onRemove,
@@ -301,13 +294,32 @@ class _DraftItemCard extends StatelessWidget {
   final ValueChanged<int> onQuantity;
 
   @override
+  State<_DraftItemCard> createState() => _DraftItemCardState();
+}
+
+class _DraftItemCardState extends State<_DraftItemCard> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(
+      text: widget.item.quantity > 0 ? '${widget.item.quantity}' : '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
-    final m = item.catalogItem;
+    final m = widget.item.catalogItem;
 
-    // ما يملكه الكتالوج فعلاً: الاسم العلمي والشكل والعيار، ثم الشركة.
-    // لا «٣٠ قرصاً بالعبوة» — حجم العبوة ليس حقلاً في الكتالوج.
     final spec = [
       if (m.genericName.isNotEmpty) m.genericName,
       m.dosageForm.label,
@@ -319,7 +331,7 @@ class _DraftItemCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Column(
@@ -336,8 +348,7 @@ class _DraftItemCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis),
                     if (m.manufacturerName.isNotEmpty)
                       Text(m.manufacturerName,
-                          style:
-                              context.text.labelSmall?.copyWith(color: tk.hint),
+                          style: context.text.labelSmall?.copyWith(color: tk.hint),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                   ],
@@ -345,41 +356,35 @@ class _DraftItemCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               SizedBox(
-                width: 72,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('الكمية',
-                        style:
-                            context.text.labelSmall?.copyWith(color: tk.hint)),
-                    Text('${item.quantity} عبوة',
-                        style: context.text.titleSmall
-                            ?.copyWith(color: cs.primary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ],
+                width: 88,
+                child: TextField(
+                  controller: _ctrl,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    hintText: 'الكمية',
+                    suffixText: 'عبوة',
+                    suffixStyle: context.text.labelSmall?.copyWith(color: tk.hint),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: cs.outline),
+                    ),
+                  ),
+                  onChanged: (v) => widget.onQuantity(int.tryParse(v) ?? 0),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           Divider(height: 1, color: cs.outline),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: onRemove,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('حذف'),
-                style: TextButton.styleFrom(foregroundColor: cs.error),
-              ),
-              const Spacer(),
-              QuantityStepper(
-                value: '${item.quantity}',
-                onDecrement: () => onQuantity(item.quantity - 1),
-                onIncrement: () => onQuantity(item.quantity + 1),
-              ),
-            ],
+          const SizedBox(height: AppSpacing.xs),
+          TextButton.icon(
+            onPressed: widget.onRemove,
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('حذف'),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
           ),
         ],
       ),
@@ -491,7 +496,7 @@ class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
   void _toggle(MedicineCatalogItem m, bool on) {
     setState(() {
       if (on) {
-        _selected[m.id] = 10;
+        _selected[m.id] = 0; // حقل فارغ — المستخدم يدخل الكمية
       } else {
         _selected.remove(m.id);
       }
@@ -504,6 +509,13 @@ class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
   }
 
   void _confirm() {
+    // التحقق أن كل صنف مختار لديه كمية > 0
+    for (final entry in _selected.entries) {
+      if (entry.value < 1) {
+        AppSnackbar.error(context, 'أدخل كمية صحيحة لكل صنف محدد');
+        return;
+      }
+    }
     final out = <_DraftItem>[];
     for (final entry in _selected.entries) {
       final m = _known[entry.key];
@@ -625,7 +637,7 @@ class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
   }
 }
 
-class _CatalogRow extends StatelessWidget {
+class _CatalogRow extends StatefulWidget {
   const _CatalogRow({
     required this.medicine,
     required this.quantity,
@@ -639,13 +651,45 @@ class _CatalogRow extends StatelessWidget {
   final ValueChanged<int> onQty;
 
   @override
+  State<_CatalogRow> createState() => _CatalogRowState();
+}
+
+class _CatalogRowState extends State<_CatalogRow> {
+  late TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.quantity;
+    _ctrl = TextEditingController(text: (q != null && q > 0) ? '$q' : '');
+  }
+
+  @override
+  void didUpdateWidget(_CatalogRow old) {
+    super.didUpdateWidget(old);
+    // عند إلغاء التحديد ثم إعادته، نفرّغ الحقل
+    if (old.quantity != null && widget.quantity == null) {
+      _ctrl.clear();
+    }
+    if (old.quantity == null && widget.quantity != null) {
+      _ctrl.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
-    final selected = quantity != null;
+    final selected = widget.quantity != null;
 
     return AppCard(
-      onTap: () => onToggle(!selected),
+      onTap: () => widget.onToggle(!selected),
       color: selected ? tk.brandSurface : null,
       child: Column(
         children: [
@@ -656,13 +700,13 @@ class _CatalogRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(medicine.displayName,
+                    Text(widget.medicine.displayName,
                         style: context.text.titleSmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
                     Text(
-                      [medicine.genericName, medicine.dosageForm.label]
+                      [widget.medicine.genericName, widget.medicine.dosageForm.label]
                           .where((s) => s.isNotEmpty)
                           .join(' · '),
                       style: context.text.bodySmall?.copyWith(color: tk.hint),
@@ -673,7 +717,6 @@ class _CatalogRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              // مربع تحديد مرئي: الصفّ كلّه قابل للنقر، والمربع يؤكّد الحالة.
               Container(
                 width: 24,
                 height: 24,
@@ -689,18 +732,36 @@ class _CatalogRow extends StatelessWidget {
               ),
             ],
           ),
-          // الكمية تظهر عند التحديد فقط — قبله لا معنى لكمية صنف لم يُطلب.
+          // حقل الكمية يظهر عند التحديد فقط — فارغ كتلميح، يدخله المستخدم يدوياً.
           if (selected) ...[
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Text('الكمية المطلوبة (عبوة)',
-                    style: context.text.bodySmall?.copyWith(color: tk.hint)),
-                const Spacer(),
-                QuantityStepper(
-                  value: '$quantity',
-                  onDecrement: () => onQty(quantity! - 1),
-                  onIncrement: () => onQty(quantity! + 1),
+                Expanded(
+                  child: Text('الكمية المطلوبة (عبوة)',
+                      style: context.text.bodySmall?.copyWith(color: tk.hint)),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                SizedBox(
+                  width: 90,
+                  child: TextField(
+                    controller: _ctrl,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      hintText: 'أدخل الكمية',
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: cs.outline),
+                      ),
+                    ),
+                    onChanged: (v) => widget.onQty(int.tryParse(v) ?? 0),
+                    onTap: () {
+                      // منع نشر النقر للبطاقة عند التفاعل مع الحقل
+                    },
+                  ),
                 ),
               ],
             ),

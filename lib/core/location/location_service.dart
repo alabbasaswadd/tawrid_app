@@ -12,12 +12,15 @@ class LocationCaptured extends LocationResult {
 }
 
 class LocationFailed extends LocationResult {
-  const LocationFailed(this.message, {this.openSettings = false});
+  const LocationFailed(this.message, {this.openSettings = false, this.openLocationSettings = false});
 
   final String message;
 
-  /// الرفض الدائم لا يُعالَج بإعادة الطلب — لا بدّ من الإعدادات.
+  /// الرفض الدائم لا يُعالَج بإعادة الطلب — لا بدّ من إعدادات التطبيق.
   final bool openSettings;
+
+  /// الـ GPS مغلق — لا بدّ من إعدادات الموقع في النظام.
+  final bool openLocationSettings;
 }
 
 /// التقاط موقع الصيدلية/المستودع وقت إنشاء الحساب.
@@ -32,7 +35,9 @@ class LocationService {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
         return const LocationFailed(
-            'خدمة الموقع مغلقة على الجهاز — شغّلها ثم أعد المحاولة');
+          'خدمة الموقع (GPS) مغلقة على الجهاز',
+          openLocationSettings: true,
+        );
       }
 
       var permission = await Geolocator.checkPermission();
@@ -67,6 +72,7 @@ class LocationService {
   }
 
   Future<void> openAppSettings() => Geolocator.openAppSettings();
+  Future<void> openLocationSettings() => Geolocator.openLocationSettings();
 }
 
 const locationService = LocationService();

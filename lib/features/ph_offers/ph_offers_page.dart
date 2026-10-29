@@ -157,6 +157,14 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
     });
   }
 
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    if (_search.isEmpty) return;
+    setState(() => _search = '');
+    _load();
+  }
+
   Future<void> _setQuick(_QuickFilter q) async {
     if (_filters.quick == q) return;
     setState(() => _filters = _filters.copyWith(quick: q));
@@ -252,6 +260,7 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
             hint: 'ابحث عن دواء أو عرض…',
             onChanged: _onSearchChanged,
             onScanTap: _scanBarcode,
+            onClearTap: _clearSearch,
           ),
         ),
 

@@ -560,7 +560,7 @@ class _MetaLine extends StatelessWidget {
   }
 }
 
-// ── توليد PDF للطلبية (عربي RTL بخط Cairo) ───────────────────────────
+// ── توليد PDF للطلبية (تصميم فاتورة رسمية RTL بخط Cairo) ───────────────
 Future<Uint8List> _buildOrderPdf(
   SupplyOrderDetail order,
   List<StatusHistoryItem> history,
@@ -571,81 +571,316 @@ Future<Uint8List> _buildOrderPdf(
   final bold = await PdfGoogleFonts.cairoBold();
   final doc = pw.Document();
 
-  final rows = order.items
-      .map((i) => [
-            i.medicineName,
-            '${i.quantity.toStringAsFixed(0)} ${i.unit}',
-            i.agreedUnitPrice == null ? '—' : formatMoney(i.agreedUnitPrice!),
-            (i.bonusPercentage ?? 0) > 0
-                ? '${i.bonusPercentage!.toStringAsFixed(0)}%'
-                : '—',
-            i.agreedUnitPrice == null
-                ? '—'
-                : formatMoney(i.agreedUnitPrice! * i.quantity),
-          ])
-      .toList();
+  const brand = PdfColor.fromInt(0xFF042623);
+  const brandLight = PdfColor.fromInt(0xFFE2EDEB);
+  const rowAlt = PdfColor.fromInt(0xFFF4F7F7);
+  const grey = PdfColors.grey700;
 
-  doc.addPage(pw.MultiPage(
-    textDirection: pw.TextDirection.rtl,
-    theme: pw.ThemeData.withFont(base: base, bold: bold),
-    margin: const pw.EdgeInsets.all(28),
-    build: (ctx) => [
-      pw.Text('طلبية توريد رقم ${order.orderNumber}',
-          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-      pw.SizedBox(height: 4),
-      pw.Text('الحالة: ${order.status.label}'),
-      pw.Text('المستودع: ${order.warehouseName} — ${order.warehouseCity}'
-          ' · ${order.warehousePhone}'),
-      pw.Text('تاريخ الإنشاء: ${order.createdOn.toLocal().toString().split(' ').first}'),
-      if (order.expectedDeliveryDate != null)
-        pw.Text('التسليم المتوقع: '
-            '${order.expectedDeliveryDate!.toLocal().toString().split(' ').first}'),
-      if (order.notes != null && order.notes!.isNotEmpty)
-        pw.Text('ملاحظات: ${order.notes}'),
+  final dateStr = order.createdOn.toLocal().toString().split(' ').first;
 
-      pw.SizedBox(height: 14),
-      pw.Text('الأصناف',
-          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-      pw.SizedBox(height: 6),
-      pw.TableHelper.fromTextArray(
-        headers: ['الدواء', 'الكمية', 'سعر الوحدة', 'البونص', 'الإجمالي'],
-        data: rows,
-        headerStyle:
-            pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-        headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF086653)),
-        cellAlignment: pw.Alignment.centerRight,
-        cellStyle: const pw.TextStyle(fontSize: 10),
-        oddRowDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF1F3F5)),
-      ),
+  // حساب الإجماليات
+  double totalBonus = 0;
+  for (final i in order.items) {
+    if ((i.bonusPercentage ?? 0) > 0 && i.agreedUnitPrice != null) {
+      final bonusUnits = i.quantity * i.bonusPercentage! / 100;
+      totalBonus += bonusUnits * i.agreedUnitPrice!;
+    }
+  }
+  final netAmount = total - totalBonus;
 
-      pw.SizedBox(height: 10),
-      if (freeUnits > 0)
-        pw.Text('كميات مجانية (بونص): ${freeUnits.toStringAsFixed(0)} عبوة'),
-      pw.Text(
-        'الإجمالي: ${formatMoneyWith(total, kPlatformCurrency)}',
-        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-      ),
-      pw.Text('الإجمالي لا يشمل قيمة البونص — البونص يُسلَّم عيناً لا حسماً.',
-          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+  doc.addPage(
+    pw.MultiPage(
+      textDirection: pw.TextDirection.rtl,
+      theme: pw.ThemeData.withFont(base: base, bold: bold),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+      build: (ctx) => [
+        // ── رأس الفاتورة ──────────────────────────────────────────────────
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // معلومات المستودع (يمين)
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    order.warehouseName,
+                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: brand),
+                  ),
+                  pw.SizedBox(height: 4),
+                  if (order.warehouseCity.isNotEmpty)
+                    pw.Text('مدينة ${order.warehouseCity}',
+                        style: pw.TextStyle(fontSize: 13, color: brand)),
+                  pw.SizedBox(height: 2),
+                  if (order.warehousePhone.isNotEmpty)
+                    pw.Text('📞 ${order.warehousePhone}',
+                        style: const pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 16),
+            // شعار توريد (يسار)
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                color: brand,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+              ),
+              child: pw.Text(
+                'توريد',
+                style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              ),
+            ),
+          ],
+        ),
 
-      if (history.isNotEmpty) ...[
+        pw.SizedBox(height: 12),
+        pw.Divider(color: brand, thickness: 1.5),
+        pw.SizedBox(height: 10),
+
+        // ── بيانات الفاتورة والعميل ───────────────────────────────────────
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // يسار: اسم العميل وطريقة الدفع
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.RichText(
+                    text: pw.TextSpan(children: [
+                      pw.TextSpan(text: 'اسم العميل:  ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                      pw.TextSpan(text: order.pharmacyName ?? '—', style: const pw.TextStyle(fontSize: 11)),
+                    ]),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.RichText(
+                    text: pw.TextSpan(children: [
+                      pw.TextSpan(text: 'طريقة الدفع:  ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                      pw.TextSpan(text: 'آجل', style: const pw.TextStyle(fontSize: 11)),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 24),
+            // يمين: رقم الطلبية والتاريخ
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.RichText(
+                  text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'رقم الطلبية:  ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                    pw.TextSpan(text: order.orderNumber, style: const pw.TextStyle(fontSize: 11)),
+                  ]),
+                ),
+                pw.SizedBox(height: 4),
+                pw.RichText(
+                  text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'التاريخ:  ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                    pw.TextSpan(text: dateStr, style: const pw.TextStyle(fontSize: 11)),
+                  ]),
+                ),
+              ],
+            ),
+          ],
+        ),
+
         pw.SizedBox(height: 14),
-        pw.Text('مسار الطلبية',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 6),
-        for (final h in history)
-          pw.Text(
-            '${h.oldStatus.label} ← ${h.newStatus.label} · ${h.changedByName} · '
-            '${h.changedAt.toLocal().toString().split('.').first}',
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-      ],
 
-      pw.SizedBox(height: 16),
-      pw.Text('توريد — منصة التوريد الدوائي',
-          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey)),
-    ],
-  ));
+        // ── جدول الأصناف ─────────────────────────────────────────────────
+        pw.TableHelper.fromTextArray(
+          headers: ['التسلسل', 'الصنف', 'السعر الفردي\n(ل.س)', 'العدد', 'السعر الإجمالي\n(ل.س)', 'البونص\n(ل.س)'],
+          data: order.items.asMap().entries.map((e) {
+            final idx = e.key + 1;
+            final i = e.value;
+            final lineTotal = (i.agreedUnitPrice ?? 0) * i.quantity;
+            final bonusVal = (i.bonusPercentage ?? 0) > 0 && i.agreedUnitPrice != null
+                ? i.quantity * i.bonusPercentage! / 100 * i.agreedUnitPrice!
+                : 0.0;
+            return [
+              '$idx',
+              i.medicineName,
+              i.agreedUnitPrice == null ? '—' : formatMoney(i.agreedUnitPrice!),
+              i.quantity.toStringAsFixed(0),
+              i.agreedUnitPrice == null ? '—' : formatMoney(lineTotal),
+              bonusVal > 0 ? formatMoney(bonusVal) : '0',
+            ];
+          }).toList(),
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
+          headerDecoration: const pw.BoxDecoration(color: brand),
+          cellAlignment: pw.Alignment.center,
+          cellStyle: const pw.TextStyle(fontSize: 10),
+          oddRowDecoration: const pw.BoxDecoration(color: rowAlt),
+          border: pw.TableBorder.all(color: brandLight, width: 0.5),
+          columnWidths: {
+            0: const pw.FixedColumnWidth(32),
+            1: const pw.FlexColumnWidth(3),
+            2: const pw.FlexColumnWidth(1.4),
+            3: const pw.FixedColumnWidth(40),
+            4: const pw.FlexColumnWidth(1.4),
+            5: const pw.FlexColumnWidth(1.2),
+          },
+        ),
+
+        // صف المجموع الكلي
+        pw.Container(
+          decoration: const pw.BoxDecoration(color: brandLight),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: pw.Row(
+            children: [
+              pw.Expanded(
+                flex: 5,
+                child: pw.Text('المجموع الكلي',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    textAlign: pw.TextAlign.right),
+              ),
+              pw.SizedBox(width: 4),
+              pw.Expanded(
+                flex: 1,
+                child: pw.Text(formatMoney(total),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    textAlign: pw.TextAlign.center),
+              ),
+              pw.Expanded(
+                flex: 1,
+                child: pw.Text(totalBonus > 0 ? formatMoney(totalBonus) : '0',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    textAlign: pw.TextAlign.center),
+              ),
+            ],
+          ),
+        ),
+
+        pw.SizedBox(height: 16),
+
+        // ── ملخص المبالغ + الملاحظات ──────────────────────────────────────
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // ملاحظات (يسار)
+            pw.Expanded(
+              flex: 5,
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: brandLight, width: 1),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('ملاحظات:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                    pw.SizedBox(height: 6),
+                    pw.Text('- الأسعار شاملة الضريبة.', style: const pw.TextStyle(fontSize: 10, color: grey)),
+                    pw.Text('- يُمنع إعادة الصرف إلا بموافقة خطية.', style: const pw.TextStyle(fontSize: 10, color: grey)),
+                    pw.Text('- يُرجى التأكد من مطابقة الأصناف عند الاستلام.', style: const pw.TextStyle(fontSize: 10, color: grey)),
+                    if (order.notes != null && order.notes!.isNotEmpty)
+                      pw.Text('- ${order.notes}', style: const pw.TextStyle(fontSize: 10, color: grey)),
+                  ],
+                ),
+              ),
+            ),
+            pw.SizedBox(width: 12),
+            // ملخص المبالغ (يمين)
+            pw.Expanded(
+              flex: 4,
+              child: pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: brandLight, width: 1),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Column(
+                  children: [
+                    _pdfSummaryRow('إجمالي المبلغ قبل الحسم والبونص', formatMoney(total), base, bold, isHeader: false),
+                    pw.Divider(color: brandLight, thickness: 0.5),
+                    _pdfSummaryRow('إجمالي الحسم', '0', base, bold),
+                    pw.Divider(color: brandLight, thickness: 0.5),
+                    _pdfSummaryRow('إجمالي البونص', totalBonus > 0 ? formatMoney(totalBonus) : '0', base, bold),
+                    pw.Divider(color: brand, thickness: 1),
+                    _pdfSummaryRow('المبلغ المستحق', formatMoney(netAmount), base, bold, isHeader: true),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 20),
+
+        // ── التوقيعات ─────────────────────────────────────────────────────
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('مدير المستودع', style: const pw.TextStyle(fontSize: 11, color: grey)),
+                pw.SizedBox(height: 20),
+                pw.Container(width: 100, height: 1, color: grey),
+              ],
+            ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text('مع تحياتنا', style: const pw.TextStyle(fontSize: 11, color: grey)),
+                pw.SizedBox(height: 4),
+                pw.Text(order.warehouseName,
+                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                if (order.warehouseCity.isNotEmpty)
+                  pw.Text('مدينة ${order.warehouseCity}',
+                      style: const pw.TextStyle(fontSize: 10, color: grey)),
+              ],
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 20),
+
+        // ── تذييل ─────────────────────────────────────────────────────────
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            color: brandLight,
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+          ),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Text(
+                'تم الشراء عبر منصة توريد الالكترونية',
+                style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brand),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   return doc.save();
+}
+
+pw.Widget _pdfSummaryRow(String label, String value, pw.Font base, pw.Font bold, {bool isHeader = false}) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label,
+            style: pw.TextStyle(
+              fontSize: isHeader ? 11 : 10,
+              fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isHeader ? const PdfColor.fromInt(0xFF042623) : PdfColors.grey700,
+            )),
+        pw.Text(value,
+            style: pw.TextStyle(
+              fontSize: isHeader ? 12 : 10,
+              fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isHeader ? const PdfColor.fromInt(0xFF042623) : PdfColors.black,
+            )),
+      ],
+    ),
+  );
 }

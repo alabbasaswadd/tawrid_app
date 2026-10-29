@@ -60,6 +60,9 @@ abstract final class TRoutes {
   // إعداد الحد الأدنى للطلبية
   static const String whMinOrder = '/wh/settings/min-order';
 
+  // الملف الشخصي للصيدلية
+  static const String phProfile = '/profile';
+
   // Pharmacy shell tabs
   static const String phHome = '/home';
   static const String phOrders = '/orders';

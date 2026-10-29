@@ -65,6 +65,13 @@ class AppButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center));
 
+    // الأزرار العادية: حشو أفقي مختصر قليلاً عن قيمة Material الافتراضية (24→18).
+    const baseStyle = ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(Size(0, 40)),
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+
     final compactStyle = compact
         ? const ButtonStyle(
             minimumSize: WidgetStatePropertyAll(Size(0, 32)),
@@ -73,7 +80,7 @@ class AppButton extends StatelessWidget {
             ),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           )
-        : null;
+        : baseStyle;
 
     final Widget btn = switch (variant) {
       AppButtonVariant.filled => FilledButton(

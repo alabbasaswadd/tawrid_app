@@ -14,6 +14,8 @@ class WarehouseMedicine {
   final double strength;
   final DosageForm dosageForm;
   final String manufacturerName;
+  // سعر الصيدلاني من الكاتالوج الوطني — الأساس لحساب سعر العرض الافتراضي.
+  final double pricePharmacist;
   final DateTime createdOn;
 
   WarehouseMedicine({
@@ -26,6 +28,7 @@ class WarehouseMedicine {
     required this.strength,
     required this.dosageForm,
     required this.manufacturerName,
+    this.pricePharmacist = 0,
     required this.createdOn,
   });
 
@@ -39,6 +42,7 @@ class WarehouseMedicine {
         strength: (j['strength'] as num?)?.toDouble() ?? 0,
         dosageForm: DosageForm.fromCode(j['dosageForm'] as int? ?? 1),
         manufacturerName: j['manufacturerName'] as String? ?? '',
+        pricePharmacist: (j['pricePharmacist'] as num?)?.toDouble() ?? 0,
         createdOn: DateTime.parse(j['createdOn'] as String),
       );
 

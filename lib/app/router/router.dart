@@ -19,6 +19,7 @@ import 'package:tawrid_app/features/auth/register_page.dart';
 import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
+import 'package:tawrid_app/features/ph_more/ph_profile_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offer_detail_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offers_page.dart';
 import 'package:tawrid_app/features/ph_orders/ph_order_detail_page.dart';
@@ -128,6 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phNotificationSettings,
         TRoutes.phWarehouses,
         TRoutes.phCart,
+        TRoutes.phProfile,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
       final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
@@ -318,6 +320,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.phCart,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const PhCartPage(),
+      ),
+
+      // الملف الشخصي للصيدلية
+      GoRoute(
+        path: TRoutes.phProfile,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhProfilePage(),
       ),
 
       // سلة المستودع

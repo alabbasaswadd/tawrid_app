@@ -186,16 +186,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   void _openOffer(SalesOfferSummary offer) =>
       context.push(TRoutes.phOfferDetail(offer.id));
 
-  void _addToCart(SalesOfferSummary offer) {
-    final cart = ref.read(phCartProvider.notifier);
-    if (cart.contains(offer.id)) {
-      AppSnackbar.success(context, 'العرض موجود بالفعل في السلة');
-      return;
-    }
-    cart.add(offer);
-    AppSnackbar.success(context, 'أُضيف «${offer.title}» إلى السلة');
-  }
-
   static String _greeting() {
     final h = DateTime.now().hour;
     if (h < 12) return 'صباح الخير،';
@@ -313,7 +303,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
                   AppSpacing.page, 0, AppSpacing.page, AppSpacing.md),
               child: OfferSummaryCard(
                 offer: offer,
-                onAdd: () => _addToCart(offer),
                 onDetails: () => _openOffer(offer),
               ),
             ),

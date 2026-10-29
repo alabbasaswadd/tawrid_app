@@ -38,24 +38,19 @@ class PhMorePage extends ConsumerWidget {
               icon: Icons.local_pharmacy_outlined,
               label: 'بيانات الصيدلية',
               trailingText: me?.pharmacyName,
-              // لا شاشة ملف شخصي للصيدلية بعد — الخادم يقرأ ولا يعدّل
-              // (`GET /auth/me` بلا نظير للتعديل). نقولها بدل زرٍّ صامت.
-              onTap: () => AppSnackbar.show(
-                  context, 'تعديل بيانات الصيدلية غير متاح بعد'),
+              onTap: () => context.push(TRoutes.phProfile),
             ),
             _Row(
               icon: Icons.person_outline,
               label: 'الصيدلي المسؤول',
               trailingText: me?.email,
-              onTap: () => AppSnackbar.show(
-                  context, 'تعديل بيانات المسؤول غير متاح بعد'),
+              onTap: () => context.push(TRoutes.phProfile),
             ),
             _Row(
               icon: Icons.place_outlined,
               label: 'العنوان',
               trailingText: me?.areaLabel,
-              onTap: () =>
-                  AppSnackbar.show(context, 'تعديل العنوان غير متاح بعد'),
+              onTap: () => context.push(TRoutes.phProfile),
             ),
           ]),
 

@@ -41,10 +41,31 @@ class _LocationFieldState extends State<LocationField> {
     switch (result) {
       case LocationCaptured(:final latitude, :final longitude):
         widget.onCaptured(latitude, longitude);
-        AppSnackbar.success(context, 'حُدّد موقع الصيدلية');
-      case LocationFailed(:final message, :final openSettings):
-        AppSnackbar.error(context, message);
-        if (openSettings) await locationService.openAppSettings();
+        if (mounted) AppSnackbar.success(context, 'تم تحديد الموقع بنجاح');
+      case LocationFailed(:final message, :final openSettings, :final openLocationSettings):
+        if (openLocationSettings && mounted) {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('خدمة الموقع مغلقة'),
+              content: const Text('يجب تفعيل GPS لتحديد الموقع. هل تريد فتح إعدادات الموقع؟'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('فتح الإعدادات'),
+                ),
+              ],
+            ),
+          );
+          if (ok == true) await locationService.openLocationSettings();
+        } else {
+          if (mounted) AppSnackbar.error(context, message);
+          if (openSettings) await locationService.openAppSettings();
+        }
     }
   }
 

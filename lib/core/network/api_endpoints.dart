@@ -3,14 +3,16 @@ abstract final class ApiEndpoints {
   static const String _wh = '/tawrid-api/warehouse';
 
   // ── Pharmacy Auth ──────────────────────────────────────────────────────────
-  static const String phLogin    = '$_ph/auth/login';
-  static const String phRegister = '$_ph/auth/register';
-  static const String phMe       = '$_ph/auth/me';
+  static const String phLogin         = '$_ph/auth/login';
+  static const String phRegister      = '$_ph/auth/register';
+  static const String phMe            = '$_ph/auth/me';
+  static const String phUpdateProfile = '$_ph/auth/me';
 
   // ── Warehouse Auth ─────────────────────────────────────────────────────────
-  static const String whLogin    = '$_wh/auth/login';
-  static const String whRegister = '$_wh/auth/register';
-  static const String whMe       = '$_wh/auth/me';
+  static const String whLogin         = '$_wh/auth/login';
+  static const String whRegister      = '$_wh/auth/register';
+  static const String whMe            = '$_wh/auth/me';
+  static const String whUpdateProfile = '$_wh/auth/me';
 
   // ── Supply Warehouses (pharmacy side) ──────────────────────────────────────
   // القائمة = المستودعات النشطة للاختيار؛ والتفاصيل = ملف المستودع العام

@@ -123,33 +123,52 @@ class OfferCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _AddButton(
-                label: addLabel,
-                onTap: unavailable || paused ? null : onAdd,
-                dimmed: unavailable,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              InkWell(
-                onTap: onDetails,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      detailsLabel,
-                      style: context.text.bodySmall?.copyWith(
-                        color: cs.primary,
+              if (onAdd != null) ...[
+                _AddButton(
+                  label: addLabel,
+                  onTap: unavailable || paused ? null : onAdd,
+                  dimmed: unavailable,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                InkWell(
+                  onTap: onDetails,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        detailsLabel,
+                        style: context.text.bodySmall?.copyWith(color: cs.primary),
+                      ),
+                      const SizedBox(width: 2),
+                      AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
+                    ],
+                  ),
+                ),
+              ] else
+                // بدون زر الإضافة: تفاصيل العرض زرٌّ أساسي بارز
+                Material(
+                  color: t.brandSurface,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: onDetails,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            detailsLabel,
+                            style: context.text.bodySmall?.copyWith(color: cs.primary),
+                          ),
+                          const SizedBox(width: 4),
+                          AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 2),
-                    AppIcon(
-                      AppIcons.chevronForwardRtl,
-                      size: 14,
-                      color: cs.primary,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
             ],
           ),
         ],
