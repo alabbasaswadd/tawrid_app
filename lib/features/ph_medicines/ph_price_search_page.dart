@@ -52,6 +52,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   final List<MedicineSearchResult> _results = [];
   MedicineSearchSource _source = MedicineSearchSource.all;
   MedicineSearchSort _sort = MedicineSearchSort.byDefault;
+  String _manufacturer = '';
 
   bool _loading = true;
   bool _loadingMore = false;
@@ -104,6 +105,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       final page = await ref.read(medicineSearchRepositoryProvider).search(
         name: _searchController.text,
         warehouseId: widget.warehouseId,
+        manufacturer: _manufacturer.isEmpty ? null : _manufacturer,
         source: _source,
         sort: _sort,
         limit: _pageSize,
@@ -142,17 +144,22 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   }
 
   Future<void> _openFilters() async {
-    final applied = await showModalBottomSheet<(MedicineSearchSource, MedicineSearchSort)>(
+    final applied = await showModalBottomSheet<(MedicineSearchSource, MedicineSearchSort, String)>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PriceFiltersSheet(source: _source, sort: _sort),
+      builder: (_) => _PriceFiltersSheet(
+        source: _source,
+        sort: _sort,
+        manufacturer: _manufacturer,
+      ),
     );
     if (applied == null || !mounted) return;
-    if (applied.$1 == _source && applied.$2 == _sort) return;
+    if (applied.$1 == _source && applied.$2 == _sort && applied.$3 == _manufacturer) return;
     setState(() {
       _source = applied.$1;
       _sort = applied.$2;
+      _manufacturer = applied.$3;
     });
     _run(reset: true);
   }
@@ -184,7 +191,8 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   /// عدد الفلاتر المختلفة عن الافتراضي — شارة زرّ الفلاتر.
   int get _activeFilters =>
       (_source != MedicineSearchSource.all ? 1 : 0) +
-      (_sort != MedicineSearchSort.byDefault ? 1 : 0);
+      (_sort != MedicineSearchSort.byDefault ? 1 : 0) +
+      (_manufacturer.isNotEmpty ? 1 : 0);
 
   @override
   Widget build(BuildContext context) {
@@ -319,6 +327,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
                     setState(() {
                       _source = MedicineSearchSource.all;
                       _sort = MedicineSearchSort.byDefault;
+                      _manufacturer = '';
                     });
                     _run(reset: true);
                   }
@@ -656,12 +665,17 @@ class _FiltersButton extends StatelessWidget {
 }
 
 // لوحة فلاتر الأسعار (Figma: الصيدلي / لوحة فلاتر الأسعار) — المصدر
-// والترتيب، مع «مسح الكل» وزر «تطبيق» واحد.
+// والترتيب والشركة المصنّعة، مع «مسح الكل» وزر «تطبيق» واحد.
 class _PriceFiltersSheet extends StatefulWidget {
-  const _PriceFiltersSheet({required this.source, required this.sort});
+  const _PriceFiltersSheet({
+    required this.source,
+    required this.sort,
+    required this.manufacturer,
+  });
 
   final MedicineSearchSource source;
   final MedicineSearchSort sort;
+  final String manufacturer;
 
   @override
   State<_PriceFiltersSheet> createState() => _PriceFiltersSheetState();
@@ -670,6 +684,14 @@ class _PriceFiltersSheet extends StatefulWidget {
 class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
   late MedicineSearchSource _source = widget.source;
   late MedicineSearchSort _sort = widget.sort;
+  late final TextEditingController _manufacturerCtrl =
+      TextEditingController(text: widget.manufacturer);
+
+  @override
+  void dispose() {
+    _manufacturerCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -713,6 +735,7 @@ class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
                   onPressed: () => setState(() {
                     _source = MedicineSearchSource.all;
                     _sort = MedicineSearchSort.byDefault;
+                    _manufacturerCtrl.clear();
                   }),
                   child: const Text('مسح الكل'),
                 ),
@@ -720,6 +743,14 @@ class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
             ),
 
             const SizedBox(height: AppSpacing.md),
+            Text('الشركة المصنّعة', style: context.text.titleMedium),
+            const SizedBox(height: AppSpacing.sm),
+            AppTextField(
+              controller: _manufacturerCtrl,
+              hint: 'ابحث باسم الشركة المصنّعة…',
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
             Text('المصدر', style: context.text.titleMedium),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
@@ -753,7 +784,10 @@ class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
             const SizedBox(height: AppSpacing.x2l),
             AppButton(
               label: 'تطبيق',
-              onPressed: () => Navigator.pop(context, (_source, _sort)),
+              onPressed: () => Navigator.pop(
+                context,
+                (_source, _sort, _manufacturerCtrl.text.trim()),
+              ),
             ),
           ],
         ),

@@ -101,7 +101,12 @@
       "Bash(git push *)",
       "Bash(git -C \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\" log --oneline --follow -- \"Tawrid.api/firebase-service-account.json\")",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.api\" -Recurse | Where-Object { $_.Name -eq \"Program.cs\" })",
-      "Bash(Get-ChildItem *)"
+      "Bash(Get-ChildItem *)",
+      "Bash(bar)",
+      "Bash(report)",
+      "Bash(analyt)",
+      "Bash(pie\" -i)",
+      "Bash(git checkout *)"
     ]
   }
 }

@@ -68,6 +68,12 @@ abstract final class TRoutes {
   // الملف الشخصي للصيدلية
   static const String phProfile = '/profile';
 
+  // تقرير مشترياتي — ملخّص إحصائي للطلبيات
+  static const String phReports = '/reports';
+
+  // تقرير طلبات التسعير — توزيع حالات + أحدث الطلبات
+  static const String phTenderReports = '/reports/tenders';
+
   // Pharmacy shell tabs
   static const String phHome = '/home';
   static const String phOrders = '/orders';

@@ -18,6 +18,8 @@ import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_price_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
+import 'package:tawrid_app/features/ph_reports/ph_reports_page.dart';
+import 'package:tawrid_app/features/ph_reports/ph_tender_reports_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_profile_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offer_detail_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offers_page.dart';
@@ -131,6 +133,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phNotificationSettings,
         TRoutes.phWarehouses,
         TRoutes.phProfile,
+        TRoutes.phReports,
+        TRoutes.phTenderReports,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
       final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
@@ -347,6 +351,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.phProfile,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const PhProfilePage(),
+      ),
+
+      // تقرير مشترياتي
+      GoRoute(
+        path: TRoutes.phReports,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhReportsPage(),
+      ),
+
+      // تقرير طلبات التسعير
+      GoRoute(
+        path: TRoutes.phTenderReports,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhTenderReportsPage(),
       ),
 
       // تفاصيل عرض بيع — شاشة كاملة لأن منها تُنشأ الطلبية (اختيار أصناف

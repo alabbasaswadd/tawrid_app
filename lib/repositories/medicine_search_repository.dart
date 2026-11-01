@@ -26,6 +26,8 @@ class MedicineSearchRepository {
     String? catalogItemId,
     /// يحصر البحث بمستودع واحد — بحث «داخل هذا المستودع» من ملفه.
     String? warehouseId,
+    /// يفلتر النتائج بالشركة المصنّعة — نص جزئي يطابقه الخادم.
+    String? manufacturer,
     MedicineSearchSource source = MedicineSearchSource.all,
     MedicineSearchSort sort = MedicineSearchSort.byDefault,
     int limit = 20,
@@ -33,6 +35,8 @@ class MedicineSearchRepository {
   }) async {
     final raw = await _api.get(ApiEndpoints.phMedicinePriceSearch, queryParameters: {
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (manufacturer != null && manufacturer.trim().isNotEmpty)
+        'manufacturer': manufacturer.trim(),
       'catalogItemId': ?catalogItemId,
       'warehouseId': ?warehouseId,
       'source': source.code,

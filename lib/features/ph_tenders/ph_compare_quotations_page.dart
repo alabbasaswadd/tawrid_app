@@ -131,18 +131,20 @@ class _PhCompareQuotationsPageState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('اعتماد عرض السعر'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-                'سيُعتمد عرض «${m.quote.warehouseName}»، وتُرفض بقية العروض، '
-                'وتُنشأ طلبية توريد بحالة «بانتظار التأكيد».',
-                style: Theme.of(ctx).textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-                controller: notes, hint: 'ملاحظة للمستودع (اختياري)'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                  'سيُعتمد عرض «${m.quote.warehouseName}»، وتُرفض بقية العروض، '
+                  'وتُنشأ طلبية توريد بحالة «بانتظار التأكيد».',
+                  style: Theme.of(ctx).textTheme.bodyMedium),
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                  controller: notes, hint: 'ملاحظة للمستودع (اختياري)'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -153,7 +155,11 @@ class _PhCompareQuotationsPageState
       ),
     );
     final winnerNotes = notes.text.trim();
-    notes.dispose();
+    // الـ FocusManager يُطلق حدث تغيير التركيز في إطار الرسم التالي بعد
+    // إغلاق الدايلوج — نؤجّل العدم حتى بعد ذلك الإطار لتجنّب الاستخدام
+    // بعد العدم.
+    WidgetsBinding.instance.addPostFrameCallback((_) => notes.dispose());
+
     if (confirmed != true) return;
 
     setState(() => _busy = true);
