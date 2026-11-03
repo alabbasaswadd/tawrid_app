@@ -55,6 +55,15 @@ class SupplyOrderRepository {
 
   Future<void> cancelOrder(String id) => _api.post(ApiEndpoints.phOrderCancel(id));
 
+  // يُستدعى فقط عندما تكون الطلبية بحالة pending (الخادم يرفضه بعد التأكيد).
+  Future<SupplyOrderDetail> updateOrderItems(
+      String id, List<SupplyOrderItem> items) async {
+    final data = await _api.put(ApiEndpoints.phOrderItems(id), data: {
+      'items': items.map((e) => e.toCreateJson()).toList(),
+    }) as Map<String, dynamic>;
+    return SupplyOrderDetail.fromJson(data);
+  }
+
   Future<GenerateInvoiceResult> generateInvoice(String id) async {
     final data = await _api.post(ApiEndpoints.phOrderGenerateInvoice(id)) as Map<String, dynamic>;
     return GenerateInvoiceResult.fromJson(data);

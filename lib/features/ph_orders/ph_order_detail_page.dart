@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:tawrid_app/features/ph_orders/ph_edit_order_page.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
@@ -116,6 +118,15 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
       if (h.newStatus == s) return h.changedAt;
     }
     return null;
+  }
+
+  Future<void> _editOrder() async {
+    final order = _order;
+    if (order == null) return;
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => PhEditOrderPage(order: order)),
+    );
+    if (updated == true) await _load();
   }
 
   Future<void> _cancel() async {
@@ -305,8 +316,6 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     );
   }
 
-  // التواصل عبر واتساب لا باتصال: المحادثة تترك أثراً مكتوباً للطرفين،
-  // وهو ما يحتاجه خلافٌ على طلبية. يظهر الزر فقط إن كان الرقم صالحاً.
   Future<void> _contactWarehouse() async {
     final order = _order!;
     final opened = await openWhatsApp(
@@ -318,14 +327,12 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     }
   }
 
-  // الشريط السفلي (Figma): التواصل مع المستودع + فاتورة الشراء، ويُضاف
-  // «إلغاء الطلبية» ما دامت بانتظار التأكيد — وهي الحالة الوحيدة التي
-  // يقبل الخادم الإلغاء فيها.
   Widget _buildBottomBar() {
     final cs = context.colors;
     final tk = context.tokens;
     final order = _order!;
     final canCancel = order.status == SupplyOrderStatus.pending;
+    final canEdit = order.status == SupplyOrderStatus.pending;
     final canInvoice =
         order.status == SupplyOrderStatus.completed && !order.invoiceCreated;
     final canContact = whatsAppNumber(order.warehousePhone) != null;
@@ -340,38 +347,48 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
         ),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.md),
-        // خانتان ثابتتان: التواصل دائماً، والخانة الثانية تتبدّل مع مسار
-        // الطلبية — «إلغاء الطلبية» ما دامت بانتظار التأكيد (وهي الحالة
-        // الوحيدة التي يقبل الخادم الإلغاء فيها)، فإذا أكّدها المستودع
-        // سقط الإلغاء وحلّت محلّه «فاتورة الشراء».
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: AppButton(
-                label: 'تواصل مع المستودع',
-                icon: Icons.chat,
-                // الرقم غير صالح ⇒ الزر معطَّل بدل أن يفتح واتساب على
-                // رقم مشوَّه.
-                onPressed: canContact ? _contactWarehouse : null,
+            // زر التعديل — يظهر فقط بانتظار التأكيد
+            if (canEdit) ...[
+              AppButton(
+                label: 'تعديل الطلبية',
+                variant: AppButtonVariant.outline,
+                icon: Icons.edit_outlined,
+                onPressed: _busy ? null : _editOrder,
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: canCancel
-                  ? AppButton(
-                      label: 'إلغاء الطلبية',
-                      variant: AppButtonVariant.danger,
-                      loading: _busy,
-                      onPressed: _busy ? null : _cancel,
-                    )
-                  : AppButton(
-                      label: order.invoiceCreated
-                          ? 'الفاتورة مُولَّدة'
-                          : 'فاتورة الشراء',
-                      variant: AppButtonVariant.outline,
-                      loading: _busy && canInvoice,
-                      onPressed: canInvoice && !_busy ? _generateInvoice : null,
-                    ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'تواصل مع المستودع',
+                    icon: Icons.chat,
+                    onPressed: canContact ? _contactWarehouse : null,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: canCancel
+                      ? AppButton(
+                          label: 'إلغاء الطلبية',
+                          variant: AppButtonVariant.danger,
+                          loading: _busy,
+                          onPressed: _busy ? null : _cancel,
+                        )
+                      : AppButton(
+                          label: order.invoiceCreated
+                              ? 'الفاتورة مُولَّدة'
+                              : 'فاتورة الشراء',
+                          variant: AppButtonVariant.outline,
+                          loading: _busy && canInvoice,
+                          onPressed:
+                              canInvoice && !_busy ? _generateInvoice : null,
+                        ),
+                ),
+              ],
             ),
           ],
         ),

@@ -70,6 +70,7 @@ abstract final class ApiEndpoints {
   static const String phOrders = '$_ph/supply-orders';
   static String phOrderById(String id)        => '$_ph/supply-orders/$id';
   static String phOrderCancel(String id)      => '$_ph/supply-orders/$id/cancel';
+  static String phOrderItems(String id)       => '$_ph/supply-orders/$id/items';
   static String phOrderHistory(String id)     => '$_ph/supply-orders/$id/history';
   static String phOrderGenerateInvoice(String id) => '$_ph/supply-orders/$id/generate-invoice';
 

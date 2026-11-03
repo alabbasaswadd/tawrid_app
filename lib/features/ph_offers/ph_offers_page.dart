@@ -236,10 +236,6 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
       appBar: _OffersTopBar(
         activeFilters: _filters.activeCount,
         onFiltersTap: _openFilterSheet,
-        onCatalogTap: () => context.push(TRoutes.phMedicineSearch),
-        // المستودعات انتقلت إلى هنا من الرئيسية: مكانها الطبيعي حيث
-        // يتصفّح الصيدلي ما يُعرَض عليه، لا بطاقة عدّاد في الرئيسية.
-        onWarehousesTap: () => context.push(TRoutes.phWarehouses),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -360,20 +356,16 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
   }
 }
 
-// شريط شاشة العروض (Figma: رأس الشاشة) — عنوان، زرّ «الكتالوج»، وزرّ
-// الفلاتر بشارة عدد. ليس InnerTopBar لأن هذه تبويب لا شاشة داخلية: لا رجوع.
+// شريط شاشة العروض (Figma: رأس الشاشة) — عنوان وزرّ الفلاتر بشارة عدد.
+// ليس InnerTopBar لأن هذه تبويب لا شاشة داخلية: لا رجوع.
 class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
   const _OffersTopBar({
     required this.activeFilters,
     required this.onFiltersTap,
-    required this.onCatalogTap,
-    required this.onWarehousesTap,
   });
 
   final int activeFilters;
   final VoidCallback onFiltersTap;
-  final VoidCallback onCatalogTap;
-  final VoidCallback onWarehousesTap;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -390,38 +382,6 @@ class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
         child: Row(
           children: [
             Expanded(child: Text('العروض', style: context.text.headlineSmall)),
-            // زر الكتالوج: حدّ بلون العلامة ونصّ أخضر — ثانوي لا رئيسي.
-            Material(
-              color: Colors.transparent,
-              shape: StadiumBorder(side: BorderSide(color: cs.primary)),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: onCatalogTap,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('الكتالوج',
-                          style: context.text.bodySmall
-                              ?.copyWith(color: cs.primary)),
-                      const SizedBox(width: 6),
-                      AppIcon(AppIcons.pill, size: 15, color: cs.primary),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            CircleIconButton(
-              icon: AppIcons.warehouse,
-              tooltip: 'المستودعات المتاحة',
-              bordered: true,
-              size: 18,
-              onTap: onWarehousesTap,
-            ),
-            const SizedBox(width: AppSpacing.sm),
             // الشارة تخرج عن حدود الزر، فـ clipBehavior لا بدّ أن يسمح بذلك
             // وإلا قُصَّت — وهو ما حدث في نسخة سابقة.
             Stack(

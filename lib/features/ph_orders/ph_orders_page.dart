@@ -114,6 +114,12 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'ph_orders_fab',
+        onPressed: () => context.push(TRoutes.phCreateOrder),
+        icon: const Icon(Icons.add),
+        label: const Text('طلبية جديدة'),
+      ),
     );
   }
 
@@ -179,7 +185,7 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.page, 0, AppSpacing.page, AppSpacing.x3l),
+                      AppSpacing.page, 0, AppSpacing.page, 96),
                   itemCount: shown.length,
                   separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
                   itemBuilder: (_, i) => _OrderCard(

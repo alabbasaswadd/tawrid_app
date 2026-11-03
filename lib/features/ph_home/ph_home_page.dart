@@ -83,11 +83,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         hasUnread: unread > 0,
         onNotificationsTap: () => context.push(TRoutes.phNotifications),
         actions: [
-          CircleIconButton(
-            icon: AppIcons.search,
-            tooltip: 'بحث الأسعار',
-            onTap: () => context.push(TRoutes.phPriceSearch),
-          ),
           CartButton(
             count: ref.watch(cartCountProvider),
             onTap: () => context.push(TRoutes.phCart),
@@ -109,8 +104,10 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
           child: _QuickActionsGrid(
-            onNewOrder: () => context.push(TRoutes.phWarehouses),
-            onNewTender: () => context.push(TRoutes.phCreateTender),
+            onNewOrder: () => context.push(TRoutes.phCreateOrder),
+            onSearchMedicine: () => context.push(TRoutes.phPriceSearch),
+            onWarehouses: () => context.push(TRoutes.phWarehouses),
+            onCatalog: () => context.push(TRoutes.phMedicineSearch),
             onReports: () => context.push(TRoutes.phReports),
             onTenderReports: () => context.push(TRoutes.phTenderReports),
           ),
@@ -167,17 +164,21 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
       };
 }
 
-// شبكة الإجراءات السريعة (٢×٢): طلبية جديدة · طلب تسعير · بحث أسعار · عروض.
+// شبكة الإجراءات السريعة (٢×٣): طلبية جديدة · ابحث عن دواء · المستودعات · الكتالوج · تقارير.
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid({
     required this.onNewOrder,
-    required this.onNewTender,
+    required this.onSearchMedicine,
+    required this.onWarehouses,
+    required this.onCatalog,
     required this.onReports,
     required this.onTenderReports,
   });
 
   final VoidCallback onNewOrder;
-  final VoidCallback onNewTender;
+  final VoidCallback onSearchMedicine;
+  final VoidCallback onWarehouses;
+  final VoidCallback onCatalog;
   final VoidCallback onReports;
   final VoidCallback onTenderReports;
 
@@ -197,9 +198,19 @@ class _QuickActionsGrid extends StatelessWidget {
           onTap: onNewOrder,
         ),
         _ActionTile(
-          icon: AppIcons.fileText,
-          label: 'طلب تسعير جديد',
-          onTap: onNewTender,
+          icon: AppIcons.search,
+          label: 'ابحث عن دواء',
+          onTap: onSearchMedicine,
+        ),
+        _ActionTile(
+          icon: AppIcons.warehouse,
+          label: 'المستودعات',
+          onTap: onWarehouses,
+        ),
+        _ActionTile(
+          icon: AppIcons.pill,
+          label: 'الكتالوج',
+          onTap: onCatalog,
         ),
         _ActionTile(
           icon: AppIcons.clipboardList,

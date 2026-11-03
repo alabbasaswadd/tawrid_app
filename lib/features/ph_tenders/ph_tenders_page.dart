@@ -130,6 +130,7 @@ class _PhTendersPageState extends ConsumerState<PhTendersPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'ph_tenders_fab',
         onPressed: _create,
         tooltip: 'طلب تسعير جديد',
         child: const Icon(Icons.add),

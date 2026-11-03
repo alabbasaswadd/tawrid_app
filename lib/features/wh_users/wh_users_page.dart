@@ -226,6 +226,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'wh_users_fab',
         onPressed: _create,
         icon: const Icon(Icons.person_add_alt),
         label: const Text('موظّف جديد'),

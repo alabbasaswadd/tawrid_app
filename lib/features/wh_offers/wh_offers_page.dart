@@ -159,6 +159,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'wh_offers_fab',
         tooltip: 'إنشاء عرض جديد',
         onPressed: () async {
           await context.push(TRoutes.whCreateOffer);

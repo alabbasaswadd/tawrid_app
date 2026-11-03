@@ -106,7 +106,9 @@
       "Bash(report)",
       "Bash(analyt)",
       "Bash(pie\" -i)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(flutter build *)",
+      "Bash(Copy-Item *)"
     ]
   }
 }
