@@ -108,7 +108,10 @@
       "Bash(pie\" -i)",
       "Bash(git checkout *)",
       "Bash(flutter build *)",
-      "Bash(Copy-Item *)"
+      "Bash(Copy-Item *)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-Content \"C:\\\\Users\\\\alabbas\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-alabbas-Desktop-tawrid-tawrid-app\\\\1870c90a-2cf6-426b-8d63-0117a9af3d1a\\\\tasks\\\\b979x59w1.output\")",
+      "Bash(flutter devices *)"
     ]
   }
 }

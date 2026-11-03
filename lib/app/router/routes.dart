@@ -80,10 +80,21 @@ abstract final class TRoutes {
   // Pharmacy shell tabs
   static const String phHome = '/home';
   static const String phOrders = '/orders';
-  static const String phTenders = '/tenders';
   static const String phOffers = '/offers';
-  static const String phListings = '/listings';
   static const String phMore = '/more';
+
+  // طلبات التسعير — قائمة + إنشاء (top-level, بلا شريط تنقل)
+  static const String phTenders = '/tenders';
+
+  // صيدلي إلى صيدلي: تصفح + إعلاناتي + إنشاء + تفاصيل + محادثة
+  static const String phListings = '/listings';
+  static const String phMyListings = '/my-listings';
+  static const String phListingCreate = '/listings/create';
+  static const String phListingDetailPattern = '/listings/:listingId';
+  static String phListingDetail(String id) => '/listings/$id';
+  static const String phListingChatPattern = '/listings/:listingId/chat/:bookingId';
+  static String phListingChat(String listingId, String bookingId) =>
+      '/listings/$listingId/chat/$bookingId';
 
   // الإشعارات — نفس الشاشة للجهتين، والبادئة هي ما يحدّد الصندوق والتوكن.
   static const String phNotifications = '/notifications';

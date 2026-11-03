@@ -15,6 +15,11 @@ import 'package:tawrid_app/features/notifications/notification_settings_page.dar
 import 'package:tawrid_app/features/notifications/notifications_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
 import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
+import 'package:tawrid_app/features/ph_listings/ph_create_listing_page.dart';
+import 'package:tawrid_app/features/ph_listings/ph_listing_chat_page.dart';
+import 'package:tawrid_app/features/ph_listings/ph_listing_detail_page.dart';
+import 'package:tawrid_app/features/ph_listings/ph_listings_browse_page.dart';
+import 'package:tawrid_app/features/ph_listings/ph_my_listings_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_price_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
@@ -127,6 +132,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phOffers,
         TRoutes.phMore,
         TRoutes.phListings,
+        TRoutes.phMyListings,
+        TRoutes.phListingCreate,
         TRoutes.phMedicineSearch,
         TRoutes.phPriceSearch,
         TRoutes.phCart,
@@ -143,7 +150,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               loc.startsWith('/orders/') ||
               loc.startsWith('/tenders/')) &&
           loc.split('/').length == 3;
-      if ((phRoutes.contains(loc) || isPhDetailRoute) && !phAuth) {
+      final isPhListingRoute = loc.startsWith('/listings/');
+      if ((phRoutes.contains(loc) || isPhDetailRoute || isPhListingRoute) &&
+          !phAuth) {
         return TRoutes.phLogin;
       }
 
@@ -232,11 +241,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const NotificationSettingsPage(isWarehouse: true),
       ),
 
-      // Pharmacy listings — top-level, pushes over the shell (no nav bar)
+      // صيدلي إلى صيدلي: تصفح + إعلاناتي + إنشاء + تفاصيل + محادثة
+      // الترتيب مهم: «create» قبل النمط «:listingId» لمنع التقاطه كمعرّف.
       GoRoute(
         path: TRoutes.phListings,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const _PlaceholderPage(title: 'إعلاناتي'),
+        builder: (_, _) => const PhListingsBrowsePage(),
+      ),
+      GoRoute(
+        path: TRoutes.phMyListings,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhMyListingsPage(),
+      ),
+      GoRoute(
+        path: TRoutes.phListingCreate,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhCreateListingPage(),
+      ),
+      GoRoute(
+        path: TRoutes.phListingDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => PhListingDetailPage(
+          listingId: state.pathParameters['listingId']!,
+        ),
+      ),
+      GoRoute(
+        path: TRoutes.phListingChatPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => PhListingChatPage(
+          listingId: state.pathParameters['listingId']!,
+          bookingId: state.pathParameters['bookingId']!,
+        ),
       ),
 
       // Warehouse listings — top-level, pushes over the shell (no nav bar)
@@ -407,19 +442,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             PhOrderDetailPage(orderId: state.pathParameters['orderId']!),
       ),
 
-      // المستودعات المتاحة + ملف مستودع بعينه (يُفتح أيضاً من اسم المستودع
-      // في ورقة تفاصيل العرض)
-      GoRoute(
-        path: TRoutes.phWarehouses,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const PhWarehousesPage(),
-      ),
+      // ملف مستودع بعينه — يُفتح من تبويب المستودعات في الشيل أو من عرض بيع.
+      // القائمة (/warehouses) صارت branch في الشيل أدناه.
       GoRoute(
         path: TRoutes.phWarehouseProfilePattern,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, state) => PhWarehouseProfilePage(
           warehouseId: state.pathParameters['warehouseId']!,
         ),
+      ),
+
+      // طلبات التسعير — قائمة (top-level, بلا شريط تنقل)
+      // تُفتح من «طلب تسعير جديد» أو من التقارير أو عبر الإشعارات.
+      GoRoute(
+        path: TRoutes.phTenders,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhTendersPage(),
       ),
 
       // Pharmacy shell
@@ -445,8 +483,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.phTenders,
-                builder: (_, _) => const PhTendersPage(),
+                path: TRoutes.phWarehouses,
+                builder: (_, _) => const PhWarehousesPage(),
               ),
             ],
           ),

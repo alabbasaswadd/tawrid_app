@@ -74,7 +74,7 @@ class _PhShellState extends State<PhShell>
           items: const [
             AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
             AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبيات'),
-            AppBottomNavItem(icon: AppIcons.fileText, label: 'التسعير'),
+            AppBottomNavItem(icon: AppIcons.warehouse, label: 'المستودعات'),
             AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
             AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
           ],

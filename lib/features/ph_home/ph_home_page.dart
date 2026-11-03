@@ -105,11 +105,20 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
           child: _QuickActionsGrid(
             onNewOrder: () => context.push(TRoutes.phCreateOrder),
+            onNewTender: () => context.push(TRoutes.phCreateTender),
             onSearchMedicine: () => context.push(TRoutes.phPriceSearch),
-            onWarehouses: () => context.push(TRoutes.phWarehouses),
             onCatalog: () => context.push(TRoutes.phMedicineSearch),
             onReports: () => context.push(TRoutes.phReports),
             onTenderReports: () => context.push(TRoutes.phTenderReports),
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: _PhToPhBanner(
+            onBrowse: () => context.push(TRoutes.phListings),
+            onMyListings: () => context.push(TRoutes.phMyListings),
           ),
         ),
 
@@ -164,20 +173,20 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
       };
 }
 
-// شبكة الإجراءات السريعة (٢×٣): طلبية جديدة · ابحث عن دواء · المستودعات · الكتالوج · تقارير.
+// شبكة الإجراءات السريعة (٢×٣): طلبية · تسعير · بحث سعر · كتالوج · تقارير.
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid({
     required this.onNewOrder,
+    required this.onNewTender,
     required this.onSearchMedicine,
-    required this.onWarehouses,
     required this.onCatalog,
     required this.onReports,
     required this.onTenderReports,
   });
 
   final VoidCallback onNewOrder;
+  final VoidCallback onNewTender;
   final VoidCallback onSearchMedicine;
-  final VoidCallback onWarehouses;
   final VoidCallback onCatalog;
   final VoidCallback onReports;
   final VoidCallback onTenderReports;
@@ -198,14 +207,14 @@ class _QuickActionsGrid extends StatelessWidget {
           onTap: onNewOrder,
         ),
         _ActionTile(
+          icon: AppIcons.fileText,
+          label: 'طلب تسعير جديد',
+          onTap: onNewTender,
+        ),
+        _ActionTile(
           icon: AppIcons.search,
           label: 'ابحث عن دواء',
           onTap: onSearchMedicine,
-        ),
-        _ActionTile(
-          icon: AppIcons.warehouse,
-          label: 'المستودعات',
-          onTap: onWarehouses,
         ),
         _ActionTile(
           icon: AppIcons.pill,
@@ -223,6 +232,92 @@ class _QuickActionsGrid extends StatelessWidget {
           onTap: onTenderReports,
         ),
       ],
+    );
+  }
+}
+
+// بانر «صيدلي إلى صيدلي» — يعرّف بالميزة ويفتح تصفح الإعلانات أو إعلاناتي.
+class _PhToPhBanner extends StatelessWidget {
+  const _PhToPhBanner({
+    required this.onBrowse,
+    required this.onMyListings,
+  });
+
+  final VoidCallback onBrowse;
+  final VoidCallback onMyListings;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [tk.brandSurface, tk.brandSurfaceSubtle],
+          begin: AlignmentDirectional.centerStart,
+          end: AlignmentDirectional.centerEnd,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.primary.withValues(alpha: .18)),
+        boxShadow: tk.cardShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: .12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: AppIcon(AppIcons.pill, size: 18, color: cs.primary),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'صيدلي إلى صيدلي',
+                  style: context.text.titleMedium
+                      ?.copyWith(color: cs.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'أدوية كاسدة أو قاربت انتهاء صلاحيتها؟\nأعلن عنها لصيادلة في منطقتك وتواصل معهم مباشرةً.',
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'تصفح الإعلانات',
+                    variant: AppButtonVariant.tonal,
+                    onPressed: onBrowse,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppButton(
+                    label: 'إعلاناتي',
+                    variant: AppButtonVariant.filled,
+                    onPressed: onMyListings,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -139,10 +139,10 @@ class _WarehouseCard extends StatelessWidget {
     final tk = context.tokens;
     final w = warehouse;
 
-    // «يخدم ٧ مدن» لا تُقال لمستودع بلا مدن محدَّدة — له نصّه الخاص.
-    final coverage = w.servesAllAreas
+    final coverageText = w.servesAllAreas
         ? 'يخدم كل المناطق'
-        : 'يخدم ${w.serviceAreaCount} ${w.serviceAreaCount == 1 ? 'مدينة' : 'مدن'}';
+        : 'يغطي ${w.serviceAreaCount} '
+            '${w.serviceAreaCount == 1 ? 'مدينة' : 'مدن'}';
 
     const radius = BorderRadius.all(Radius.circular(AppRadius.lg));
 
@@ -162,26 +162,24 @@ class _WarehouseCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── صف الأيقونة والاسم والشارة ──────────────────────────────
+              // ── رأس البطاقة: أيقونة + اسم + شارة ────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.md,
+                  AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm,
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         color: tk.brandSurface,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Center(
-                        child: AppIcon(AppIcons.warehouse, size: 22, color: cs.primary),
+                        child: AppIcon(AppIcons.warehouse,
+                            size: 24, color: cs.primary),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -192,37 +190,59 @@ class _WarehouseCard extends StatelessWidget {
                           Text(
                             w.name,
                             style: context.text.titleMedium,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              AppIcon(AppIcons.mapPin, size: 12, color: tk.hint),
-                              const SizedBox(width: 3),
-                              Expanded(
-                                child: Text(
-                                  '${w.city}، ${w.governorate} · $coverage',
-                                  style: context.text.bodySmall
-                                      ?.copyWith(color: tk.hint),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 2),
+                          Text(
+                            w.code,
+                            style: context.text.labelSmall
+                                ?.copyWith(color: tk.hint),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     if (!w.servesAllAreas)
-                      const StatusBadge(label: 'يخدم مدينتك', tone: StatusTone.success)
+                      const StatusBadge(
+                          label: 'يخدم مدينتك', tone: StatusTone.success)
                     else
-                      const StatusBadge(label: 'يخدم الجميع', tone: StatusTone.neutral),
+                      const StatusBadge(
+                          label: 'يخدم الجميع', tone: StatusTone.neutral),
                   ],
                 ),
               ),
-              // ── تذييل: كود المستودع + رابط الملف ────────────────────────
+
+              // ── صفوف المعلومات ────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md,
+                ),
+                child: Column(
+                  children: [
+                    _InfoLine(
+                      icon: AppIcons.mapPin,
+                      text: w.city.isEmpty
+                          ? w.governorate
+                          : '${w.city}، ${w.governorate}',
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    _InfoLine(
+                      icon: AppIcons.truck,
+                      text: coverageText,
+                    ),
+                    if (w.phone.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      _InfoLine(
+                        icon: AppIcons.user,
+                        text: w.phone,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // ── تذييل: رابط الملف ─────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
@@ -232,19 +252,16 @@ class _WarehouseCard extends StatelessWidget {
                   border: Border(top: BorderSide(color: cs.outline)),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // الكود لا الهاتف — الرقم يبقى في ملف المستودع
-                    Text(
-                      w.code,
-                      style: context.text.bodySmall?.copyWith(color: tk.hint),
-                    ),
-                    const Spacer(),
                     Text(
                       'ملف المستودع وعروضه',
-                      style: context.text.bodySmall?.copyWith(color: cs.primary),
+                      style:
+                          context.text.bodySmall?.copyWith(color: cs.primary),
                     ),
                     const SizedBox(width: 2),
-                    AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
+                    AppIcon(AppIcons.chevronForwardRtl,
+                        size: 14, color: cs.primary),
                   ],
                 ),
               ),
@@ -252,6 +269,31 @@ class _WarehouseCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.icon, required this.text});
+  final AppIcons icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    return Row(
+      children: [
+        AppIcon(icon, size: 13, color: tk.hint),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            text,
+            style: context.text.bodySmall?.copyWith(color: tk.hint),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

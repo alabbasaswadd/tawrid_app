@@ -91,7 +91,7 @@ abstract final class ApiEndpoints {
   static String phOfferComments(String id)    => '$_ph/offers/$id/comments';
   static String phOfferCommentById(String id, String commentId) => '$_ph/offers/$id/comments/$commentId';
 
-  // ── Pharmacy: Listings ────────────────────────────────────────────────────
+  // ── Pharmacy: Listings (صيدلي إلى صيدلي) ────────────────────────────────
   static const String phMyListings     = '$_ph/listings/mine';
   static const String phPublicListings = '$_ph/listings';
   static String phListingById(String id)       => '$_ph/listings/$id';
@@ -99,6 +99,20 @@ abstract final class ApiEndpoints {
   static String phListingCancel(String id)     => '$_ph/listings/$id/cancel';
   static String phListingComments(String id)   => '$_ph/listings/$id/comments';
   static String phListingCommentById(String id, String commentId) => '$_ph/listings/$id/comments/$commentId';
+
+  // حجوزات الإعلان: إنشاء + تفاصيل + قبول/رفض
+  static String phListingBookings(String id) =>
+      '$_ph/listings/$id/bookings';
+  static String phListingBookingById(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId';
+  static String phListingBookingAccept(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId/accept';
+  static String phListingBookingReject(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId/reject';
+
+  // محادثة الحجز — تُحذف الرسائل تلقائياً من الخادم بعد 6 ساعات
+  static String phListingMessages(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId/messages';
 
   // ── Warehouse: Orders ─────────────────────────────────────────────────────
   static const String whOrders = '$_wh/orders';
