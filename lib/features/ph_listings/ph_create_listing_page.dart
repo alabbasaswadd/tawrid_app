@@ -340,6 +340,13 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
               onPressed: _submitting ? null : _submit,
               loading: _submitting,
             ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'ينتهي الإعلان تلقائياً بعد 3 أيام في حال عدم وجود استجابة، '
+              'أو عند الاتفاق بين الطرفين.',
+              style: context.text.bodySmall?.copyWith(color: context.tokens.hint),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

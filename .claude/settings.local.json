@@ -111,7 +111,12 @@
       "Bash(Copy-Item *)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-Content \"C:\\\\Users\\\\alabbas\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-alabbas-Desktop-tawrid-tawrid-app\\\\1870c90a-2cf6-426b-8d63-0117a9af3d1a\\\\tasks\\\\b979x59w1.output\")",
-      "Bash(flutter devices *)"
+      "Bash(flutter devices *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\" -Force | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"Dir\"}else{\"File\"}}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Domain\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Application\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Infrastructure\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.api\\\\Controllers\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)"
     ]
   }
 }

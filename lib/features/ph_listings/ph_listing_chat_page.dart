@@ -265,7 +265,8 @@ class _MessageBubble extends StatelessWidget {
     final isMe = m.isMine;
     final bubbleColor = isMe ? cs.primary : tk.surfaceAlt;
     final textColor = isMe ? cs.onPrimary : cs.onSurface;
-    final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    // RTL: start = يمين، end = يسار — رسائلي تظهر يميناً، رسائل الطرف الآخر يساراً.
+    final align = isMe ? CrossAxisAlignment.start : CrossAxisAlignment.end;
     final radius = BorderRadius.only(
       topRight: const Radius.circular(AppRadius.lg),
       topLeft: const Radius.circular(AppRadius.lg),
@@ -280,8 +281,7 @@ class _MessageBubble extends StatelessWidget {
         children: [
           if (!isMe)
             Padding(
-              padding: const EdgeInsets.only(
-                  right: AppSpacing.xs, bottom: 2),
+              padding: const EdgeInsets.only(bottom: 2),
               child: Text(
                 m.senderName,
                 style:

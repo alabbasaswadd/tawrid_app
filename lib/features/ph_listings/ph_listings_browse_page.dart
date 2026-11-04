@@ -61,13 +61,7 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: InnerTopBar(
-        title: 'صيدلي إلى صيدلي',
-        trailing: _TextAction(
-          label: 'إعلاناتي',
-          onTap: () => context.push(TRoutes.phMyListings),
-        ),
-      ),
+      appBar: const InnerTopBar(title: 'صيدلي إلى صيدلي'),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }
@@ -153,27 +147,6 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
               ),
             ),
       ],
-    );
-  }
-}
-
-class _TextAction extends StatelessWidget {
-  const _TextAction({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: context.colors.primary,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        visualDensity: VisualDensity.compact,
-        textStyle: context.text.bodySmall
-            ?.copyWith(fontWeight: FontWeight.w600),
-      ),
-      child: Text(label),
     );
   }
 }

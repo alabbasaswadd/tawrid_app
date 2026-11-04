@@ -100,6 +100,13 @@ class PhListingCard extends StatelessWidget {
                           label: l.reason.label,
                           tone: _reasonTone(l.reason),
                         ),
+                        if (l.isListingExpired) ...[
+                          const SizedBox(height: 4),
+                          StatusBadge(
+                            label: 'منتهي الصلاحية',
+                            tone: StatusTone.danger,
+                          ),
+                        ],
                         if (isOwner && l.pendingBookingsCount > 0) ...[
                           const SizedBox(height: 4),
                           StatusBadge(
@@ -153,11 +160,21 @@ class PhListingCard extends StatelessWidget {
                           const SizedBox(width: AppSpacing.md),
                           _DetailChip(
                             icon: AppIcons.clock,
-                            text: 'ينتهي: ${_formatDate(l.expiryDate!)}',
+                            text: 'صلاحية الدواء: ${_formatDate(l.expiryDate!)}',
                             color: tk.warning,
                           ),
                         ],
                       ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    _DetailChip(
+                      icon: AppIcons.clock,
+                      text: _listingExpiryLabel(l.listingExpiresAt, l.status),
+                      color: l.isListingExpired
+                          ? tk.danger
+                          : l.status == PhListingStatus.booked
+                              ? tk.hint
+                              : tk.hint,
                     ),
                     if (l.notes != null && l.notes!.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.xs),
@@ -231,6 +248,16 @@ class PhListingCard extends StatelessWidget {
     if (diff.inDays == 1) return 'أمس';
     if (diff.inDays < 7) return 'منذ ${diff.inDays} أيام';
     return _formatDate(d);
+  }
+
+  static String _listingExpiryLabel(DateTime expiresAt, PhListingStatus status) {
+    if (status == PhListingStatus.closed) return 'الإعلان مغلق';
+    if (status == PhListingStatus.booked) return 'ينتهي عند الاتفاق بين الطرفين';
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.isNegative) return 'انتهى الإعلان';
+    if (remaining.inDays == 0) return 'الإعلان ينتهي اليوم';
+    if (remaining.inDays == 1) return 'يوم واحد متبقٍ للإعلان';
+    return 'متبقٍ ${remaining.inDays} أيام للإعلان';
   }
 }
 

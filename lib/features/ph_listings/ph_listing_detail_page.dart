@@ -202,11 +202,21 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
               if (l.expiryDate != null)
                 _InfoRow(
                   icon: AppIcons.clock,
-                  label: 'تاريخ الانتهاء',
+                  label: 'صلاحية الدواء',
                   value:
                       '${l.expiryDate!.day}/${l.expiryDate!.month}/${l.expiryDate!.year}',
                   valueColor: tk.warning,
                 ),
+              _InfoRow(
+                icon: AppIcons.clock,
+                label: 'انتهاء الإعلان',
+                value: _listingExpiryLabel(l.listingExpiresAt, l.status),
+                valueColor: l.isListingExpired
+                    ? tk.danger
+                    : l.status == PhListingStatus.booked
+                        ? tk.hint
+                        : tk.hint,
+              ),
               if (l.notes != null && l.notes!.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Text('ملاحظات:',
@@ -282,6 +292,16 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
         PhListingReason.overstocked => StatusTone.info,
         PhListingReason.other => StatusTone.neutral,
       };
+
+  static String _listingExpiryLabel(DateTime expiresAt, PhListingStatus status) {
+    if (status == PhListingStatus.closed) return 'الإعلان مغلق';
+    if (status == PhListingStatus.booked) return 'ينتهي عند الاتفاق بين الطرفين';
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.isNegative) return 'انتهى الإعلان';
+    if (remaining.inDays == 0) return 'الإعلان ينتهي اليوم';
+    if (remaining.inDays == 1) return 'يوم واحد متبقٍ للإعلان';
+    return 'متبقٍ ${remaining.inDays} أيام للإعلان';
+  }
 }
 
 // ── صف معلومة واحدة داخل AppCard ─────────────────────────────────────────────

@@ -71,6 +71,8 @@ class PhListingSummary {
   final PhListingStatus status;
   final DateTime createdOn;
   final int pendingBookingsCount;
+  /// تاريخ انتهاء الإعلان تلقائياً (3 أيام من الإنشاء إن لم يُحدَّد من الخادم).
+  final DateTime listingExpiresAt;
 
   const PhListingSummary({
     required this.id,
@@ -89,28 +91,40 @@ class PhListingSummary {
     required this.status,
     required this.createdOn,
     this.pendingBookingsCount = 0,
+    required this.listingExpiresAt,
   });
 
-  factory PhListingSummary.fromJson(Map<String, dynamic> j) => PhListingSummary(
-        id: j['id'] as String,
-        medicineName: j['medicineName'] as String,
-        genericName: j['genericName'] as String?,
-        manufacturer: j['manufacturer'] as String?,
-        quantity: j['quantity'] as int,
-        pricePerUnit: (j['pricePerUnit'] as num).toDouble(),
-        expiryDate: j['expiryDate'] == null
-            ? null
-            : DateTime.tryParse(j['expiryDate'] as String),
-        reason: PhListingReason.fromCode(j['reason'] as String?),
-        notes: j['notes'] as String?,
-        governorate: j['governorate'] as String? ?? '',
-        city: j['city'] as String? ?? '',
-        pharmacyId: j['pharmacyId'] as String,
-        pharmacyName: j['pharmacyName'] as String,
-        status: PhListingStatus.fromCode(j['status'] as String?),
-        createdOn: DateTime.parse(j['createdOn'] as String),
-        pendingBookingsCount: j['pendingBookingsCount'] as int? ?? 0,
-      );
+  /// الإعلان منتهي إذا تجاوز تاريخ الانتهاء وما زال بحالة «متاح».
+  bool get isListingExpired =>
+      status == PhListingStatus.available &&
+      listingExpiresAt.isBefore(DateTime.now());
+
+  factory PhListingSummary.fromJson(Map<String, dynamic> j) {
+    final createdOn = DateTime.parse(j['createdOn'] as String);
+    return PhListingSummary(
+      id: j['id'] as String,
+      medicineName: j['medicineName'] as String,
+      genericName: j['genericName'] as String?,
+      manufacturer: j['manufacturer'] as String?,
+      quantity: j['quantity'] as int,
+      pricePerUnit: (j['pricePerUnit'] as num).toDouble(),
+      expiryDate: j['expiryDate'] == null
+          ? null
+          : DateTime.tryParse(j['expiryDate'] as String),
+      reason: PhListingReason.fromCode(j['reason'] as String?),
+      notes: j['notes'] as String?,
+      governorate: j['governorate'] as String? ?? '',
+      city: j['city'] as String? ?? '',
+      pharmacyId: j['pharmacyId'] as String,
+      pharmacyName: j['pharmacyName'] as String,
+      status: PhListingStatus.fromCode(j['status'] as String?),
+      createdOn: createdOn,
+      pendingBookingsCount: j['pendingBookingsCount'] as int? ?? 0,
+      listingExpiresAt: j['listingExpiresAt'] != null
+          ? DateTime.parse(j['listingExpiresAt'] as String)
+          : createdOn.add(const Duration(days: 3)),
+    );
+  }
 }
 
 /// حجز على إعلان — يراه صاحب الإعلان في لوحة إعلاناته.
@@ -217,5 +231,10 @@ class CreatePhListingRequest {
         if (notes != null && notes!.isNotEmpty) 'notes': notes,
         'governorate': governorate,
         'city': city,
+        'listingExpiresAt': DateTime.now()
+            .add(const Duration(days: 3))
+            .toIso8601String()
+            .split('T')
+            .first,
       };
 }
