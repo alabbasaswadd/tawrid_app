@@ -11,7 +11,6 @@ import 'package:tawrid_app/repositories/notification_repository.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
 
 // الحالات الجارية: من بانتظار الموافقة إلى جاري الشحن (لا مكتملة ولا ملغاة).
 const _activeStatuses = {
@@ -40,20 +39,12 @@ class PhHomePage extends ConsumerStatefulWidget {
 }
 
 class _PhHomePageState extends ConsumerState<PhHomePage> {
-  final _searchController = TextEditingController();
-
   List<SupplyOrderSummary> _activeOrders = const [];
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -90,21 +81,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
     _ => '$n صنفاً',
   };
 
-  void _search(String query) {
-    final q = query.trim();
-    context.push(
-      q.isEmpty ? TRoutes.phPriceSearch : TRoutes.phPriceCompareItem(name: q),
-    );
-  }
-
-  Future<void> _scanBarcode() async {
-    final code = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
-    );
-    if (code == null || code.isEmpty || !mounted) return;
-    _search(code);
-  }
-
   @override
   Widget build(BuildContext context) {
     final me = ref.watch(pharmacyMeProvider);
@@ -138,15 +114,7 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         AppSpacing.x3l,
       ),
       children: [
-        // ١ — البحث: أول ما تقع عليه العين، وهو أكثر ما يفعله الصيدلي.
-        AppSearchBar(
-          controller: _searchController,
-          hint: 'ابحث عن دواء، مادة فعالة، أو مستودع…',
-          onSubmitted: _search,
-          onScanTap: _scanBarcode,
-        ),
-
-        // ٢ — ما الذي ينتظرك: تنبيه واحد لا أكثر، وإلا صار ضجيجاً.
+        // ١ — ما الذي ينتظرك: تنبيه واحد لا أكثر، وإلا صار ضجيجاً.
         ..._alertStrip(cartCount),
 
         const SizedBox(height: AppSpacing.xl),
@@ -192,18 +160,18 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         Row(
           children: [
             Expanded(
-              child: _ReportLink(
+              child: _ActionTile(
                 icon: AppIcons.clipboardList,
                 label: 'تقرير مشترياتي',
                 onTap: () => context.push(TRoutes.phReports),
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: _ReportLink(
-                icon: AppIcons.tag,
-                label: 'تقرير طلبات التسعير',
-                onTap: () => context.push(TRoutes.phTenderReports),
+              child: _ActionTile(
+                icon: AppIcons.search,
+                label: 'بحث عن دواء',
+                onTap: () => context.push(TRoutes.phPriceSearch),
               ),
             ),
           ],
@@ -423,56 +391,6 @@ class _ActionTile extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 AppIcon(AppIcons.chevronForwardRtl, size: 16, color: fg),
               ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── رابط تقرير ───────────────────────────────────────────────────────────
-// التقارير تُفتح مرةً في الأسبوع لا في كل جلسة — سطرٌ هادئ بلا حدّ ولا ظل،
-// فلا ينازع الإجراءات على الانتباه.
-class _ReportLink extends StatelessWidget {
-  const _ReportLink({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final AppIcons icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-
-    return Material(
-      color: tk.surfaceAlt,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: 10,
-          ),
-          child: Row(
-            children: [
-              AppIcon(icon, size: 16, color: cs.primary),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  label,
-                  style: context.text.bodySmall?.copyWith(color: cs.onSurface),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
             ],
           ),
         ),

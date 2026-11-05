@@ -32,15 +32,80 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
   /// معرّف السطر الجاري تعديل كميته — يمنع ضغطتين متلاحقتين على المنتقي.
   String? _busyLine;
 
+  /// كميات محلية مؤقتة أثناء استجابة الخادم — تُحدِّث الفاتورة فوراً.
+  final Map<String, int> _localQuantities = {};
+
+  /// يُنشئ نسخة مُصحَّحة من السلّة بالكميات المحلية المؤقتة، فتبدو الأرقام
+  /// محدَّثة قبل أن يُجيب الخادم.
+  Cart _patchCart(Cart cart) {
+    if (_localQuantities.isEmpty) return cart;
+    final newGroups = cart.groups.map((group) {
+      var dirty = false;
+      final newItems = group.items.map((item) {
+        final lq = _localQuantities[item.id];
+        if (lq == null) return item;
+        dirty = true;
+        return CartItem(
+          id: item.id,
+          source: item.source,
+          salesOfferId: item.salesOfferId,
+          salesOfferTitle: item.salesOfferTitle,
+          salesOfferItemId: item.salesOfferItemId,
+          warehouseMedicineId: item.warehouseMedicineId,
+          medicineName: item.medicineName,
+          catalogItemId: item.catalogItemId,
+          unit: item.unit,
+          quantity: lq.toDouble(),
+          unitPrice: item.unitPrice,
+          lineTotal: item.unitPrice * lq,
+          bonusPercentage: item.bonusPercentage,
+          currency: item.currency,
+        );
+      }).toList();
+      if (!dirty) return group;
+      final newTotal = newItems.fold(0.0, (s, i) => s + i.lineTotal);
+      final min = group.minimumOrderAmount ?? 0;
+      return CartWarehouseGroup(
+        supplyWarehouseId: group.supplyWarehouseId,
+        warehouseName: group.warehouseName,
+        city: group.city,
+        governorate: group.governorate,
+        minimumOrderAmount: group.minimumOrderAmount,
+        total: newTotal,
+        meetsMinimum: min <= 0 || newTotal >= min,
+        missingAmount: min <= 0 ? 0 : (min - newTotal).clamp(0.0, double.infinity),
+        currency: group.currency,
+        items: newItems,
+      );
+    }).toList();
+    final newGrandTotal = newGroups.fold(0.0, (s, g) => s + g.total);
+    return Cart(
+      groups: newGroups,
+      totalLines: cart.totalLines,
+      totalQuantity: cart.totalQuantity,
+      totalWarehouses: cart.totalWarehouses,
+      grandTotal: newGrandTotal,
+      currency: cart.currency,
+    );
+  }
+
   Future<void> _setQuantity(CartItem item, int value) async {
     if (_busyLine != null) return;
-    setState(() => _busyLine = item.id);
+    setState(() {
+      _busyLine = item.id;
+      if (value > 0) _localQuantities[item.id] = value;
+    });
     try {
       await ref.read(cartProvider.notifier).setQuantity(item.id, value);
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
-      if (mounted) setState(() => _busyLine = null);
+      if (mounted) {
+        setState(() {
+          _busyLine = null;
+          _localQuantities.remove(item.id);
+        });
+      }
     }
   }
 
@@ -150,7 +215,7 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
               message: ApiException.from(error).message,
               onRetry: () => ref.read(cartProvider.notifier).refresh(),
             ),
-          AsyncData(:final value) => _buildBody(value),
+          AsyncData(:final value) => _buildBody(_patchCart(value)),
         },
       ),
     );
@@ -193,6 +258,8 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
             onCheckout: () => _checkout(cart.groups[i]),
             onRemoveWarehouse: () => _removeWarehouse(cart.groups[i]),
             onQuantityChanged: _setQuantity,
+            onLiveQuantityChanged: (item, v) =>
+                setState(() => _localQuantities[item.id] = v),
             onRemoveItem: _removeItem,
           ),
         ],
@@ -214,6 +281,7 @@ class _WarehouseGroupSection extends StatelessWidget {
     required this.onCheckout,
     required this.onRemoveWarehouse,
     required this.onQuantityChanged,
+    required this.onLiveQuantityChanged,
     required this.onRemoveItem,
   });
 
@@ -223,6 +291,7 @@ class _WarehouseGroupSection extends StatelessWidget {
   final VoidCallback onCheckout;
   final VoidCallback onRemoveWarehouse;
   final void Function(CartItem item, int value) onQuantityChanged;
+  final void Function(CartItem item, int value) onLiveQuantityChanged;
   final void Function(CartItem item) onRemoveItem;
 
   @override
@@ -248,6 +317,7 @@ class _WarehouseGroupSection extends StatelessWidget {
               item: group.items[i],
               busy: busyLineId == group.items[i].id,
               onQuantityChanged: (v) => onQuantityChanged(group.items[i], v),
+              onLiveQuantityChanged: (v) => onLiveQuantityChanged(group.items[i], v),
             ),
           ),
         ],
@@ -335,11 +405,13 @@ class _CartItemCard extends StatelessWidget {
     required this.item,
     required this.busy,
     required this.onQuantityChanged,
+    required this.onLiveQuantityChanged,
   });
 
   final CartItem item;
   final bool busy;
   final ValueChanged<int> onQuantityChanged;
+  final ValueChanged<int> onLiveQuantityChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -353,6 +425,8 @@ class _CartItemCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: cs.outline),
+        boxShadow: context.tokens.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -421,6 +495,7 @@ class _CartItemCard extends StatelessWidget {
                 onDecrement: () => onQuantityChanged(qty - 1),
                 onIncrement: () => onQuantityChanged(qty + 1),
                 onValueChanged: onQuantityChanged,
+                onLiveChanged: onLiveQuantityChanged,
               ),
             ],
           ),
@@ -484,6 +559,8 @@ class _CartSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: context.colors.outline),
+        boxShadow: context.tokens.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

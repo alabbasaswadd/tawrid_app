@@ -14,6 +14,7 @@ class QuantityStepper extends StatefulWidget {
     this.onIncrement,
     this.onDecrement,
     this.onValueChanged,
+    this.onLiveChanged,
     this.enabled = true,
     super.key,
   });
@@ -25,6 +26,10 @@ class QuantityStepper extends StatefulWidget {
   /// يُفعّل الكتابة المباشرة. يُستدعى عند تثبيت القيمة (إرسال أو فقد التركيز)
   /// لا عند كل ضغطة حرف — كل نداء هنا رحلة شبكة.
   final ValueChanged<int>? onValueChanged;
+
+  /// يُستدعى عند كل تغيير في الحقل (قبل التثبيت) — للتحديث البصري الفوري
+  /// بلا رحلة شبكة.
+  final ValueChanged<int>? onLiveChanged;
 
   final bool enabled;
 
@@ -108,6 +113,10 @@ class _QuantityStepperState extends State<QuantityStepper> {
                       textInputAction: TextInputAction.done,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       style: context.text.titleMedium,
+                      onChanged: (text) {
+                        final v = int.tryParse(text);
+                        if (v != null && v > 0) widget.onLiveChanged?.call(v);
+                      },
                       onSubmitted: (_) => _commit(),
                       decoration: const InputDecoration(
                         isDense: true,
