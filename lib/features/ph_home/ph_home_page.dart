@@ -104,7 +104,7 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
           child: _QuickActionsGrid(
-            onNewOrder: () => context.push(TRoutes.phCreateOrder),
+            onNewOrder: () => context.push(TRoutes.phPriceSearch),
             onNewTender: () => context.push(TRoutes.phCreateTender),
             onSearchMedicine: () => context.push(TRoutes.phPriceSearch),
             onCatalog: () => context.push(TRoutes.phMedicineSearch),

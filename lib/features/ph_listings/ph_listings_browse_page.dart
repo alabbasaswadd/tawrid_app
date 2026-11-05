@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +24,9 @@ class PhListingsBrowsePage extends ConsumerStatefulWidget {
 }
 
 class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+
   List<PhListingSummary>? _items;
   bool _loading = true;
   String? _error;
@@ -32,6 +37,22 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  // بدون ديباونس: كل حرف يطلب إعادة تحميل كاملة تُظهر هيكل تحميل يُخفي
+  // حقل البحث نفسه — فيفقد تركيزه ولوحة المفاتيح أثناء الكتابة. نصف ثانية
+  // قبل الطلب تمنع ذلك وتمنع رحلة شبكة لكل حرف.
+  void _onSearchChanged(String v) {
+    _search = v;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 450), _load);
   }
 
   Future<void> _load() async {
@@ -66,12 +87,10 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
     );
   }
 
+  // الشريط والفلاتر ثابتان دائماً — لا يختفيان أثناء إعادة التحميل، حتى لا
+  // يفقد حقل البحث تركيزه ولوحة المفاتيح مع كل حرف يُكتب.
   Widget _buildBody() {
-    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.card);
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
-
     final tk = context.tokens;
-    final items = _items ?? const [];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -87,11 +106,9 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
 
         // ── بحث ────────────────────────────────────────────────────────────
         AppSearchBar(
+          controller: _searchCtrl,
           hint: 'ابحث باسم الدواء',
-          onChanged: (v) {
-            _search = v;
-            _load();
-          },
+          onChanged: _onSearchChanged,
         ),
         const SizedBox(height: AppSpacing.sm),
 
@@ -126,26 +143,49 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // ── قائمة الإعلانات ─────────────────────────────────────────────────
-        if (items.isEmpty)
+        // ── نتائج البحث ──────────────────────────────────────────────────
+        _buildResults(),
+      ],
+    );
+  }
+
+  Widget _buildResults() {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: AppListSkeleton(variant: SkeletonVariant.card, count: 3),
+      );
+    }
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: ErrorState(message: _error!, onRetry: _load),
+      );
+    }
+
+    final items = _items ?? const [];
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3l),
+        child: UiEmpty(
+          appIcon: AppIcons.pill,
+          message: _filterReason != null || _search.isNotEmpty
+              ? 'لا إعلانات تطابق بحثك'
+              : 'لا إعلانات متاحة حالياً في منطقتك',
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (final item in items)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3l),
-            child: UiEmpty(
-              appIcon: AppIcons.pill,
-              message: _filterReason != null || _search.isNotEmpty
-                  ? 'لا إعلانات تطابق بحثك'
-                  : 'لا إعلانات متاحة حالياً في منطقتك',
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: PhListingCard(
+              listing: item,
+              onTap: () => context.push(TRoutes.phListingDetail(item.id)),
             ),
-          )
-        else
-          for (final item in items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: PhListingCard(
-                listing: item,
-                onTap: () => context.push(TRoutes.phListingDetail(item.id)),
-              ),
-            ),
+          ),
       ],
     );
   }

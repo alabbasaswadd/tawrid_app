@@ -53,6 +53,10 @@ abstract final class ApiEndpoints {
   // يدمج أصناف العروض السارية مع التسعير المباشر من المستودعات في قائمة
   // واحدة مُرقَّمة. السلّة تُبنى من نتائجه محلياً ثم تُتمّ عبر phOrders.
   static const String phMedicinePriceSearch = '$_ph/medicines/search';
+  // الشركات المصنّعة التي يخدمها مستودع بعينه — لتعبئة قائمة اختيار الفلتر
+  // عند البحث «داخل هذا المستودع» بدل كتابة حرّة.
+  static String phMedicineWarehouseManufacturers(String warehouseId) =>
+      '$_ph/medicines/warehouses/$warehouseId/manufacturers';
 
   // ── Pharmacy: Cart (السلّة — محفوظة على الخادم ومجمَّعة حسب المستودع) ─────
   // كل مسار هنا يُعيد السلّة كاملةً بعد التعديل، فتُرسم الشاشة من الاستجابة

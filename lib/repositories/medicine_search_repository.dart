@@ -52,4 +52,13 @@ class MedicineSearchRepository {
       totalCount: ApiClient.totalOf(raw),
     );
   }
+
+  /// أسماء الشركات المصنّعة التي يخدمها هذا المستودع فعلاً — لتعبئة قائمة
+  /// اختيار الفلتر بدل كتابة حرّة.
+  Future<List<String>> getWarehouseManufacturers(String warehouseId) async {
+    final raw = await _api.get(
+      ApiEndpoints.phMedicineWarehouseManufacturers(warehouseId),
+    );
+    return ApiClient.itemsOf(raw).cast<String>();
+  }
 }

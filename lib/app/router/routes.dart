@@ -37,6 +37,15 @@ abstract final class TRoutes {
   static String phPriceSearchInWarehouse(String warehouseId, String name) =>
       '$phPriceSearch?warehouseId=$warehouseId'
       '&warehouseName=${Uri.encodeComponent(name)}';
+
+  /// مقارنة سعر دواء بعينه عبر كل مستودعات الصيدلية — من بطاقة نتيجة بحث.
+  /// catalogItemId إن وُجد يحصر المطابقة بصنف الكتالوج بعينه؛ وإلا تُستخدم
+  /// اسم الدواء نصاً فقط.
+  static String phPriceCompareItem({String? catalogItemId, required String name}) {
+    final q = 'q=${Uri.encodeComponent(name)}';
+    if (catalogItemId == null || catalogItemId.isEmpty) return '$phPriceSearch?$q';
+    return '$phPriceSearch?catalogItemId=$catalogItemId&$q';
+  }
   static const String phCart = '/cart';
 
   // تفاصيل عرض بيع عند الصيدلي — منها تُنشأ الطلبية باختيار الأصناف

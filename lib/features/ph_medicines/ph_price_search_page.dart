@@ -9,6 +9,7 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/medicine_search_models.dart';
+import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/repositories/medicine_search_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
@@ -27,6 +28,7 @@ class PhPriceSearchPage extends ConsumerStatefulWidget {
     this.initialQuery,
     this.warehouseId,
     this.warehouseName,
+    this.catalogItemId,
     super.key,
   });
 
@@ -37,6 +39,10 @@ class PhPriceSearchPage extends ConsumerStatefulWidget {
   /// بالمعرّف، والاسم للعنوان وحده.
   final String? warehouseId;
   final String? warehouseName;
+
+  /// مقارنة صنف بعينه عبر كل المستودعات — من زرّ «مقارنة الأسعار» في بطاقة
+  /// نتيجة. يحصر المطابقة بصنف الكتالوج، والترتيب الافتراضي هنا بالسعر.
+  final String? catalogItemId;
 
   @override
   ConsumerState<PhPriceSearchPage> createState() => _PhPriceSearchPageState();
@@ -51,7 +57,9 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
 
   final List<MedicineSearchResult> _results = [];
   MedicineSearchSource _source = MedicineSearchSource.all;
-  MedicineSearchSort _sort = MedicineSearchSort.byDefault;
+  late MedicineSearchSort _sort = widget.catalogItemId != null
+      ? MedicineSearchSort.priceLowToHigh
+      : MedicineSearchSort.byDefault;
   String _manufacturer = '';
 
   bool _loading = true;
@@ -103,7 +111,11 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
 
     try {
       final page = await ref.read(medicineSearchRepositoryProvider).search(
-        name: _searchController.text,
+        // صنف محدَّد بمعرّفه لا يحتاج فلتر الاسم أيضاً — نصّه فقط للسياق في
+        // الحقل، وتفعيله معاً قد يُسقط صنفاً اسمه الحرّ (من عرض) لا يطابق
+        // نصياً اسم الكتالوج الذي يحمل معرّفه نفسه.
+        name: widget.catalogItemId != null ? null : _searchController.text,
+        catalogItemId: widget.catalogItemId,
         warehouseId: widget.warehouseId,
         manufacturer: _manufacturer.isEmpty ? null : _manufacturer,
         source: _source,
@@ -152,6 +164,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
         source: _source,
         sort: _sort,
         manufacturer: _manufacturer,
+        warehouseId: widget.warehouseId,
       ),
     );
     if (applied == null || !mounted) return;
@@ -399,6 +412,13 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       onOfferDetails: r.salesOfferId == null
           ? null
           : () => context.push(TRoutes.phOfferDetail(r.salesOfferId!)),
+      // صفحة المقارنة نفسها محصورة بصنف واحد أصلاً — لا حاجة للزرّ فيها.
+      onComparePrices: widget.catalogItemId != null
+          ? null
+          : () => context.push(TRoutes.phPriceCompareItem(
+                catalogItemId: r.catalogItemId,
+                name: r.medicineName,
+              )),
     ),
   );
 }
@@ -414,6 +434,7 @@ class _PriceResultCard extends StatelessWidget {
     required this.onAdd,
     required this.onRequestQuote,
     this.onOfferDetails,
+    this.onComparePrices,
   });
 
   final MedicineSearchResult result;
@@ -421,6 +442,10 @@ class _PriceResultCard extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onRequestQuote;
   final VoidCallback? onOfferDetails;
+
+  /// بحث عن نفس الصنف عبر كل المستودعات — لا يظهر داخل صفحة مقارنة أصلاً
+  /// (مُمرَّر null حين تكون الصفحة نفسها محصورة بصنف واحد بالفعل).
+  final VoidCallback? onComparePrices;
 
   @override
   Widget build(BuildContext context) {
@@ -522,53 +547,72 @@ class _PriceResultCard extends StatelessWidget {
           const SizedBox(height: 10),
 
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // الصنف غير المسعَّر يُعرَض ليعرف الصيدلي أن المستودع يتعامل
-              // به، لكن السلّة تُجمِّد سعراً فلا تقبله — فيُستبدل زرّ
-              // الإضافة بمخرج مفيد: طلب تسعيره.
-              if (r.isUnpriced)
-                AppButton(
-                  label: 'اطلب تسعيره',
-                  icon: Icons.request_quote_outlined,
-                  fullWidth: false,
-                  compact: true,
-                  variant: AppButtonVariant.tonal,
-                  onPressed: onRequestQuote,
-                )
-              else
-                AppButton(
-                  label: 'أضف للسلة',
-                  icon: Icons.add,
-                  fullWidth: false,
-                  compact: true,
-                  loading: adding,
-                  onPressed: onAdd,
-                ),
-              if (onOfferDetails != null) ...[
-                const SizedBox(width: AppSpacing.md),
-                InkWell(
-                  onTap: onOfferDetails,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppIcon(
-                        AppIcons.chevronForwardRtl,
-                        size: 14,
-                        color: cs.primary,
+              // مجموعة الأزرار في مساحة مرنة تلتفّ بسطر ثانٍ عند الازدحام
+              // (ثلاثة أزرار محتملة + رابط التفاصيل) بدل أن تفيض عن البطاقة.
+              Expanded(
+                child: Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    // الصنف غير المسعَّر يُعرَض ليعرف الصيدلي أن المستودع
+                    // يتعامل به، لكن السلّة تُجمِّد سعراً فلا تقبله —
+                    // فيُستبدل زرّ الإضافة بمخرج مفيد: طلب تسعيره.
+                    if (r.isUnpriced)
+                      AppButton(
+                        label: 'اطلب تسعيره',
+                        icon: Icons.request_quote_outlined,
+                        fullWidth: false,
+                        compact: true,
+                        variant: AppButtonVariant.tonal,
+                        onPressed: onRequestQuote,
+                      )
+                    else
+                      AppButton(
+                        label: 'أضف للسلة',
+                        icon: Icons.add,
+                        fullWidth: false,
+                        compact: true,
+                        loading: adding,
+                        onPressed: onAdd,
                       ),
-                      const SizedBox(width: 2),
-                      Text(
-                        'تفاصيل العرض',
-                        style: context.text.bodySmall?.copyWith(
-                          color: cs.primary,
+                    if (onComparePrices != null)
+                      AppButton(
+                        label: 'مقارنة الأسعار',
+                        icon: Icons.compare_arrows,
+                        fullWidth: false,
+                        compact: true,
+                        variant: AppButtonVariant.tonal,
+                        onPressed: onComparePrices,
+                      ),
+                    if (onOfferDetails != null)
+                      InkWell(
+                        onTap: onOfferDetails,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppIcon(
+                              AppIcons.chevronForwardRtl,
+                              size: 14,
+                              color: cs.primary,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              'تفاصيل العرض',
+                              style: context.text.bodySmall?.copyWith(
+                                color: cs.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-              ],
-              const Spacer(),
+              ),
+              const SizedBox(width: AppSpacing.md),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -666,30 +710,71 @@ class _FiltersButton extends StatelessWidget {
 
 // لوحة فلاتر الأسعار (Figma: الصيدلي / لوحة فلاتر الأسعار) — المصدر
 // والترتيب والشركة المصنّعة، مع «مسح الكل» وزر «تطبيق» واحد.
-class _PriceFiltersSheet extends StatefulWidget {
+class _PriceFiltersSheet extends ConsumerStatefulWidget {
   const _PriceFiltersSheet({
     required this.source,
     required this.sort,
     required this.manufacturer,
+    this.warehouseId,
   });
 
   final MedicineSearchSource source;
   final MedicineSearchSort sort;
   final String manufacturer;
 
+  /// بحث داخل مستودع واحد — يحمِّل شركاته الفعلية ليختار منها الصيدلي بدل
+  /// أن يكتب اسم شركة باسم المستودع كلّه.
+  final String? warehouseId;
+
   @override
-  State<_PriceFiltersSheet> createState() => _PriceFiltersSheetState();
+  ConsumerState<_PriceFiltersSheet> createState() => _PriceFiltersSheetState();
 }
 
-class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
+class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
   late MedicineSearchSource _source = widget.source;
   late MedicineSearchSort _sort = widget.sort;
-  late final TextEditingController _manufacturerCtrl =
-      TextEditingController(text: widget.manufacturer);
+  late String? _pickedMfr = widget.manufacturer.isEmpty ? null : widget.manufacturer;
+  final _mfrSearchCtrl = TextEditingController();
+
+  List<String> _manufacturers = [];
+  bool _loadingMfr = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadManufacturers();
+  }
+
+  // داخل مستودع واحد: شركاته الفعلية وحدها. غير محصور: كل شركات الكتالوج.
+  Future<void> _loadManufacturers() async {
+    setState(() => _loadingMfr = true);
+    try {
+      final warehouseId = widget.warehouseId;
+      final list = warehouseId != null
+          ? await ref
+              .read(medicineSearchRepositoryProvider)
+              .getWarehouseManufacturers(warehouseId)
+          : await ref.read(medicineCatalogRepositoryProvider).getManufacturers();
+      if (!mounted) return;
+      setState(() {
+        _manufacturers = list;
+        _loadingMfr = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingMfr = false);
+    }
+  }
+
+  List<String> get _filteredManufacturers {
+    final q = _mfrSearchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return _manufacturers;
+    return _manufacturers.where((m) => m.toLowerCase().contains(q)).toList();
+  }
 
   @override
   void dispose() {
-    _manufacturerCtrl.dispose();
+    _mfrSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -735,7 +820,8 @@ class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
                   onPressed: () => setState(() {
                     _source = MedicineSearchSource.all;
                     _sort = MedicineSearchSort.byDefault;
-                    _manufacturerCtrl.clear();
+                    _pickedMfr = null;
+                    _mfrSearchCtrl.clear();
                   }),
                   child: const Text('مسح الكل'),
                 ),
@@ -745,10 +831,56 @@ class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
             const SizedBox(height: AppSpacing.md),
             Text('الشركة المصنّعة', style: context.text.titleMedium),
             const SizedBox(height: AppSpacing.sm),
-            AppTextField(
-              controller: _manufacturerCtrl,
-              hint: 'ابحث باسم الشركة المصنّعة…',
-            ),
+            if (_loadingMfr)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (_manufacturers.isEmpty)
+              Text(
+                widget.warehouseId == null
+                    ? 'لا شركات مسجَّلة بعد'
+                    : 'لا شركات مسجَّلة لهذا المستودع بعد',
+                style: context.text.bodySmall?.copyWith(color: context.tokens.hint),
+              )
+            else ...[
+              AppTextField(
+                controller: _mfrSearchCtrl,
+                hint: 'ابحث في الشركات…',
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _filteredManufacturers.length,
+                  itemBuilder: (context, i) {
+                    final name = _filteredManufacturers[i];
+                    final picked = _pickedMfr == name;
+                    return ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
+                      title: Text(name, style: context.text.bodyMedium),
+                      trailing: picked
+                          ? AppIcon(AppIcons.check, size: 16, color: context.colors.primary)
+                          : null,
+                      onTap: () =>
+                          setState(() => _pickedMfr = picked ? null : name),
+                    );
+                  },
+                ),
+              ),
+            ],
 
             const SizedBox(height: AppSpacing.lg),
             Text('المصدر', style: context.text.titleMedium),
@@ -786,7 +918,7 @@ class _PriceFiltersSheetState extends State<_PriceFiltersSheet> {
               label: 'تطبيق',
               onPressed: () => Navigator.pop(
                 context,
-                (_source, _sort, _manufacturerCtrl.text.trim()),
+                (_source, _sort, _pickedMfr ?? ''),
               ),
             ),
           ],

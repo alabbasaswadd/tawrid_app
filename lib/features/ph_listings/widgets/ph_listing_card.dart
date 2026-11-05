@@ -132,36 +132,46 @@ class PhListingCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        _DetailChip(
-                          icon: AppIcons.package,
-                          text: '${l.quantity} وحدة',
-                          color: tk.hint,
+                        Expanded(
+                          child: _DetailChip(
+                            icon: AppIcons.package,
+                            text: '${l.quantity} وحدة',
+                            color: tk.hint,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.md),
-                        _DetailChip(
-                          icon: AppIcons.tag,
-                          text:
-                              '${l.pricePerUnit.toStringAsFixed(0)} ل.س/الوحدة',
-                          color: cs.primary,
-                          bold: true,
+                        Expanded(
+                          child: _DetailChip(
+                            icon: AppIcons.tag,
+                            text:
+                                '${l.pricePerUnit.toStringAsFixed(0)} ل.س/الوحدة',
+                            color: cs.primary,
+                            bold: true,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Row(
                       children: [
-                        _DetailChip(
-                          icon: AppIcons.mapPin,
-                          text:
-                              l.city.isEmpty ? l.governorate : '${l.city} · ${l.governorate}',
-                          color: tk.hint,
+                        Expanded(
+                          child: _DetailChip(
+                            icon: AppIcons.mapPin,
+                            text: l.city.isEmpty
+                                ? l.governorate
+                                : '${l.city} · ${l.governorate}',
+                            color: tk.hint,
+                          ),
                         ),
                         if (l.expiryDate != null) ...[
                           const SizedBox(width: AppSpacing.md),
-                          _DetailChip(
-                            icon: AppIcons.clock,
-                            text: 'صلاحية الدواء: ${_formatDate(l.expiryDate!)}',
-                            color: tk.warning,
+                          Expanded(
+                            child: _DetailChip(
+                              icon: AppIcons.clock,
+                              text:
+                                  'صلاحية الدواء: ${_formatDate(l.expiryDate!)}',
+                              color: tk.warning,
+                            ),
                           ),
                         ],
                       ],
@@ -277,15 +287,18 @@ class _DetailChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         AppIcon(icon, size: 13, color: color),
         const SizedBox(width: 3),
-        Text(
-          text,
-          style: (context.text.bodySmall ?? const TextStyle()).copyWith(
-            color: color,
-            fontWeight: bold ? FontWeight.w600 : null,
+        Flexible(
+          child: Text(
+            text,
+            style: (context.text.bodySmall ?? const TextStyle()).copyWith(
+              color: color,
+              fontWeight: bold ? FontWeight.w600 : null,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
