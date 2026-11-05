@@ -111,13 +111,17 @@ class PhListingSummary {
   }
 }
 
-/// تعليق تحت إعلان — يحمل اسم الصيدلية المعلِّقة، فالتعليق المجهول
+/// تعليق تحت إعلان — يحمل اسم الصيدلية المعلِّقة ومدينتها، فالتعليق المجهول
 /// لا يُبنى عليه قرار بيع.
 class PhListingComment {
   final String id;
   final CommentAuthorType authorType;
   final String authorId;
   final String authorName;
+  final String authorCity;
+  final String authorGovernorate;
+  /// معرّف التعليق الأب — إن وُجد فهذا التعليق ردٌّ على غيره.
+  final String? parentId;
   final String content;
   final DateTime createdOn;
 
@@ -126,19 +130,38 @@ class PhListingComment {
     required this.authorType,
     required this.authorId,
     required this.authorName,
+    this.authorCity = '',
+    this.authorGovernorate = '',
+    this.parentId,
     required this.content,
     required this.createdOn,
   });
 
-  factory PhListingComment.fromJson(Map<String, dynamic> j) =>
-      PhListingComment(
-        id: j['id'] as String,
-        authorType: CommentAuthorType.fromCode(j['authorType'] as int? ?? 1),
-        authorId: j['authorId'] as String? ?? '',
-        authorName: j['authorName'] as String? ?? 'صيدلية',
-        content: j['content'] as String? ?? '',
-        createdOn: DateTime.parse(j['createdOn'] as String),
-      );
+  factory PhListingComment.fromJson(Map<String, dynamic> j) {
+    // الخادم قد يُرسل الاسم تحت authorName أو pharmacyName — نجرّب كليهما
+    // ونرفض الفارغ فلا نعرض فقاعة بلا هوية.
+    String resolveName(String key, [String? fallbackKey]) {
+      final v = (j[key] as String?)?.trim();
+      if (v != null && v.isNotEmpty) return v;
+      if (fallbackKey != null) {
+        final f = (j[fallbackKey] as String?)?.trim();
+        if (f != null && f.isNotEmpty) return f;
+      }
+      return 'صيدلية';
+    }
+
+    return PhListingComment(
+      id: j['id'] as String,
+      authorType: CommentAuthorType.fromCode(j['authorType'] as int? ?? 1),
+      authorId: (j['authorId'] as String?)?.trim() ?? '',
+      authorName: resolveName('authorName', 'pharmacyName'),
+      authorCity: (j['authorCity'] as String?)?.trim() ?? '',
+      authorGovernorate: (j['authorGovernorate'] as String?)?.trim() ?? '',
+      parentId: j['parentId'] as String?,
+      content: (j['content'] as String?)?.trim() ?? '',
+      createdOn: DateTime.parse(j['createdOn'] as String),
+    );
+  }
 }
 
 class CreatePhListingRequest {

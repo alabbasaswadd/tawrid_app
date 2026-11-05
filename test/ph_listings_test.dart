@@ -54,7 +54,11 @@ class _FakeRepo implements PhListingRepository {
       comments;
 
   @override
-  Future<PhListingComment> addComment(String listingId, String content) async {
+  Future<PhListingComment> addComment(
+    String listingId,
+    String content, {
+    String? parentId,
+  }) async {
     lastPosted = content;
     return _c('c3', 'صيدلية الأمل', 'ME', content);
   }

@@ -33,6 +33,8 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
   String? _actionError;
 
   final _commentCtrl = TextEditingController();
+  final _commentFocus = FocusNode();
+  PhListingComment? _replyingTo;
 
   @override
   void initState() {
@@ -43,6 +45,7 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _commentFocus.dispose();
     super.dispose();
   }
 
@@ -89,12 +92,13 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
     try {
       final added = await ref
           .read(phListingRepositoryProvider)
-          .addComment(widget.listingId, content);
+          .addComment(widget.listingId, content, parentId: _replyingTo?.id);
       if (!mounted) return;
       setState(() {
         _comments = [..._comments, added];
         _commentCtrl.clear();
         _sending = false;
+        _replyingTo = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -104,6 +108,13 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
       });
     }
   }
+
+  void _startReply(PhListingComment comment) {
+    setState(() => _replyingTo = comment);
+    _commentFocus.requestFocus();
+  }
+
+  void _cancelReply() => setState(() => _replyingTo = null);
 
   Future<void> _deleteComment(PhListingComment c) async {
     final ok = await showDialog<bool>(
@@ -306,18 +317,7 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
             ),
           )
         else
-          for (final c in _comments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _CommentBubble(
-                comment: c,
-                isMine: c.authorId == _myTenantId,
-                isListingOwner: c.authorId == l.pharmacyId,
-                onDelete: c.authorId == _myTenantId
-                    ? () => _deleteComment(c)
-                    : null,
-              ),
-            ),
+          ..._buildCommentTree(l),
 
         const SizedBox(height: AppSpacing.md),
 
@@ -325,14 +325,67 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
         // الأسئلة في مكانها لا في رسالة خاصة.
         _CommentComposer(
           controller: _commentCtrl,
+          focusNode: _commentFocus,
           sending: _sending,
+          replyingTo: _replyingTo,
           hint: isOwner
               ? 'ردّ على سؤال أو أضف توضيحاً…'
               : 'اسأل عن الدواء أو اعرض سعراً…',
           onSend: _addComment,
+          onCancelReply: _cancelReply,
         ),
       ],
     );
+  }
+
+  /// يُرتّب التعليقات شجرياً: كل تعليق جذر يتبعه ردوده مُزاحة.
+  List<Widget> _buildCommentTree(PhListingSummary l) {
+    final Map<String, List<PhListingComment>> replyMap = {};
+    final List<PhListingComment> roots = [];
+    for (final c in _comments) {
+      if (c.parentId == null) {
+        roots.add(c);
+      } else {
+        replyMap.putIfAbsent(c.parentId!, () => []).add(c);
+      }
+    }
+
+    final widgets = <Widget>[];
+    for (final root in roots) {
+      widgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: _CommentBubble(
+          comment: root,
+          isMine: root.authorId == _myTenantId,
+          isListingOwner: root.authorId == l.pharmacyId,
+          onDelete: root.authorId == _myTenantId
+              ? () => _deleteComment(root)
+              : null,
+          onReply: () => _startReply(root),
+        ),
+      ));
+      final replies = replyMap[root.id] ?? [];
+      for (final reply in replies) {
+        widgets.add(Padding(
+          padding: const EdgeInsetsDirectional.only(
+            bottom: AppSpacing.xs,
+            start: AppSpacing.x2l,
+          ),
+          child: _CommentBubble(
+            comment: reply,
+            isMine: reply.authorId == _myTenantId,
+            isListingOwner: reply.authorId == l.pharmacyId,
+            isReply: true,
+            onDelete: reply.authorId == _myTenantId
+                ? () => _deleteComment(reply)
+                : null,
+            onReply: null,
+          ),
+        ));
+      }
+      widgets.add(const SizedBox(height: AppSpacing.xs));
+    }
+    return widgets;
   }
 
   static StatusTone _reasonTone(PhListingReason r) => switch (r) {
@@ -399,72 +452,112 @@ class _InfoRow extends StatelessWidget {
 }
 
 // ── فقاعة تعليق ──────────────────────────────────────────────────────────
-// اسم الصيدلية المعلِّقة أول ما يُقرأ في الفقاعة: التعليق بلا صاحبٍ معروف
-// لا يُبنى عليه قرار بيع. وتعليق صاحب الإعلان يُميَّز بشارة «صاحب الإعلان»
-// فلا يُخلط ردّه بسؤال غيره.
+// اسم الصيدلية ومدينتها أول ما يُقرأ: التعليق بلا صاحبٍ معروف لا يُبنى عليه
+// قرار بيع. وتعليق صاحب الإعلان يُميَّز بشارة «صاحب الإعلان».
 class _CommentBubble extends StatelessWidget {
   const _CommentBubble({
     required this.comment,
     required this.isMine,
     required this.isListingOwner,
+    this.isReply = false,
     this.onDelete,
+    this.onReply,
   });
 
   final PhListingComment comment;
   final bool isMine;
   final bool isListingOwner;
+  final bool isReply;
   final VoidCallback? onDelete;
+  final VoidCallback? onReply;
+
+  String? get _locationLabel {
+    final city = comment.authorCity;
+    final gov = comment.authorGovernorate;
+    if (city.isNotEmpty && gov.isNotEmpty) return '$city، $gov';
+    if (city.isNotEmpty) return city;
+    if (gov.isNotEmpty) return gov;
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
     final c = comment;
+    final location = _locationLabel;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: isMine ? tk.brandSurfaceSubtle : cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: isMine ? cs.primary : cs.outline),
+        border: Border.all(
+          color: isMine ? cs.primary : cs.outline,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── رأس التعليق: أفاتار + بيانات الصيدلية + الوقت + حذف ──
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: tk.brandSurface,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: AppIcon(AppIcons.user, size: 14, color: cs.primary),
+                  child: AppIcon(AppIcons.user, size: 16, color: cs.primary),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              // الاسم والشارة يتقاسمان ما بقي من العرض ويتقلّصان معاً؛
-              // الوقت وزرّ الحذف قياسهما ثابت فلا يُزاحَمان.
               Expanded(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        isMine ? '${c.authorName} (أنت)' : c.authorName,
-                        style: context.text.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isListingOwner) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      const Flexible(
-                        child: StatusBadge(
-                          label: 'صاحب الإعلان',
-                          tone: StatusTone.brand,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isMine ? '${c.authorName} (أنت)' : c.authorName,
+                            style: context.text.titleSmall
+                                ?.copyWith(color: cs.onSurface),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (isListingOwner) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          const Flexible(
+                            child: StatusBadge(
+                              label: 'صاحب الإعلان',
+                              tone: StatusTone.brand,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (location != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          AppIcon(AppIcons.mapPin,
+                              size: 11, color: cs.onSurface),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              location,
+                              style: context.text.labelSmall
+                                  ?.copyWith(color: cs.onSurface),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -488,8 +581,32 @@ class _CommentBubble extends StatelessWidget {
               ],
             ],
           ),
+
           const SizedBox(height: AppSpacing.sm),
           Text(c.content, style: context.text.bodyMedium),
+
+          // ── زر «رد» — يظهر فقط على التعليقات الجذر ──
+          if (onReply != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: InkWell(
+                onTap: onReply,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: 2,
+                  ),
+                  child: Text(
+                    'رد',
+                    style: context.text.labelSmall
+                        ?.copyWith(color: cs.primary),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -506,64 +623,126 @@ class _CommentBubble extends StatelessWidget {
   }
 }
 
-// ── صندوق كتابة تعليق ───────────────────────────────────────────────────
+// ── صندوق كتابة تعليق / رد ───────────────────────────────────────────────
 class _CommentComposer extends StatelessWidget {
   const _CommentComposer({
     required this.controller,
+    required this.focusNode,
     required this.sending,
     required this.hint,
     required this.onSend,
+    required this.onCancelReply,
+    this.replyingTo,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool sending;
   final String hint;
   final VoidCallback onSend;
+  final VoidCallback onCancelReply;
+  final PhListingComment? replyingTo;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
+    final replying = replyingTo;
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: cs.outline),
+        border: Border.all(
+          color: replying != null ? cs.primary : cs.outline,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: controller,
-            minLines: 2,
-            maxLines: 4,
-            maxLength: 500,
-            enabled: !sending,
-            keyboardType: TextInputType.multiline,
-            style: context.text.bodyMedium,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: context.text.bodySmall?.copyWith(color: tk.hint),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              disabledBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              counterStyle:
-                  context.text.labelSmall?.copyWith(color: tk.hint),
+          // شريط «رداً على» — يظهر فقط عند الرد على تعليق بعينه.
+          if (replying != null)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: .07),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppRadius.md - 1),
+                  topRight: Radius.circular(AppRadius.md - 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  AppIcon(AppIcons.chevronBackRtl,
+                      size: 13, color: cs.primary),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'رداً على ${replying.authorName}',
+                      style: context.text.labelSmall
+                          ?.copyWith(color: cs.primary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: onCancelReply,
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.full),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      child: AppIcon(AppIcons.x,
+                          size: 13, color: cs.primary),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: AppButton(
-              label: 'نشر التعليق',
-              compact: true,
-              fullWidth: false,
-              loading: sending,
-              onPressed: sending ? null : onSend,
+
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  minLines: 2,
+                  maxLines: 4,
+                  maxLength: 500,
+                  enabled: !sending,
+                  keyboardType: TextInputType.multiline,
+                  style: context.text.bodyMedium,
+                  decoration: InputDecoration(
+                    hintText: replying != null
+                        ? 'اكتب ردّك هنا…'
+                        : hint,
+                    hintStyle:
+                        context.text.bodySmall?.copyWith(color: tk.hint),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    counterStyle:
+                        context.text.labelSmall?.copyWith(color: tk.hint),
+                  ),
+                ),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: AppButton(
+                    label: replying != null ? 'نشر الرد' : 'نشر التعليق',
+                    compact: true,
+                    fullWidth: false,
+                    loading: sending,
+                    onPressed: sending ? null : onSend,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

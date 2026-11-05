@@ -97,7 +97,8 @@ class ApiClient {
   /// هذه الدالة تقبل الشكلين فلا تنكسر الشاشة إن تغيّر أحدهما.
   static List<dynamic> itemsOf(dynamic data) {
     if (data is List) return data;
-    if (data is Map<String, dynamic>) return (data['items'] as List?) ?? const [];
+    if (data is Map<String, dynamic>)
+      return (data['items'] as List?) ?? const [];
     return const [];
   }
 

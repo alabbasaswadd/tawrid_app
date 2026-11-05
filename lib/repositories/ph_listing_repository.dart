@@ -70,10 +70,17 @@ class PhListingRepository {
         .toList();
   }
 
-  Future<PhListingComment> addComment(String listingId, String content) async {
+  Future<PhListingComment> addComment(
+    String listingId,
+    String content, {
+    String? parentId,
+  }) async {
     final data = await _api.post(
       ApiEndpoints.phListingComments(listingId),
-      data: {'content': content},
+      data: {
+        'content': content,
+        'parentId': parentId,
+      },
     ) as Map<String, dynamic>;
     return PhListingComment.fromJson(data);
   }
