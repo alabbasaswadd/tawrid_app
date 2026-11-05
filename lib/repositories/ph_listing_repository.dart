@@ -1,27 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
-import 'package:tawrid_app/core/session/pharmacy_session.dart';
-import 'package:tawrid_app/core/session/session_state.dart';
 import 'package:tawrid_app/models/ph_listing_models.dart';
 
 final phListingRepositoryProvider = Provider<PhListingRepository>(
-  (ref) => PhListingRepository(
-    ref.watch(apiClientProvider),
-    ref.watch(pharmacySessionProvider).value,
-  ),
+  (ref) => PhListingRepository(ref.watch(apiClientProvider)),
 );
 
 class PhListingRepository {
-  PhListingRepository(this._api, this._session);
+  PhListingRepository(this._api);
   final ApiClient _api;
-  final SessionState? _session;
-
-  String get _myId {
-    final s = _session;
-    if (s is SessionAuthenticated) return s.tenantId ?? '';
-    return '';
-  }
 
   // ── إعلانات عامة (التصفح) ────────────────────────────────────────────────
 
@@ -73,54 +61,24 @@ class PhListingRepository {
   Future<void> cancelListing(String id) =>
       _api.post(ApiEndpoints.phListingCancel(id));
 
-  // ── حجوزات الإعلان ────────────────────────────────────────────────────────
+  // ── تعليقات الإعلان ──────────────────────────────────────────────────────
 
-  Future<List<PhListingBooking>> getBookings(String listingId) async {
-    final raw = await _api.get(ApiEndpoints.phListingBookings(listingId));
+  Future<List<PhListingComment>> getComments(String listingId) async {
+    final raw = await _api.get(ApiEndpoints.phListingComments(listingId));
     return ApiClient.itemsOf(raw)
-        .map((e) => PhListingBooking.fromJson(e as Map<String, dynamic>))
+        .map((e) => PhListingComment.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  /// الصيدلي 2 يحجز الإعلان ويرسل أول رسالة.
-  Future<PhListingBooking> bookListing(String listingId, String message) async {
+  Future<PhListingComment> addComment(String listingId, String content) async {
     final data = await _api.post(
-      ApiEndpoints.phListingBookings(listingId),
-      data: {'initialMessage': message},
-    ) as Map<String, dynamic>;
-    return PhListingBooking.fromJson(data);
-  }
-
-  Future<void> acceptBooking(String listingId, String bookingId) =>
-      _api.post(ApiEndpoints.phListingBookingAccept(listingId, bookingId));
-
-  Future<void> rejectBooking(String listingId, String bookingId) =>
-      _api.post(ApiEndpoints.phListingBookingReject(listingId, bookingId));
-
-  // ── محادثة الحجز ──────────────────────────────────────────────────────────
-
-  Future<List<PhListingMessage>> getMessages(
-    String listingId,
-    String bookingId,
-  ) async {
-    final raw =
-        await _api.get(ApiEndpoints.phListingMessages(listingId, bookingId));
-    final myId = _myId;
-    return ApiClient.itemsOf(raw)
-        .map((e) =>
-            PhListingMessage.fromJson(e as Map<String, dynamic>, myId))
-        .toList();
-  }
-
-  Future<PhListingMessage> sendMessage(
-    String listingId,
-    String bookingId,
-    String content,
-  ) async {
-    final data = await _api.post(
-      ApiEndpoints.phListingMessages(listingId, bookingId),
+      ApiEndpoints.phListingComments(listingId),
       data: {'content': content},
     ) as Map<String, dynamic>;
-    return PhListingMessage.fromJson(data, _myId);
+    return PhListingComment.fromJson(data);
   }
+
+  /// الخادم يسمح للمؤلّف وحده بالحذف — نُخفي الزرّ عن غيره أصلاً.
+  Future<void> deleteComment(String listingId, String commentId) =>
+      _api.delete(ApiEndpoints.phListingCommentById(listingId, commentId));
 }

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
@@ -688,6 +690,24 @@ class _MedicineDetailSheet extends StatelessWidget {
                 context, 'سعر الصيدلي', item.pricePharmacist, item.currency),
             _priceRow(
                 context, 'سعر الجمهور', item.pricePublic, item.currency),
+            const SizedBox(height: AppSpacing.lg),
+            // الكتالوج يجيب «ما هذا الدواء وكم سعره في النشرة». هذا الزرّ
+            // يصل بالسؤال التالي: «من يبيعه الآن وبكم؟» — ومعه البدائل
+            // التي تحمل تركيبه العلمي نفسه، لتبقى أمامه خيارات حين لا
+            // يعرضه مستودعٌ يخدم مدينته.
+            AppButton(
+              label: 'ابحث عنه في المستودعات',
+              onPressed: () {
+                // المُوجِّه يُلتقط قبل الإغلاق: سياق الورقة يُبطَل بالإغلاق
+                // فلا يصلح للدفع بعده.
+                final router = GoRouter.of(context);
+                Navigator.of(context).pop();
+                router.push(TRoutes.phMedicineInWarehouses(
+                  catalogItemId: item.id,
+                  name: item.displayName,
+                ));
+              },
+            ),
           ],
         ),
       ),

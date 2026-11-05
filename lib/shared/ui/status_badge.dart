@@ -61,7 +61,16 @@ class StatusBadge extends StatelessWidget {
               decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
             ),
           const SizedBox(width: 6),
-          Text(label, style: context.text.bodySmall?.copyWith(color: fg)),
+          // تسمية طويلة («قارب انتهاء الصلاحية») في صفٍّ ضيّق كانت تُفيضه
+          // بشريط مشطوب. الشارة تتقلّص الآن وتحذف بالنقاط متى حُوصرت.
+          Flexible(
+            child: Text(
+              label,
+              style: context.text.bodySmall?.copyWith(color: fg),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

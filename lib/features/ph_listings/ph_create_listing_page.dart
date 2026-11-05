@@ -1,16 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/models/medicine_catalog_models.dart';
+import 'package:tawrid_app/models/pharmacy_auth_models.dart';
 import 'package:tawrid_app/models/ph_listing_models.dart';
+import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/repositories/ph_listing_repository.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/widgets/app_states.dart';
 
 // إنشاء إعلان جديد «صيدلي إلى صيدلي».
-// المحافظة والمدينة تُملأ تلقائياً من ملف الصيدلية (قابلة للتعديل).
+//
+// الدواء يُختار من الكتالوج لا يُكتب: الاسم المكتوب بخطّ اليد لا يطابقه بحث
+// صيدليٍّ آخر، فيضيع الإعلان. وللدواء خارج الكتالوج مخرجٌ صريح بإدخال يدوي.
+//
+// المنطقة ليست حقلاً: تُؤخذ من ملف صيدلية المعلِن ضمنياً — الإعلان محلّي
+// بطبيعته، وتركها قابلة للتعديل يسمح بإعلانٍ في مدينة لا يملك فيها شيئاً.
 class PhCreateListingPage extends ConsumerStatefulWidget {
   const PhCreateListingPage({super.key});
 
@@ -23,39 +34,51 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _medicineCtrl = TextEditingController();
-  final _genericCtrl = TextEditingController();
   final _manufacturerCtrl = TextEditingController();
   final _quantityCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
-  final _govCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
 
   PhListingReason _reason = PhListingReason.slowMoving;
   DateTime? _expiryDate;
   bool _submitting = false;
   String? _submitError;
 
-  @override
-  void initState() {
-    super.initState();
-    _prefillRegion();
+  /// الصنف المختار من الكتالوج — null يعني إدخالاً يدوياً أو لا اختيار بعد.
+  MedicineCatalogItem? _picked;
+
+  /// مخرج الدواء غير المفهرس: يكشف حقل الاسم الحرّ.
+  bool _manualEntry = false;
+
+  Future<void> _pickFromCatalog() async {
+    final item = await showModalBottomSheet<MedicineCatalogItem>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _CatalogPickerSheet(),
+    );
+    if (item == null || !mounted) return;
+    setState(() {
+      _picked = item;
+      _manualEntry = false;
+      _medicineCtrl.text = item.displayName;
+      _manufacturerCtrl.text = item.manufacturerName;
+    });
   }
 
-  Future<void> _prefillRegion() async {
-    try {
-      final me = await ref.read(pharmacyProfileRepositoryProvider).getMe();
-      if (!mounted) return;
-      _govCtrl.text = me.governorate;
-      _cityCtrl.text = me.city;
-    } catch (_) {}
+  void _clearPicked() {
+    setState(() {
+      _picked = null;
+      _medicineCtrl.clear();
+      _manufacturerCtrl.clear();
+    });
   }
 
   @override
   void dispose() {
     for (final c in [
-      _medicineCtrl, _genericCtrl, _manufacturerCtrl, _quantityCtrl,
-      _priceCtrl, _notesCtrl, _govCtrl, _cityCtrl,
+      _medicineCtrl, _manufacturerCtrl, _quantityCtrl,
+      _priceCtrl, _notesCtrl,
     ]) {
       c.dispose();
     }
@@ -75,8 +98,20 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_medicineCtrl.text.trim().isEmpty) {
+      setState(() => _submitError = 'اختر الدواء من الكتالوج أو أدخل اسمه');
+      return;
+    }
     if (_reason == PhListingReason.nearExpiry && _expiryDate == null) {
       setState(() => _submitError = 'يرجى تحديد تاريخ انتهاء الصلاحية');
+      return;
+    }
+    // المنطقة تُؤخذ من ملف الصيدلية — بلا ملف لا إعلان، فإرسال منطقة
+    // فارغة يُنشئ إعلاناً لا يراه أحد في بحث المنطقة.
+    final me = ref.read(pharmacyMeProvider).value;
+    if (me == null || me.governorate.trim().isEmpty) {
+      setState(() => _submitError =
+          'تعذّرت قراءة منطقة صيدليتك — حدّث الصفحة ثم أعد المحاولة');
       return;
     }
 
@@ -88,9 +123,6 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
     try {
       final req = CreatePhListingRequest(
         medicineName: _medicineCtrl.text.trim(),
-        genericName: _genericCtrl.text.trim().isEmpty
-            ? null
-            : _genericCtrl.text.trim(),
         manufacturer: _manufacturerCtrl.text.trim().isEmpty
             ? null
             : _manufacturerCtrl.text.trim(),
@@ -99,8 +131,8 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
         expiryDate: _expiryDate,
         reason: _reason,
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-        governorate: _govCtrl.text.trim(),
-        city: _cityCtrl.text.trim(),
+        governorate: me.governorate.trim(),
+        city: me.city.trim(),
       );
 
       await ref.read(phListingRepositoryProvider).createListing(req);
@@ -131,19 +163,37 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
             // ── معلومات الدواء ─────────────────────────────────────────────
             _SectionLabel(label: 'معلومات الدواء'),
             const SizedBox(height: AppSpacing.sm),
-            AppTextField(
-              controller: _medicineCtrl,
-              label: 'اسم الدواء *',
-              textInputAction: TextInputAction.next,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+            _MedicinePickerField(
+              picked: _picked,
+              onPick: _pickFromCatalog,
+              onClear: _clearPicked,
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              controller: _genericCtrl,
-              label: 'الاسم الجنيسي (اختياري)',
-              textInputAction: TextInputAction.next,
-            ),
+
+            // مخرج الدواء غير المفهرس — لا يُعرض ما دام هناك صنف مختار.
+            if (_picked == null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              if (!_manualEntry)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton(
+                    onPressed: () => setState(() => _manualEntry = true),
+                    child: Text(
+                      'الدواء غير موجود في الكتالوج؟ أدخل اسمه يدوياً',
+                      style: context.text.bodySmall
+                          ?.copyWith(color: context.colors.primary),
+                    ),
+                  ),
+                )
+              else
+                AppTextField(
+                  controller: _medicineCtrl,
+                  label: 'اسم الدواء *',
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                ),
+            ],
+
             const SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: _manufacturerCtrl,
@@ -278,35 +328,8 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
 
             // ── المنطقة ───────────────────────────────────────────────────
             _SectionLabel(label: 'المنطقة'),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'تُملأ تلقائياً من ملف صيدليتك — عدّلها إن لزم.',
-              style: context.text.bodySmall?.copyWith(color: tk.hint),
-            ),
             const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    controller: _govCtrl,
-                    label: 'المحافظة *',
-                    textInputAction: TextInputAction.next,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: AppTextField(
-                    controller: _cityCtrl,
-                    label: 'المدينة *',
-                    textInputAction: TextInputAction.next,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-                  ),
-                ),
-              ],
-            ),
+            _RegionRow(me: ref.watch(pharmacyMeProvider)),
 
             const SizedBox(height: AppSpacing.xl),
 
@@ -349,6 +372,369 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── حقل اختيار الدواء من الكتالوج ───────────────────────────────────────
+class _MedicinePickerField extends StatelessWidget {
+  const _MedicinePickerField({
+    required this.picked,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final MedicineCatalogItem? picked;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final item = picked;
+
+    return Material(
+      color: item == null ? cs.surface : tk.brandSurfaceSubtle,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onPick,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: item == null ? cs.outline : cs.primary,
+              width: item == null ? 1 : 1.5,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: item == null ? tk.brandSurface : cs.primary,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Center(
+                  child: AppIcon(
+                    AppIcons.pill,
+                    size: 18,
+                    color: item == null ? cs.primary : cs.onPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: item == null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('اختر الدواء من الكتالوج *',
+                              style: context.text.bodyMedium),
+                          const SizedBox(height: 2),
+                          Text(
+                            'ابحث بالاسم التجاري أو الجنيسي أو الباركود',
+                            style: context.text.labelSmall
+                                ?.copyWith(color: tk.hint),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            item.displayName,
+                            style: context.text.bodyMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _subtitleOf(item),
+                            style: context.text.labelSmall
+                                ?.copyWith(color: tk.hint),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              if (item == null)
+                AppIcon(AppIcons.chevronForwardRtl, size: 16, color: cs.primary)
+              else
+                InkWell(
+                  onTap: onClear,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    child: AppIcon(AppIcons.x, size: 16, color: cs.primary),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// «الجنيسي · الشركة» — وبلا شركة الجنيسي وحده، فلا تبقى نقطة معلّقة.
+String _subtitleOf(MedicineCatalogItem m) => m.manufacturerName.isEmpty
+    ? m.genericName
+    : '${m.genericName} · ${m.manufacturerName}';
+
+// ── ورقة البحث في الكتالوج ──────────────────────────────────────────────
+class _CatalogPickerSheet extends ConsumerStatefulWidget {
+  const _CatalogPickerSheet();
+
+  @override
+  ConsumerState<_CatalogPickerSheet> createState() =>
+      _CatalogPickerSheetState();
+}
+
+class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+
+  List<MedicineCatalogItem> _results = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String _) {
+    _debounce?.cancel();
+    // أربعة أعشار الثانية: كتابة اسم دواء لا تستحق رحلة شبكة لكل حرف.
+    _debounce = Timer(const Duration(milliseconds: 400), _run);
+  }
+
+  Future<void> _run() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final q = _searchCtrl.text.trim();
+      final list = await ref
+          .read(medicineCatalogRepositoryProvider)
+          .search(name: q.isEmpty ? null : q, limit: 30);
+      if (!mounted) return;
+      setState(() {
+        _results = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = ApiException.from(e).message;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.outline,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('اختيار الدواء', style: context.text.titleLarge),
+            const SizedBox(height: AppSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+              child: AppSearchBar(
+                controller: _searchCtrl,
+                hint: 'ابحث بالاسم التجاري أو الجنيسي أو الباركود',
+                onChanged: _onChanged,
+                onSubmitted: (_) => _run(),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Flexible(
+              child: _loading
+                  ? const AppListSkeleton(variant: SkeletonVariant.row)
+                  : _error != null
+                      ? ErrorState(message: _error!, onRetry: _run)
+                      : _results.isEmpty
+                          ? const UiEmpty(
+                              appIcon: AppIcons.pill,
+                              message: 'لا دواء يطابق بحثك',
+                              description: 'جرّب اسماً آخر، أو أغلق هذه '
+                                  'النافذة وأدخل الاسم يدوياً.',
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.page,
+                                0,
+                                AppSpacing.page,
+                                AppSpacing.xl,
+                              ),
+                              itemCount: _results.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: AppSpacing.sm),
+                              itemBuilder: (_, i) {
+                                final m = _results[i];
+                                return AppCard(
+                                  onTap: () => Navigator.pop(context, m),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: tk.brandSurface,
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  AppRadius.sm),
+                                        ),
+                                        child: Center(
+                                          child: AppIcon(AppIcons.pill,
+                                              size: 18, color: cs.primary),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.md),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              m.displayName,
+                                              style: context.text.bodyMedium,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _subtitleOf(m),
+                                              style: context.text.labelSmall
+                                                  ?.copyWith(color: tk.hint),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── المنطقة (عرض فقط) ───────────────────────────────────────────────────
+// تُؤخذ من ملف صيدلية المعلِن ولا تُحرَّر: الإعلان محلّي، ومنطقته منطقة
+// صاحبه لا خياراً يُكتب.
+class _RegionRow extends StatelessWidget {
+  const _RegionRow({required this.me});
+
+  final AsyncValue<PharmacyMe> me;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    final (String text, bool pending) = switch (me) {
+      AsyncData(:final value) when value.governorate.isNotEmpty => (
+          value.city.isEmpty
+              ? value.governorate
+              : '${value.city}، ${value.governorate}',
+          false,
+        ),
+      AsyncError() => ('تعذّرت قراءة منطقة صيدليتك', true),
+      _ => ('جارٍ قراءة منطقة صيدليتك…', true),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: tk.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: cs.outline),
+      ),
+      child: Row(
+        children: [
+          AppIcon(
+            AppIcons.mapPin,
+            size: 18,
+            color: pending ? tk.hint : cs.primary,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  text,
+                  style: context.text.bodyMedium?.copyWith(
+                    color: pending ? tk.hint : cs.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'تُؤخذ من ملف صيدليتك ولا تُعدَّل هنا',
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

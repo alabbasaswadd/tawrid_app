@@ -29,6 +29,7 @@ class PhPriceSearchPage extends ConsumerStatefulWidget {
     this.warehouseId,
     this.warehouseName,
     this.catalogItemId,
+    this.includeAlternatives = false,
     super.key,
   });
 
@@ -43,6 +44,11 @@ class PhPriceSearchPage extends ConsumerStatefulWidget {
   /// مقارنة صنف بعينه عبر كل المستودعات — من زرّ «مقارنة الأسعار» في بطاقة
   /// نتيجة. يحصر المطابقة بصنف الكتالوج، والترتيب الافتراضي هنا بالسعر.
   final String? catalogItemId;
+
+  /// يضمّ البدائل: أدويةً أخرى بالتركيب العلمي نفسه، في قسمٍ مستقلّ تحت
+  /// الدواء المطلوب. يحتاج [catalogItemId] — من دونه لا يعرف الخادم
+  /// أيّ تركيب يقصد، فلا بدائل.
+  final bool includeAlternatives;
 
   @override
   ConsumerState<PhPriceSearchPage> createState() => _PhPriceSearchPageState();
@@ -120,6 +126,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
         manufacturer: _manufacturer.isEmpty ? null : _manufacturer,
         source: _source,
         sort: _sort,
+        includeAlternatives: widget.includeAlternatives,
         limit: _pageSize,
         offset: reset ? 0 : _results.length,
       );
@@ -156,7 +163,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   }
 
   Future<void> _openFilters() async {
-    final applied = await showModalBottomSheet<(MedicineSearchSource, MedicineSearchSort, String)>(
+    final applied = await showModalBottomSheet<_AppliedPriceFilters>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -168,12 +175,22 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       ),
     );
     if (applied == null || !mounted) return;
-    if (applied.$1 == _source && applied.$2 == _sort && applied.$3 == _manufacturer) return;
+    if (applied.source == _source &&
+        applied.sort == _sort &&
+        applied.manufacturer == _manufacturer) {
+      return;
+    }
     setState(() {
-      _source = applied.$1;
-      _sort = applied.$2;
-      _manufacturer = applied.$3;
+      _source = applied.source;
+      _sort = applied.sort;
+      _manufacturer = applied.manufacturer;
     });
+    _run(reset: true);
+  }
+
+  /// رفع فلتر الشركة من شريحته مباشرةً — بلا فتح ورقة الفلاتر.
+  void _clearManufacturer() {
+    setState(() => _manufacturer = '');
     _run(reset: true);
   }
 
@@ -214,7 +231,11 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
 
     return Scaffold(
       appBar: InnerTopBar(
-        title: scoped ? 'البحث في المستودع' : 'بحث الأسعار',
+        title: widget.includeAlternatives
+            ? 'توفّره في المستودعات'
+            : scoped
+                ? 'البحث في المستودع'
+                : 'بحث الأسعار',
         // زر السلّة في الطرف المقابل لزر الرجوع (Figma).
         trailing: CartButton(
           count: cartCount,
@@ -241,9 +262,9 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
             ),
           ),
 
-          // نطاق البحث محصور بمستودع: نقوله صراحةً، فنتيجة واحدة بلا سياق
+          // الفلتر المطبَّق يبقى مرئياً طوال البحث: نتيجة واحدة بلا سياق
           // تُقرأ كأنها كل ما في السوق.
-          if (scoped && widget.warehouseName != null)
+          if (_manufacturer.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.page,
@@ -251,25 +272,12 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
                 AppSpacing.page,
                 0,
               ),
-              child: Row(
-                children: [
-                  AppIcon(
-                    AppIcons.warehouse,
-                    size: 14,
-                    color: context.colors.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'النتائج من «${widget.warehouseName}» وحده',
-                      style: context.text.labelSmall?.copyWith(
-                        color: context.colors.primary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: _ActiveFilterChip(
+                  label: _manufacturer,
+                  onRemove: _clearManufacturer,
+                ),
               ),
             ),
 
@@ -316,6 +324,65 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     );
   }
 
+  /// «من العروض» ثم «تسعير مباشر» داخل مجموعةٍ واحدة من النتائج.
+  List<Widget> _sourceSections(List<MedicineSearchResult> rows, bool grouped) {
+    if (!grouped) return [for (final r in rows) _card(r)];
+
+    final offers = rows.where((r) => r.isOffer).toList();
+    final direct = rows.where((r) => !r.isOffer).toList();
+    return [
+      if (offers.isNotEmpty) ...[
+        Text('من العروض', style: context.text.titleMedium),
+        const SizedBox(height: AppSpacing.md),
+        for (final r in offers) _card(r),
+      ],
+      if (direct.isNotEmpty) ...[
+        if (offers.isNotEmpty) const SizedBox(height: AppSpacing.sm),
+        Text('تسعير مباشر من المستودعات', style: context.text.titleMedium),
+        const SizedBox(height: AppSpacing.md),
+        for (final r in direct) _card(r),
+      ],
+    ];
+  }
+
+  /// بحث التوفّر يقسم أولاً بنوع المطابقة — الدواء المطلوب ثم ما يشاركه
+  /// التركيب — وتقسيم المصدر يبقى داخل كل مجموعة: «بديل ضمن عرض» و«الدواء
+  /// نفسه بسعر مباشر» قراران مختلفان لا يصحّ خلطهما في قائمة واحدة.
+  List<Widget> _matchSections(bool grouped) {
+    if (!widget.includeAlternatives) return _sourceSections(_results, grouped);
+
+    final same = _results.where((r) => !r.isAlternative).toList();
+    final alt = _results.where((r) => r.isAlternative).toList();
+
+    return [
+      if (same.isNotEmpty) ...[
+        const AppSectionHeader(title: 'هذا الدواء'),
+        const SizedBox(height: AppSpacing.md),
+        ..._sourceSections(same, grouped),
+      ] else if (alt.isNotEmpty)
+        // غياب الدواء نفسه خبرٌ يخصّ الصيدلي: بلا هذا السطر تبدو البدائل
+        // وكأنها هو.
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: Text(
+            'لا مستودع يخدم مدينتك يعرض هذا الدواء بعينه — وهذه أدوية '
+            'تحمل تركيبه العلمي نفسه.',
+            style: context.text.bodySmall?.copyWith(color: context.tokens.hint),
+          ),
+        ),
+      if (alt.isNotEmpty) ...[
+        if (same.isNotEmpty) const SizedBox(height: AppSpacing.lg),
+        const AppSectionHeader(
+          title: 'بدائل بالتركيب العلمي نفسه',
+          subtitle: 'المادة الفعّالة ذاتها بشركة أو شكل دوائي مختلف — '
+              'راجِع الجرعة قبل الاستبدال.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        ..._sourceSections(alt, grouped),
+      ],
+    ];
+  }
+
   Widget _buildBody() {
     // هيكل بطاقات شبيه بنتائج البحث — انتظارٌ يُظهر شكل ما سيأتي
     // بدل دوّارة لا تقول شيئاً.
@@ -353,8 +420,6 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     // الترتيب المسطّح (سعراً أو مسافةً) طلبٌ صريح بخلط المصدرين، فتقسيمه
     // إلى قسمين يناقضه. القسمان للترتيب الافتراضي وحده.
     final grouped = _sort == MedicineSearchSort.byDefault;
-    final offers = _results.where((r) => r.isOffer).toList();
-    final direct = _results.where((r) => !r.isOffer).toList();
 
     return ListView(
       controller: _scrollController,
@@ -365,20 +430,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
         AppSpacing.x3l,
       ),
       children: [
-        if (grouped) ...[
-          if (offers.isNotEmpty) ...[
-            Text('من العروض', style: context.text.titleMedium),
-            const SizedBox(height: AppSpacing.md),
-            for (final r in offers) _card(r),
-          ],
-          if (direct.isNotEmpty) ...[
-            if (offers.isNotEmpty) const SizedBox(height: AppSpacing.sm),
-            Text('تسعير مباشر من المستودعات', style: context.text.titleMedium),
-            const SizedBox(height: AppSpacing.md),
-            for (final r in direct) _card(r),
-          ],
-        ] else
-          for (final r in _results) _card(r),
+        ..._matchSections(grouped),
 
         if (_loadingMore)
           const Padding(
@@ -708,8 +760,24 @@ class _FiltersButton extends StatelessWidget {
   }
 }
 
-// لوحة فلاتر الأسعار (Figma: الصيدلي / لوحة فلاتر الأسعار) — المصدر
-// والترتيب والشركة المصنّعة، مع «مسح الكل» وزر «تطبيق» واحد.
+// ── لوحة فلاتر الأسعار ───────────────────────────────────────────────────
+// (Figma: الصيدلي / لوحة فلاتر الأسعار) — المستودع والشركة المصنّعة والمصدر
+// والترتيب، مع «مسح الكل» وزر «تطبيق» واحد.
+
+// نتيجة ورقة الفلاتر — سجلّ واحد بدل صفّ مجهول الأسماء، فإضافة فلتر
+// جديد لا تُربك ترتيب الحقول عند الاستدعاء.
+class _AppliedPriceFilters {
+  const _AppliedPriceFilters({
+    required this.source,
+    required this.sort,
+    required this.manufacturer,
+  });
+
+  final MedicineSearchSource source;
+  final MedicineSearchSort sort;
+  final String manufacturer;
+}
+
 class _PriceFiltersSheet extends ConsumerStatefulWidget {
   const _PriceFiltersSheet({
     required this.source,
@@ -722,8 +790,8 @@ class _PriceFiltersSheet extends ConsumerStatefulWidget {
   final MedicineSearchSort sort;
   final String manufacturer;
 
-  /// بحث داخل مستودع واحد — يحمِّل شركاته الفعلية ليختار منها الصيدلي بدل
-  /// أن يكتب اسم شركة باسم المستودع كلّه.
+  /// المستودع المحصور به البحث — يأتي من شاشة المستودع ولا يُغيَّر من هنا.
+  /// يُستعمل لتحميل شركات ذلك المستودع وحدها بدل كل شركات الكتالوج.
   final String? warehouseId;
 
   @override
@@ -731,9 +799,15 @@ class _PriceFiltersSheet extends ConsumerStatefulWidget {
 }
 
 class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
+  /// سقف الخيارات المعروضة قبل الإحالة إلى حقل البحث — قائمة بلا سقف
+  /// تبتلع الورقة كلها، وقائمة مقصوصة بلا إخبار تُخفي خيارات موجودة.
+  static const int _maxOptions = 8;
+
   late MedicineSearchSource _source = widget.source;
   late MedicineSearchSort _sort = widget.sort;
-  late String? _pickedMfr = widget.manufacturer.isEmpty ? null : widget.manufacturer;
+  late String? _pickedMfr =
+      widget.manufacturer.isEmpty ? null : widget.manufacturer;
+
   final _mfrSearchCtrl = TextEditingController();
 
   List<String> _manufacturers = [];
@@ -743,6 +817,12 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
   void initState() {
     super.initState();
     _loadManufacturers();
+  }
+
+  @override
+  void dispose() {
+    _mfrSearchCtrl.dispose();
+    super.dispose();
   }
 
   // داخل مستودع واحد: شركاته الفعلية وحدها. غير محصور: كل شركات الكتالوج.
@@ -759,6 +839,8 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
       setState(() {
         _manufacturers = list;
         _loadingMfr = false;
+        // شركة مختارة لا يبيعها المستودع الجديد ليست فلتراً بل نتيجة صفرية.
+        if (_pickedMfr != null && !list.contains(_pickedMfr)) _pickedMfr = null;
       });
     } catch (_) {
       if (!mounted) return;
@@ -773,32 +855,24 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
   }
 
   @override
-  void dispose() {
-    _mfrSearchCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final cs = context.colors;
 
     return SafeArea(
       top: false,
       child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page,
-          10,
-          AppSpacing.page,
-          AppSpacing.xl,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: 10),
             Center(
               child: Container(
                 width: 40,
@@ -811,118 +885,318 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            Row(
-              children: [
-                Expanded(
-                  child: Text('فلاتر البحث', style: context.text.headlineSmall),
-                ),
-                TextButton(
-                  onPressed: () => setState(() {
-                    _source = MedicineSearchSource.all;
-                    _sort = MedicineSearchSort.byDefault;
-                    _pickedMfr = null;
-                    _mfrSearchCtrl.clear();
-                  }),
-                  child: const Text('مسح الكل'),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-            Text('الشركة المصنّعة', style: context.text.titleMedium),
-            const SizedBox(height: AppSpacing.sm),
-            if (_loadingMfr)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+              child: Row(
+                children: [
+                  Expanded(
+                    child:
+                        Text('فلاتر البحث', style: context.text.headlineSmall),
                   ),
-                ),
-              )
-            else if (_manufacturers.isEmpty)
-              Text(
-                widget.warehouseId == null
-                    ? 'لا شركات مسجَّلة بعد'
-                    : 'لا شركات مسجَّلة لهذا المستودع بعد',
-                style: context.text.bodySmall?.copyWith(color: context.tokens.hint),
-              )
-            else ...[
-              AppTextField(
-                controller: _mfrSearchCtrl,
-                hint: 'ابحث في الشركات…',
-                onChanged: (_) => setState(() {}),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _source = MedicineSearchSource.all;
+                        _sort = MedicineSearchSort.byDefault;
+                        _pickedMfr = null;
+                        _mfrSearchCtrl.clear();
+                      });
+                    },
+                    child: const Text('مسح الكل'),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 180),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _filteredManufacturers.length,
-                  itemBuilder: (context, i) {
-                    final name = _filteredManufacturers[i];
-                    final picked = _pickedMfr == name;
-                    return ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                      ),
-                      title: Text(name, style: context.text.bodyMedium),
-                      trailing: picked
-                          ? AppIcon(AppIcons.check, size: 16, color: context.colors.primary)
-                          : null,
-                      onTap: () =>
-                          setState(() => _pickedMfr = picked ? null : name),
-                    );
-                  },
+            ),
+
+            // الورقة تطول بقائمتي المستودعات والشركات — المحتوى يتمرّر
+            // وزرّ التطبيق يبقى مثبّتاً أسفلها فلا يُطارَد بالتمرير.
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.page,
+                  AppSpacing.sm,
+                  AppSpacing.page,
+                  MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _section(context, 'الشركة المصنّعة'),
+                    const SizedBox(height: AppSpacing.sm),
+                    _manufacturerSection(context),
+
+                    const SizedBox(height: AppSpacing.lg),
+                    _section(context, 'المصدر'),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        for (final s in MedicineSearchSource.values)
+                          AppFilterChip(
+                            label: s.label,
+                            selected: _source == s,
+                            onTap: () => setState(() => _source = s),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+                    _section(context, 'الترتيب'),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        for (final s in MedicineSearchSort.values)
+                          AppFilterChip(
+                            label: s.label,
+                            selected: _sort == s,
+                            onTap: () => setState(() => _sort = s),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-
-            const SizedBox(height: AppSpacing.lg),
-            Text('المصدر', style: context.text.titleMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              children: [
-                for (final s in MedicineSearchSource.values)
-                  AppFilterChip(
-                    label: s.label,
-                    selected: _source == s,
-                    onTap: () => setState(() => _source = s),
-                  ),
-              ],
             ),
 
-            const SizedBox(height: AppSpacing.lg),
-            Text('الترتيب', style: context.text.titleMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (final s in MedicineSearchSort.values)
-                  AppFilterChip(
-                    label: s.label,
-                    selected: _sort == s,
-                    onTap: () => setState(() => _sort = s),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                AppSpacing.md,
+                AppSpacing.page,
+                AppSpacing.xl,
+              ),
+              child: AppButton(
+                label: 'تطبيق',
+                onPressed: () => Navigator.pop(
+                  context,
+                  _AppliedPriceFilters(
+                    source: _source,
+                    sort: _sort,
+                    manufacturer: _pickedMfr ?? '',
                   ),
-              ],
-            ),
-
-            const SizedBox(height: AppSpacing.x2l),
-            AppButton(
-              label: 'تطبيق',
-              onPressed: () => Navigator.pop(
-                context,
-                (_source, _sort, _pickedMfr ?? ''),
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _section(BuildContext context, String title) =>
+      Text(title, style: context.text.titleMedium);
+
+  // ── قائمة الشركات المصنّعة ─────────────────────────────────────────────
+  Widget _manufacturerSection(BuildContext context) {
+    final tk = context.tokens;
+
+    if (_loadingMfr) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (_manufacturers.isEmpty) {
+      return Text(
+        widget.warehouseId == null
+            ? 'لا شركات مسجَّلة بعد'
+            : 'لا شركات مسجَّلة لهذا المستودع بعد',
+        style: context.text.bodySmall?.copyWith(color: tk.hint),
+      );
+    }
+
+    final all = _filteredManufacturers;
+    final shown = all.take(_maxOptions).toList();
+    final hidden = all.length - shown.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_manufacturers.length > 4) ...[
+          AppTextField(
+            controller: _mfrSearchCtrl,
+            hint: 'ابحث في الشركات…',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+
+        _FilterOptionRow(
+          icon: AppIcons.search,
+          title: 'كل الشركات',
+          selected: _pickedMfr == null,
+          onTap: () => setState(() => _pickedMfr = null),
+        ),
+
+        if (all.isEmpty && _mfrSearchCtrl.text.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              'لا شركة تطابق بحثك',
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+            ),
+          ),
+
+        for (final name in shown) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _FilterOptionRow(
+            icon: AppIcons.package,
+            title: name,
+            selected: _pickedMfr == name,
+            onTap: () => setState(
+                () => _pickedMfr = _pickedMfr == name ? null : name),
+          ),
+        ],
+
+        if (hidden > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              'و $hidden شركة أخرى — استخدم البحث للتضييق',
+              style: context.text.labelSmall?.copyWith(color: tk.hint),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// سطر خيار في قائمة فلتر: أيقونة في مربّع، عنوان وسطر وصف، وعلامة اختيار.
+// المختار يُعلَّم بالحدّ ولون السطح معاً لا باللون وحده.
+class _FilterOptionRow extends StatelessWidget {
+  const _FilterOptionRow({
+    required this.icon,
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AppIcons icon;
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Material(
+      color: selected ? tk.brandSurfaceSubtle : cs.surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: selected ? cs.primary : cs.outline,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: selected ? cs.primary : tk.brandSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Center(
+                  child: AppIcon(
+                    icon,
+                    size: 16,
+                    color: selected ? cs.onPrimary : cs.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  title,
+                  style: context.text.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppIcon(AppIcons.check, size: 16, color: cs.primary),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// شريحة فلتر مطبَّق — اسم الشركة المصنّعة ظاهراً طوال البحث مع × لرفعه.
+// النتيجة بلا سياق فلترها تُقرأ كأنها كل ما في السوق.
+class _ActiveFilterChip extends StatelessWidget {
+  const _ActiveFilterChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Container(
+      padding: const EdgeInsetsDirectional.only(
+        start: AppSpacing.md,
+        end: AppSpacing.xs,
+        top: 4,
+        bottom: 4,
+      ),
+      decoration: BoxDecoration(
+        color: tk.brandSurface,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIcon(AppIcons.package, size: 14, color: cs.primary),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              label,
+              style: context.text.labelSmall?.copyWith(color: cs.primary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: AppIcon(AppIcons.x, size: 12, color: cs.primary),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -29,6 +29,23 @@ enum MedicineSearchSort {
   final String label;
 }
 
+// هل الصفّ هو الدواء المطلوب نفسه أم بديلٌ بالتركيب العلمي نفسه؟
+// يصل من الخادم فقط حين يُطلب ضمّ البدائل؛ وإلا فكل الصفوف sameMedicine.
+enum MedicineMatchKind {
+  sameMedicine(1),
+  sameComposition(2);
+
+  const MedicineMatchKind(this.code);
+  final int code;
+
+  // خادم أقدم لا يرسل الحقل: النتيجة هي الدواء المطلوب لا بديل عنه.
+  static MedicineMatchKind fromCode(int? code) =>
+      MedicineMatchKind.values.firstWhere(
+        (e) => e.code == code,
+        orElse: () => MedicineMatchKind.sameMedicine,
+      );
+}
+
 enum MedicineResultType {
   offer(1),
   warehouseListing(2);
@@ -45,6 +62,7 @@ enum MedicineResultType {
 
 class MedicineSearchResult {
   final MedicineResultType resultType;
+  final MedicineMatchKind matchKind;
 
   // ── مصدر العروض فقط ────────────────────────────────────────────────
   final String? salesOfferId;
@@ -97,6 +115,7 @@ class MedicineSearchResult {
 
   const MedicineSearchResult({
     required this.resultType,
+    this.matchKind = MedicineMatchKind.sameMedicine,
     this.salesOfferId,
     this.salesOfferTitle,
     this.salesOfferItemId,
@@ -131,6 +150,7 @@ class MedicineSearchResult {
     double? d(String key) => (j[key] as num?)?.toDouble();
     return MedicineSearchResult(
       resultType: MedicineResultType.fromCode(j['resultType'] as int?),
+      matchKind: MedicineMatchKind.fromCode(j['matchKind'] as int?),
       salesOfferId: j['salesOfferId'] as String?,
       salesOfferTitle: j['salesOfferTitle'] as String?,
       salesOfferItemId: j['salesOfferItemId'] as String?,
@@ -169,6 +189,9 @@ class MedicineSearchResult {
   }
 
   bool get isOffer => resultType == MedicineResultType.offer;
+
+  /// بديلٌ بالتركيب نفسه لا الدواء المطلوب — يُعرَض في قسمه وحده.
+  bool get isAlternative => matchKind == MedicineMatchKind.sameComposition;
 
   /// صنف يتعامل به المستودع بلا سعر معلن — يُعرَض ولا يُضاف إلى السلّة.
   bool get isUnpriced => !hasPrice || netUnitPrice == null;

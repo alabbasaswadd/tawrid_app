@@ -3,8 +3,15 @@ import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/models/ph_listing_models.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 
-// بطاقة إعلان «صيدلي إلى صيدلي» — تُعرض في قائمة التصفح وقائمة إعلاناتي.
+// بطاقة إعلان «صيدلي إلى صيدلي» — في قائمة التصفح وقائمة إعلاناتي.
+//
+// البطاقة تُقرأ بنظرة لا بتدقيق، فلها ثلاث طبقات واضحة بدل صفٍّ من
+// الشرائح الرمادية المتساوية:
+//   ١ الرأس:  اسم الدواء وجنيسه ثم سبب البيع — ما هو هذا الإعلان.
+//   ٢ الصفقة: سعر الوحدة بارزاً · الكمية · الإجمالي — الرقم هو القرار.
+//   ٣ السياق: الصيدلية والمنطقة، وصلاحية الدواء وعمر الإعلان.
 class PhListingCard extends StatelessWidget {
   const PhListingCard({
     required this.listing,
@@ -16,7 +23,7 @@ class PhListingCard extends StatelessWidget {
   final PhListingSummary listing;
   final VoidCallback onTap;
 
-  /// عند true تُظهر شارة الحجوزات المعلقة (للمالك).
+  /// قائمة «إعلاناتي» — تغيّر نصّ التذييل وتُظهر حالة الإعلان لصاحبه.
   final bool isOwner;
 
   @override
@@ -24,6 +31,7 @@ class PhListingCard extends StatelessWidget {
     final cs = context.colors;
     final tk = context.tokens;
     final l = listing;
+    final dim = l.isListingExpired || l.status == PhListingStatus.closed;
 
     return Material(
       color: Colors.transparent,
@@ -37,219 +45,250 @@ class PhListingCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: l.reason == PhListingReason.nearExpiry
-                  ? tk.warning.withValues(alpha: .4)
+                  ? tk.warning.withValues(alpha: .45)
                   : cs.outline,
             ),
             boxShadow: tk.cardShadow,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── رأس البطاقة ───────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l.medicineName,
-                            style: context.text.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (l.genericName != null) ...[
-                            const SizedBox(height: 1),
-                            Text(
-                              l.genericName!,
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: tk.hint),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              AppIcon(AppIcons.user, size: 11, color: tk.hint),
-                              const SizedBox(width: 3),
-                              Expanded(
-                                child: Text(
-                                  l.pharmacyName,
-                                  style: context.text.bodySmall
-                                      ?.copyWith(color: tk.hint),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        StatusBadge(
-                          label: l.reason.label,
-                          tone: _reasonTone(l.reason),
-                        ),
-                        if (l.isListingExpired) ...[
-                          const SizedBox(height: 4),
-                          StatusBadge(
-                            label: 'منتهي الصلاحية',
-                            tone: StatusTone.danger,
-                          ),
-                        ],
-                        if (isOwner && l.pendingBookingsCount > 0) ...[
-                          const SizedBox(height: 4),
-                          StatusBadge(
-                            label: '${l.pendingBookingsCount} طلب حجز',
-                            tone: StatusTone.info,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── خط فاصل ──────────────────────────────────────────────────
-              Divider(height: 1, color: cs.outline),
-
-              // ── تفاصيل الكمية والسعر والموقع ───────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm,
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _DetailChip(
-                            icon: AppIcons.package,
-                            text: '${l.quantity} وحدة',
-                            color: tk.hint,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _DetailChip(
-                            icon: AppIcons.tag,
-                            text:
-                                '${l.pricePerUnit.toStringAsFixed(0)} ل.س/الوحدة',
-                            color: cs.primary,
-                            bold: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _DetailChip(
-                            icon: AppIcons.mapPin,
-                            text: l.city.isEmpty
-                                ? l.governorate
-                                : '${l.city} · ${l.governorate}',
-                            color: tk.hint,
-                          ),
-                        ),
-                        if (l.expiryDate != null) ...[
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: _DetailChip(
-                              icon: AppIcons.clock,
-                              text:
-                                  'صلاحية الدواء: ${_formatDate(l.expiryDate!)}',
-                              color: tk.warning,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    _DetailChip(
-                      icon: AppIcons.clock,
-                      text: _listingExpiryLabel(l.listingExpiresAt, l.status),
-                      color: l.isListingExpired
-                          ? tk.danger
-                          : l.status == PhListingStatus.booked
-                              ? tk.hint
-                              : tk.hint,
-                    ),
-                    if (l.notes != null && l.notes!.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Text(
-                          l.notes!,
-                          style: context.text.bodySmall
-                              ?.copyWith(color: tk.hint),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // ── تذييل ───────────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: cs.outline)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _timeAgo(l.createdOn),
-                      style: context.text.labelSmall?.copyWith(color: tk.hint),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          isOwner ? 'تفاصيل الإعلان' : 'تفاصيل وحجز',
-                          style: context.text.bodySmall
-                              ?.copyWith(color: cs.primary),
-                        ),
-                        const SizedBox(width: 2),
-                        AppIcon(AppIcons.chevronForwardRtl,
-                            size: 14, color: cs.primary),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // الإعلان المنتهي أو المغلق يبهت كله بدل شارةٍ وحدها — تُقرأ
+          // حالته قبل أن يُقرأ سعره.
+          child: Opacity(
+            opacity: dim ? 0.55 : 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _header(context),
+                _dealStrip(context),
+                _context(context),
+                _footer(context),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  static StatusTone _reasonTone(PhListingReason r) => switch (r) {
-        PhListingReason.nearExpiry => StatusTone.warning,
-        PhListingReason.slowMoving => StatusTone.neutral,
-        PhListingReason.overstocked => StatusTone.info,
-        PhListingReason.other => StatusTone.neutral,
-      };
+  // ── ١ الرأس: ما هو هذا الدواء ──────────────────────────────────────────
+  Widget _header(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final l = listing;
 
-  static String _formatDate(DateTime d) =>
-      '${d.day}/${d.month}/${d.year}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: tk.brandSurface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Center(
+              child: AppIcon(AppIcons.pill, size: 22, color: cs.primary),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.medicineName,
+                  style: context.text.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (l.manufacturer != null && l.manufacturer!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    l.manufacturer!,
+                    style: context.text.bodySmall?.copyWith(color: tk.hint),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // سقفٌ للشارة: تأخذ حاجتها ولا تزاحم اسم الدواء على العرض.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 124),
+            child: StatusBadge(
+              label: l.reason.label,
+              tone: _reasonTone(l.reason),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── ٢ شريط الصفقة: السعر هو القرار ─────────────────────────────────────
+  Widget _dealStrip(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final l = listing;
+    final total = l.pricePerUnit * l.quantity;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: tk.brandSurfaceSubtle,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          // بداية القراءة: سعر الوحدة — أكبر رقم في البطاقة.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'سعر الوحدة',
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
+                Text(
+                  formatMoneyWith(l.pricePerUnit, kPlatformCurrency),
+                  style: context.priceBrandStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Container(width: 1, height: 32, color: cs.outline),
+          const SizedBox(width: AppSpacing.md),
+          // نهاية القراءة: الكمية وقيمتها الكلّية — حجم الصفقة.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${l.quantity} وحدة',
+                style: context.text.titleSmall,
+              ),
+              Text(
+                'الإجمالي ${formatMoneyWith(total, kPlatformCurrency)}',
+                style: context.text.labelSmall?.copyWith(color: tk.hint),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── ٣ السياق: من أين، ومتى ينتهي ───────────────────────────────────────
+  Widget _context(BuildContext context) {
+    final tk = context.tokens;
+    final l = listing;
+    final expired = l.isListingExpired;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Line(
+            icon: AppIcons.user,
+            text: l.pharmacyName,
+            trailingIcon: AppIcons.mapPin,
+            trailingText:
+                l.city.isEmpty ? l.governorate : '${l.city}، ${l.governorate}',
+          ),
+          if (l.expiryDate != null) ...[
+            const SizedBox(height: 6),
+            _Line(
+              icon: AppIcons.calendar,
+              text: 'صلاحية الدواء حتى ${_formatDate(l.expiryDate!)}',
+              color: tk.warning,
+            ),
+          ],
+          const SizedBox(height: 6),
+          _Line(
+            icon: AppIcons.clock,
+            text: _listingExpiryLabel(l.listingExpiresAt, l.status),
+            color: expired ? tk.danger : tk.hint,
+          ),
+          if (l.notes != null && l.notes!.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              l.notes!,
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── التذييل ────────────────────────────────────────────────────────────
+  Widget _footer(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final l = listing;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: cs.outline)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            _timeAgo(l.createdOn),
+            style: context.text.labelSmall?.copyWith(color: tk.hint),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              isOwner ? 'إدارة الإعلان والردّ' : 'التفاصيل والتعليقات',
+              style: context.text.bodySmall?.copyWith(color: cs.primary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 2),
+          AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
+        ],
+      ),
+    );
+  }
+
+  static StatusTone _reasonTone(PhListingReason r) => switch (r) {
+    PhListingReason.nearExpiry => StatusTone.warning,
+    PhListingReason.slowMoving => StatusTone.neutral,
+    PhListingReason.overstocked => StatusTone.info,
+    PhListingReason.other => StatusTone.neutral,
+  };
+
+  static String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
   static String _timeAgo(DateTime d) {
     final diff = DateTime.now().difference(d);
@@ -271,36 +310,53 @@ class PhListingCard extends StatelessWidget {
   }
 }
 
-class _DetailChip extends StatelessWidget {
-  const _DetailChip({
+// سطر سياق: أيقونة ونصّ في بداية القراءة، وزوجٌ ثانٍ اختياري في نهايتها.
+class _Line extends StatelessWidget {
+  const _Line({
     required this.icon,
     required this.text,
-    required this.color,
-    this.bold = false,
+    this.color,
+    this.trailingIcon,
+    this.trailingText,
   });
 
   final AppIcons icon;
   final String text;
-  final Color color;
-  final bool bold;
+  final Color? color;
+  final AppIcons? trailingIcon;
+  final String? trailingText;
 
   @override
   Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final c = color ?? tk.hint;
+    final style = context.text.bodySmall?.copyWith(color: c);
+
     return Row(
       children: [
-        AppIcon(icon, size: 13, color: color),
-        const SizedBox(width: 3),
+        AppIcon(icon, size: 13, color: c),
+        const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
-            style: (context.text.bodySmall ?? const TextStyle()).copyWith(
-              color: color,
-              fontWeight: bold ? FontWeight.w600 : null,
-            ),
+            style: style,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        if (trailingIcon != null && trailingText != null) ...[
+          const SizedBox(width: AppSpacing.md),
+          AppIcon(trailingIcon!, size: 13, color: tk.hint),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              trailingText!,
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ],
     );
   }

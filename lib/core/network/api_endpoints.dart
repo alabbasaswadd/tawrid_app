@@ -104,20 +104,6 @@ abstract final class ApiEndpoints {
   static String phListingComments(String id)   => '$_ph/listings/$id/comments';
   static String phListingCommentById(String id, String commentId) => '$_ph/listings/$id/comments/$commentId';
 
-  // حجوزات الإعلان: إنشاء + تفاصيل + قبول/رفض
-  static String phListingBookings(String id) =>
-      '$_ph/listings/$id/bookings';
-  static String phListingBookingById(String id, String bookingId) =>
-      '$_ph/listings/$id/bookings/$bookingId';
-  static String phListingBookingAccept(String id, String bookingId) =>
-      '$_ph/listings/$id/bookings/$bookingId/accept';
-  static String phListingBookingReject(String id, String bookingId) =>
-      '$_ph/listings/$id/bookings/$bookingId/reject';
-
-  // محادثة الحجز — تُحذف الرسائل تلقائياً من الخادم بعد 6 ساعات
-  static String phListingMessages(String id, String bookingId) =>
-      '$_ph/listings/$id/bookings/$bookingId/messages';
-
   // ── Warehouse: Orders ─────────────────────────────────────────────────────
   static const String whOrders = '$_wh/orders';
   static String whOrderById(String id)     => '$_wh/orders/$id';

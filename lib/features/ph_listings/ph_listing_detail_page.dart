@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
@@ -12,9 +10,11 @@ import 'package:tawrid_app/repositories/ph_listing_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-// تفاصيل الإعلان — عرضان مختلفان بحسب هوية المستخدم:
-//   • المالك: يرى طلبات الحجز + قبول/رفض كل واحدة.
-//   • المتصفّح: يرى التفاصيل الكاملة + زر «احجز وتواصل».
+// تفاصيل الإعلان + نقاشه العلني.
+//
+// لا حجزَ ولا محادثة خاصة: الصيادلة يعلّقون تحت الإعلان باسم صيدلياتهم،
+// وصاحب الإعلان يردّ في المكان نفسه. السؤال الذي يخطر لعشرة يُجاب مرة
+// واحدة أمامهم جميعاً، والإعلان لا يُقفَل على أول من طلبه.
 class PhListingDetailPage extends ConsumerStatefulWidget {
   const PhListingDetailPage({required this.listingId, super.key});
   final String listingId;
@@ -26,15 +26,24 @@ class PhListingDetailPage extends ConsumerStatefulWidget {
 
 class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
   PhListingSummary? _listing;
-  List<PhListingBooking> _bookings = const [];
+  List<PhListingComment> _comments = const [];
   bool _loading = true;
+  bool _sending = false;
   String? _error;
   String? _actionError;
+
+  final _commentCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -45,14 +54,11 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
     try {
       final repo = ref.read(phListingRepositoryProvider);
       final listing = await repo.getListing(widget.listingId);
-      List<PhListingBooking> bookings = const [];
-      if (_isOwner(listing)) {
-        bookings = await repo.getBookings(widget.listingId);
-      }
+      final comments = await repo.getComments(widget.listingId);
       if (!mounted) return;
       setState(() {
         _listing = listing;
-        _bookings = bookings;
+        _comments = comments;
         _loading = false;
       });
     } catch (e) {
@@ -64,52 +70,72 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
     }
   }
 
-  bool _isOwner(PhListingSummary listing) {
+  String get _myTenantId {
     final session = ref.read(pharmacySessionProvider).value;
-    if (session is! SessionAuthenticated) return false;
-    return session.tenantId == listing.pharmacyId;
+    return session is SessionAuthenticated ? (session.tenantId ?? '') : '';
   }
 
-  Future<void> _book() async {
-    final msg = await showDialog<String>(
+  bool _isOwner(PhListingSummary listing) =>
+      _myTenantId.isNotEmpty && _myTenantId == listing.pharmacyId;
+
+  Future<void> _addComment() async {
+    final content = _commentCtrl.text.trim();
+    if (content.isEmpty || _sending) return;
+
+    setState(() {
+      _sending = true;
+      _actionError = null;
+    });
+    try {
+      final added = await ref
+          .read(phListingRepositoryProvider)
+          .addComment(widget.listingId, content);
+      if (!mounted) return;
+      setState(() {
+        _comments = [..._comments, added];
+        _commentCtrl.clear();
+        _sending = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _actionError = ApiException.from(e).message;
+        _sending = false;
+      });
+    }
+  }
+
+  Future<void> _deleteComment(PhListingComment c) async {
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => const _BookingDialog(),
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف التعليق'),
+        content: const Text('سيُحذف تعليقك من تحت هذا الإعلان.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('تراجع'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: context.colors.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
     );
-    if (msg == null || !mounted) return;
+    if (ok != true || !mounted) return;
 
-    setState(() => _actionError = null);
-    try {
-      final booking = await ref
-          .read(phListingRepositoryProvider)
-          .bookListing(widget.listingId, msg);
-      if (!mounted) return;
-      context.push(TRoutes.phListingChat(widget.listingId, booking.id));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _actionError = ApiException.from(e).message);
-    }
-  }
-
-  Future<void> _accept(PhListingBooking b) async {
     setState(() => _actionError = null);
     try {
       await ref
           .read(phListingRepositoryProvider)
-          .acceptBooking(widget.listingId, b.id);
-      await _load();
-    } catch (e) {
+          .deleteComment(widget.listingId, c.id);
       if (!mounted) return;
-      setState(() => _actionError = ApiException.from(e).message);
-    }
-  }
-
-  Future<void> _reject(PhListingBooking b) async {
-    setState(() => _actionError = null);
-    try {
-      await ref
-          .read(phListingRepositoryProvider)
-          .rejectBooking(widget.listingId, b.id);
-      await _load();
+      setState(() => _comments =
+          _comments.where((e) => e.id != c.id).toList(growable: false));
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionError = ApiException.from(e).message);
@@ -164,10 +190,6 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l.medicineName, style: context.text.titleLarge),
-                        if (l.genericName != null)
-                          Text(l.genericName!,
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: tk.hint)),
                         if (l.manufacturer != null)
                           Text(l.manufacturer!,
                               style: context.text.bodySmall
@@ -175,9 +197,13 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
                       ],
                     ),
                   ),
-                  StatusBadge(
-                    label: l.reason.label,
-                    tone: _reasonTone(l.reason),
+                  const SizedBox(width: AppSpacing.sm),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 124),
+                    child: StatusBadge(
+                      label: l.reason.label,
+                      tone: _reasonTone(l.reason),
+                    ),
                   ),
                 ],
               ),
@@ -241,47 +267,70 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
             ),
           ),
 
-        // ── عرض المالك: طلبات الحجز ───────────────────────────────────────
-        if (isOwner) ...[
-          Text(
-            'طلبات الحجز (${_bookings.length})',
-            style: context.text.titleMedium,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (_bookings.isEmpty)
-            Text(
-              'لا طلبات حجز بعد.',
-              style: context.text.bodySmall?.copyWith(color: tk.hint),
-            )
-          else
-            for (final b in _bookings)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _BookingCard(
-                  booking: b,
-                  listingId: widget.listingId,
-                  onAccept: () => _accept(b),
-                  onReject: () => _reject(b),
-                  onChat: () => context
-                      .push(TRoutes.phListingChat(widget.listingId, b.id)),
-                ),
+        // ── نقاش الإعلان ──────────────────────────────────────────────────
+        // التعليقات علنية تحت الإعلان: كل صيدلية ترى ما سأله غيرها وجواب
+        // المعلِن عليه، فلا يتكرّر السؤال نفسه في عشر محادثات خاصة.
+        Row(
+          children: [
+            AppIcon(AppIcons.fileText, size: 18, color: cs.primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                _comments.isEmpty
+                    ? 'التعليقات'
+                    : 'التعليقات (${_comments.length})',
+                style: context.text.titleMedium,
               ),
-        ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
 
-        // ── عرض المتصفح: زر الحجز ─────────────────────────────────────────
-        if (!isOwner && l.status == PhListingStatus.available)
-          AppButton(
-            label: 'احجز وتواصل مع البائع',
-            icon: Icons.send_rounded,
-            onPressed: _book,
-          ),
+        if (_comments.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.lg,
+            ),
+            decoration: BoxDecoration(
+              color: tk.surfaceAlt,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Text(
+              isOwner
+                  ? 'لا تعليقات بعد — ستظهر هنا أسئلة الصيادلة عن إعلانك.'
+                  : 'لا تعليقات بعد — كن أول من يسأل عن هذا الدواء.',
+              textAlign: TextAlign.center,
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+            ),
+          )
+        else
+          for (final c in _comments)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _CommentBubble(
+                comment: c,
+                isMine: c.authorId == _myTenantId,
+                isListingOwner: c.authorId == l.pharmacyId,
+                onDelete: c.authorId == _myTenantId
+                    ? () => _deleteComment(c)
+                    : null,
+              ),
+            ),
 
-        if (!isOwner && l.status == PhListingStatus.booked)
-          AppButton(
-            label: 'الإعلان محجوز حالياً',
-            variant: AppButtonVariant.tonal,
-            onPressed: null,
-          ),
+        const SizedBox(height: AppSpacing.md),
+
+        // صندوق الكتابة — متاح للمالك والمتصفّح معاً: المعلِن يردّ على
+        // الأسئلة في مكانها لا في رسالة خاصة.
+        _CommentComposer(
+          controller: _commentCtrl,
+          sending: _sending,
+          hint: isOwner
+              ? 'ردّ على سؤال أو أضف توضيحاً…'
+              : 'اسأل عن الدواء أو اعرض سعراً…',
+          onSend: _addComment,
+        ),
       ],
     );
   }
@@ -349,177 +398,176 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-// ── بطاقة طلب الحجز (للمالك) ─────────────────────────────────────────────────
-class _BookingCard extends StatelessWidget {
-  const _BookingCard({
-    required this.booking,
-    required this.listingId,
-    required this.onAccept,
-    required this.onReject,
-    required this.onChat,
+// ── فقاعة تعليق ──────────────────────────────────────────────────────────
+// اسم الصيدلية المعلِّقة أول ما يُقرأ في الفقاعة: التعليق بلا صاحبٍ معروف
+// لا يُبنى عليه قرار بيع. وتعليق صاحب الإعلان يُميَّز بشارة «صاحب الإعلان»
+// فلا يُخلط ردّه بسؤال غيره.
+class _CommentBubble extends StatelessWidget {
+  const _CommentBubble({
+    required this.comment,
+    required this.isMine,
+    required this.isListingOwner,
+    this.onDelete,
   });
 
-  final PhListingBooking booking;
-  final String listingId;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
-  final VoidCallback onChat;
+  final PhListingComment comment;
+  final bool isMine;
+  final bool isListingOwner;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
-    final b = booking;
+    final c = comment;
 
-    return AppCard(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isMine ? tk.brandSurfaceSubtle : cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: isMine ? cs.primary : cs.outline),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: tk.brandSurface,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: AppIcon(AppIcons.user, size: 14, color: cs.primary),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // الاسم والشارة يتقاسمان ما بقي من العرض ويتقلّصان معاً؛
+              // الوقت وزرّ الحذف قياسهما ثابت فلا يُزاحَمان.
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(b.bookerPharmacyName,
-                        style: context.text.titleSmall),
-                    if (b.bookerPhone.isNotEmpty)
-                      Text(b.bookerPhone,
-                          style: context.text.bodySmall
-                              ?.copyWith(color: tk.hint)),
+                    Flexible(
+                      child: Text(
+                        isMine ? '${c.authorName} (أنت)' : c.authorName,
+                        style: context.text.titleSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isListingOwner) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      const Flexible(
+                        child: StatusBadge(
+                          label: 'صاحب الإعلان',
+                          tone: StatusTone.brand,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              StatusBadge(
-                label: b.status.label,
-                tone: _bookingTone(b.status),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                _timeAgo(c.createdOn),
+                style: context.text.labelSmall?.copyWith(color: tk.hint),
               ),
-            ],
-          ),
-          if (b.initialMessage.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: tk.surfaceAlt,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                b.initialMessage,
-                style: context.text.bodySmall
-                    ?.copyWith(color: cs.onSurface),
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              if (b.status == PhBookingStatus.pending) ...[
-                Expanded(
-                  child: AppButton(
-                    label: 'قبول',
-                    variant: AppButtonVariant.filled,
-                    onPressed: onAccept,
+              if (onDelete != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                InkWell(
+                  onTap: onDelete,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    child: AppIcon(AppIcons.x, size: 13, color: tk.hint),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppButton(
-                    label: 'رفض',
-                    variant: AppButtonVariant.tonal,
-                    onPressed: onReject,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
               ],
-              if (b.status != PhBookingStatus.rejected &&
-                  b.status != PhBookingStatus.cancelled)
-                Expanded(
-                  child: AppButton(
-                    label: b.unreadMessages > 0
-                        ? 'المحادثة (${b.unreadMessages})'
-                        : 'المحادثة',
-                    variant: AppButtonVariant.tonal,
-                    onPressed: onChat,
-                  ),
-                ),
             ],
           ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(c.content, style: context.text.bodyMedium),
         ],
       ),
     );
   }
 
-  static StatusTone _bookingTone(PhBookingStatus s) => switch (s) {
-        PhBookingStatus.pending => StatusTone.warning,
-        PhBookingStatus.accepted => StatusTone.success,
-        PhBookingStatus.rejected => StatusTone.danger,
-        PhBookingStatus.cancelled => StatusTone.neutral,
-      };
-}
-
-// ── حوار الحجز: رسالة ابتدائية للبائع ───────────────────────────────────────
-class _BookingDialog extends StatefulWidget {
-  const _BookingDialog();
-
-  @override
-  State<_BookingDialog> createState() => _BookingDialogState();
-}
-
-class _BookingDialogState extends State<_BookingDialog> {
-  final _ctrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+  static String _timeAgo(DateTime d) {
+    final diff = DateTime.now().difference(d);
+    if (diff.inMinutes < 1) return 'الآن';
+    if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} دقيقة';
+    if (diff.inHours < 24) return 'منذ ${diff.inHours} ساعة';
+    if (diff.inDays == 1) return 'أمس';
+    if (diff.inDays < 7) return 'منذ ${diff.inDays} أيام';
+    return '${d.day}/${d.month}/${d.year}';
   }
+}
+
+// ── صندوق كتابة تعليق ───────────────────────────────────────────────────
+class _CommentComposer extends StatelessWidget {
+  const _CommentComposer({
+    required this.controller,
+    required this.sending,
+    required this.hint,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final bool sending;
+  final String hint;
+  final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
 
-    return AlertDialog(
-      title: const Text('احجز وتواصل'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: cs.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'أرسل رسالة للبائع مع طلب الحجز.',
-            style: context.text.bodySmall?.copyWith(color: tk.hint),
-          ),
-          const SizedBox(height: AppSpacing.md),
           TextField(
-            controller: _ctrl,
-            maxLines: 3,
+            controller: controller,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 500,
+            enabled: !sending,
+            keyboardType: TextInputType.multiline,
+            style: context.text.bodyMedium,
             decoration: InputDecoration(
-              hintText: 'مثال: أنا مهتم بشراء الكمية كاملة، هل السعر قابل للتفاوض؟',
+              hintText: hint,
               hintStyle: context.text.bodySmall?.copyWith(color: tk.hint),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                borderSide: BorderSide(color: cs.outline),
-              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              counterStyle:
+                  context.text.labelSmall?.copyWith(color: tk.hint),
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: AppButton(
+              label: 'نشر التعليق',
+              compact: true,
+              fullWidth: false,
+              loading: sending,
+              onPressed: sending ? null : onSend,
             ),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('إلغاء'),
-        ),
-        TextButton(
-          onPressed: () {
-            final msg = _ctrl.text.trim();
-            if (msg.isEmpty) return;
-            Navigator.pop(context, msg);
-          },
-          child: Text('إرسال', style: TextStyle(color: cs.primary)),
-        ),
-      ],
     );
   }
 }

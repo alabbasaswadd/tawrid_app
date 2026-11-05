@@ -30,6 +30,9 @@ class MedicineSearchRepository {
     String? manufacturer,
     MedicineSearchSource source = MedicineSearchSource.all,
     MedicineSearchSort sort = MedicineSearchSort.byDefault,
+    /// يضمّ أدويةً أخرى بالتركيب العلمي نفسه، موسومةً في [MedicineSearchResult.matchKind].
+    /// يحتاج [catalogItemId] ليعرف الخادم أيّ تركيب يقصد.
+    bool includeAlternatives = false,
     int limit = 20,
     int offset = 0,
   }) async {
@@ -41,6 +44,7 @@ class MedicineSearchRepository {
       'warehouseId': ?warehouseId,
       'source': source.code,
       'sort': sort.code,
+      if (includeAlternatives) 'includeAlternatives': true,
       'limit': limit,
       'offset': offset,
     });

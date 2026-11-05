@@ -46,6 +46,17 @@ abstract final class TRoutes {
     if (catalogItemId == null || catalogItemId.isEmpty) return '$phPriceSearch?$q';
     return '$phPriceSearch?catalogItemId=$catalogItemId&$q';
   }
+  /// توفّر دواءٍ من الكتالوج في المستودعات: مطابقاته + البدائل التي تحمل
+  /// تركيبه العلمي نفسه. يحتاج معرّف صنف الكتالوج ليعرف الخادم أيّ تركيب
+  /// يقصد — من دونه لا بدائل، فيبقى بحثاً عادياً بالاسم.
+  static String phMedicineInWarehouses({
+    required String catalogItemId,
+    required String name,
+  }) =>
+      '$phPriceSearch?catalogItemId=$catalogItemId'
+      '&q=${Uri.encodeComponent(name)}'
+      '&alternatives=1';
+
   static const String phCart = '/cart';
 
   // تفاصيل عرض بيع عند الصيدلي — منها تُنشأ الطلبية باختيار الأصناف
@@ -101,9 +112,6 @@ abstract final class TRoutes {
   static const String phListingCreate = '/listings/create';
   static const String phListingDetailPattern = '/listings/:listingId';
   static String phListingDetail(String id) => '/listings/$id';
-  static const String phListingChatPattern = '/listings/:listingId/chat/:bookingId';
-  static String phListingChat(String listingId, String bookingId) =>
-      '/listings/$listingId/chat/$bookingId';
 
   // الإشعارات — نفس الشاشة للجهتين، والبادئة هي ما يحدّد الصندوق والتوكن.
   static const String phNotifications = '/notifications';

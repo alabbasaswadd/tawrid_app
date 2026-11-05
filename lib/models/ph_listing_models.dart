@@ -1,5 +1,10 @@
 // نماذج ميزة «صيدلي إلى صيدلي» — إعلانات بيع الأدوية الكاسدة أو القاربة انتهاء
 // الصلاحية بين الصيدليات.
+//
+// التفاوض يجري بتعليقات علنية تحت الإعلان لا بحجزٍ ومحادثة خاصة: السؤال
+// الواحد يُجاب مرة واحدة أمام الجميع، ولا يُقفَل الإعلان على أول طالب.
+
+import 'enums.dart';
 
 enum PhListingReason {
   slowMoving('slow_moving', 'دواء كاسد'),
@@ -35,29 +40,10 @@ enum PhListingStatus {
       };
 }
 
-enum PhBookingStatus {
-  pending('pending', 'قيد الانتظار'),
-  accepted('accepted', 'مقبول'),
-  rejected('rejected', 'مرفوض'),
-  cancelled('cancelled', 'ملغى');
-
-  const PhBookingStatus(this.code, this.label);
-  final String code;
-  final String label;
-
-  static PhBookingStatus fromCode(String? code) => switch (code) {
-        'pending' => PhBookingStatus.pending,
-        'accepted' => PhBookingStatus.accepted,
-        'rejected' => PhBookingStatus.rejected,
-        _ => PhBookingStatus.cancelled,
-      };
-}
-
 /// إعلان بيع دواء كما يظهر في قائمة التصفح.
 class PhListingSummary {
   final String id;
   final String medicineName;
-  final String? genericName;
   final String? manufacturer;
   final int quantity;
   final double pricePerUnit;
@@ -77,7 +63,6 @@ class PhListingSummary {
   const PhListingSummary({
     required this.id,
     required this.medicineName,
-    this.genericName,
     this.manufacturer,
     required this.quantity,
     required this.pricePerUnit,
@@ -104,7 +89,6 @@ class PhListingSummary {
     return PhListingSummary(
       id: j['id'] as String,
       medicineName: j['medicineName'] as String,
-      genericName: j['genericName'] as String?,
       manufacturer: j['manufacturer'] as String?,
       quantity: j['quantity'] as int,
       pricePerUnit: (j['pricePerUnit'] as num).toDouble(),
@@ -127,76 +111,38 @@ class PhListingSummary {
   }
 }
 
-/// حجز على إعلان — يراه صاحب الإعلان في لوحة إعلاناته.
-class PhListingBooking {
+/// تعليق تحت إعلان — يحمل اسم الصيدلية المعلِّقة، فالتعليق المجهول
+/// لا يُبنى عليه قرار بيع.
+class PhListingComment {
   final String id;
-  final String listingId;
-  final String bookerPharmacyId;
-  final String bookerPharmacyName;
-  final String bookerPhone;
-  final String initialMessage;
-  final PhBookingStatus status;
-  final DateTime createdOn;
-  final int unreadMessages;
-
-  const PhListingBooking({
-    required this.id,
-    required this.listingId,
-    required this.bookerPharmacyId,
-    required this.bookerPharmacyName,
-    required this.bookerPhone,
-    required this.initialMessage,
-    required this.status,
-    required this.createdOn,
-    this.unreadMessages = 0,
-  });
-
-  factory PhListingBooking.fromJson(Map<String, dynamic> j) => PhListingBooking(
-        id: j['id'] as String,
-        listingId: j['listingId'] as String,
-        bookerPharmacyId: j['bookerPharmacyId'] as String,
-        bookerPharmacyName: j['bookerPharmacyName'] as String,
-        bookerPhone: j['bookerPhone'] as String? ?? '',
-        initialMessage: j['initialMessage'] as String? ?? '',
-        status: PhBookingStatus.fromCode(j['status'] as String?),
-        createdOn: DateTime.parse(j['createdOn'] as String),
-        unreadMessages: j['unreadMessages'] as int? ?? 0,
-      );
-}
-
-/// رسالة في محادثة حجز.
-class PhListingMessage {
-  final String id;
-  final String senderId;
-  final String senderName;
-  final bool isMine;
+  final CommentAuthorType authorType;
+  final String authorId;
+  final String authorName;
   final String content;
-  final DateTime sentAt;
+  final DateTime createdOn;
 
-  const PhListingMessage({
+  const PhListingComment({
     required this.id,
-    required this.senderId,
-    required this.senderName,
-    required this.isMine,
+    required this.authorType,
+    required this.authorId,
+    required this.authorName,
     required this.content,
-    required this.sentAt,
+    required this.createdOn,
   });
 
-  factory PhListingMessage.fromJson(Map<String, dynamic> j, String myId) =>
-      PhListingMessage(
+  factory PhListingComment.fromJson(Map<String, dynamic> j) =>
+      PhListingComment(
         id: j['id'] as String,
-        senderId: j['senderId'] as String,
-        senderName: j['senderName'] as String,
-        isMine: j['senderId'] == myId,
-        content: j['content'] as String,
-        sentAt: DateTime.parse(j['sentAt'] as String),
+        authorType: CommentAuthorType.fromCode(j['authorType'] as int? ?? 1),
+        authorId: j['authorId'] as String? ?? '',
+        authorName: j['authorName'] as String? ?? 'صيدلية',
+        content: j['content'] as String? ?? '',
+        createdOn: DateTime.parse(j['createdOn'] as String),
       );
 }
 
-/// طلب إنشاء إعلان جديد.
 class CreatePhListingRequest {
   final String medicineName;
-  final String? genericName;
   final String? manufacturer;
   final int quantity;
   final double pricePerUnit;
@@ -208,7 +154,6 @@ class CreatePhListingRequest {
 
   const CreatePhListingRequest({
     required this.medicineName,
-    this.genericName,
     this.manufacturer,
     required this.quantity,
     required this.pricePerUnit,
@@ -221,7 +166,6 @@ class CreatePhListingRequest {
 
   Map<String, dynamic> toJson() => {
         'medicineName': medicineName,
-        if (genericName != null) 'genericName': genericName,
         if (manufacturer != null) 'manufacturer': manufacturer,
         'quantity': quantity,
         'pricePerUnit': pricePerUnit,

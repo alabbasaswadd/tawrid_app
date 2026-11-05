@@ -16,7 +16,6 @@ import 'package:tawrid_app/features/notifications/notifications_page.dart';
 import 'package:tawrid_app/features/auth/register_page.dart';
 import 'package:tawrid_app/features/ph_home/ph_home_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_create_listing_page.dart';
-import 'package:tawrid_app/features/ph_listings/ph_listing_chat_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_listing_detail_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_listings_browse_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_my_listings_page.dart';
@@ -265,14 +264,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           listingId: state.pathParameters['listingId']!,
         ),
       ),
-      GoRoute(
-        path: TRoutes.phListingChatPattern,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, state) => PhListingChatPage(
-          listingId: state.pathParameters['listingId']!,
-          bookingId: state.pathParameters['bookingId']!,
-        ),
-      ),
 
       // Warehouse listings — top-level, pushes over the shell (no nav bar)
       GoRoute(
@@ -372,6 +363,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           warehouseId: state.uri.queryParameters['warehouseId'],
           warehouseName: state.uri.queryParameters['warehouseName'],
           catalogItemId: state.uri.queryParameters['catalogItemId'],
+          includeAlternatives:
+              state.uri.queryParameters['alternatives'] == '1',
         ),
       ),
 

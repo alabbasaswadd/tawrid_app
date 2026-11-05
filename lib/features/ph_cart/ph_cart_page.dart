@@ -11,11 +11,13 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-// السلّة (Figma: الصيدلي / سلة التسوّق).
+// السلّة (Figma: «الصيدلي / سلة التسوّق» — 199:1941).
 //
-// كل مستودع يظهر ككارد مستقل برأسه (الاسم والمدينة وحالة الحدّ الأدنى)
-// وأصنافه معروضة مباشرة أسفله بنفس الصفحة — لا ورقة سفلية منفصلة لعرض
-// التفاصيل. كل كارد له إجماله وزرّ إتمام طلبيته المستقلّ.
+// الصفحة قائمة مسطّحة لا بطاقات مستودعات مغلّفة: لكل مستودع رأسٌ خفيف
+// (اسمه وعدد أصنافه)، ثم أصنافه، ثم إجماله، ثم زرّ إتمام طلبيته وحده،
+// ويفصل بين مستودع وآخر خطّ رفيع. وحدة الإتمام مستودع واحد — ولذلك لا
+// زرّ «طلب الكل» في التصميم، والملاحظة في أسفل الصفحة تقول ذلك صراحةً:
+// أرسل طلبية مستودع الآن واترك الباقي في السلّة.
 class PhCartPage extends ConsumerStatefulWidget {
   const PhCartPage({super.key});
 
@@ -26,9 +28,6 @@ class PhCartPage extends ConsumerStatefulWidget {
 class _PhCartPageState extends ConsumerState<PhCartPage> {
   /// معرّف المستودع الجاري إتمام طلبيته — يُظهر التحميل على زرّه وحده.
   String? _checkingOut;
-
-  /// معرّفات المستودعات الجارية في «طلب الكل».
-  bool _checkingAll = false;
 
   /// معرّف السطر الجاري تعديل كميته — يمنع ضغطتين متلاحقتين على المنتقي.
   String? _busyLine;
@@ -57,7 +56,7 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
   }
 
   Future<void> _checkout(CartWarehouseGroup group) async {
-    if (_checkingOut != null || _checkingAll) return;
+    if (_checkingOut != null) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -92,8 +91,9 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
 
     setState(() => _checkingOut = group.supplyWarehouseId);
     try {
-      final result =
-          await ref.read(cartProvider.notifier).checkout(group.supplyWarehouseId);
+      final result = await ref
+          .read(cartProvider.notifier)
+          .checkout(group.supplyWarehouseId);
       if (!mounted) return;
       AppSnackbar.success(
           context, 'أُنشئت الطلبية ${result.order.orderNumber}');
@@ -102,79 +102,6 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
       if (mounted) setState(() => _checkingOut = null);
-    }
-  }
-
-  Future<void> _checkoutAll(Cart cart) async {
-    final eligible = cart.groups.where((g) => g.meetsMinimum).toList();
-    final blocked = cart.groups.where((g) => !g.meetsMinimum).toList();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('طلب كل الطلبيات'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'سيُنشأ ${eligible.length} '
-              '${eligible.length == 1 ? 'طلبية' : 'طلبيات'} '
-              'لـ ${eligible.map((g) => g.warehouseName).join(' و ')}.',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'الإجمالي: ${formatMoneyWith(eligible.fold(0.0, (s, g) => s + g.total), cart.currency)}',
-              style: Theme.of(ctx).textTheme.titleSmall,
-            ),
-            if (blocked.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'لن تُرسَل طلبية ${blocked.map((g) => g.warehouseName).join(' و ')} '
-                'لعدم استيفاء الحدّ الأدنى.',
-                style: Theme.of(ctx).textTheme.bodySmall,
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('تراجع')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('إرسال الطلبيات')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _checkingAll = true);
-    int sent = 0;
-    for (final group in eligible) {
-      if (!mounted) break;
-      try {
-        final result =
-            await ref.read(cartProvider.notifier).checkout(group.supplyWarehouseId);
-        sent++;
-        if (result.cart.isEmpty) {
-          if (mounted) context.go(TRoutes.phOrders);
-          return;
-        }
-      } catch (e) {
-        if (mounted) {
-          AppSnackbar.error(
-              context, '${group.warehouseName}: ${ApiException.from(e).message}');
-        }
-      }
-    }
-    if (mounted) {
-      setState(() => _checkingAll = false);
-      if (sent > 0) {
-        AppSnackbar.success(
-            context, 'أُنشئ $sent ${sent == 1 ? 'طلبية' : 'طلبيات'} بنجاح');
-        context.go(TRoutes.phOrders);
-      }
     }
   }
 
@@ -191,8 +118,8 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('تراجع')),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: context.colors.error),
+            style:
+                FilledButton.styleFrom(backgroundColor: context.colors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('حذف'),
           ),
@@ -226,9 +153,6 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
           AsyncData(:final value) => _buildBody(value),
         },
       ),
-      bottomNavigationBar: cartAsync.value == null || cartAsync.value!.isEmpty
-          ? null
-          : _buildBottomBar(cartAsync.value!),
     );
   }
 
@@ -249,57 +173,41 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.x3l),
-      itemCount: cart.groups.length,
-      itemBuilder: (_, i) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-        child: _WarehouseGroupCard(
-          group: cart.groups[i],
-          checkingOut: _checkingOut == cart.groups[i].supplyWarehouseId,
-          busyLineId: _busyLine,
-          onCheckout: () => _checkout(cart.groups[i]),
-          onRemoveWarehouse: () => _removeWarehouse(cart.groups[i]),
-          onQuantityChanged: _setQuantity,
-          onRemoveItem: _removeItem,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomBar(Cart cart) {
-    final tk = context.tokens;
     final cs = context.colors;
-    final eligible = cart.groups.where((g) => g.meetsMinimum).length;
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          border: Border(top: BorderSide(color: cs.outline)),
-          boxShadow: tk.navShadow,
-        ),
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
-        child: AppButton(
-          label: eligible == 0
-              ? 'طلب كل الطلبيات'
-              : 'طلب كل الطلبيات ($eligible)',
-          loading: _checkingAll,
-          onPressed: (_checkingAll || _checkingOut != null || eligible == 0)
-              ? null
-              : () => _checkoutAll(cart),
-        ),
-      ),
+    return ListView(
+      // Figma: هامش الصفحة ٢٠، وأول رأس مستودع على بُعد ٤ من الشريط العلوي.
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page, AppSpacing.xs, AppSpacing.page, AppSpacing.x3l),
+      children: [
+        for (var i = 0; i < cart.groups.length; i++) ...[
+          if (i > 0) ...[
+            const SizedBox(height: AppSpacing.xl),
+            Container(height: 1, color: cs.outline),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+          _WarehouseGroupSection(
+            group: cart.groups[i],
+            checkingOut: _checkingOut == cart.groups[i].supplyWarehouseId,
+            busyLineId: _busyLine,
+            onCheckout: () => _checkout(cart.groups[i]),
+            onRemoveWarehouse: () => _removeWarehouse(cart.groups[i]),
+            onQuantityChanged: _setQuantity,
+            onRemoveItem: _removeItem,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        _CartSummaryCard(cart: cart),
+        const SizedBox(height: AppSpacing.lg),
+        const _IndependentOrdersNote(),
+      ],
     );
   }
 }
 
-// ── كارد مستودع: رأسه + أصنافه معروضة مباشرة أسفله ───────────────────────
-class _WarehouseGroupCard extends StatelessWidget {
-  const _WarehouseGroupCard({
+// ── مجموعة مستودع: رأس + أصناف + إجمالي + زرّ إتمام مستقل ────────────────
+class _WarehouseGroupSection extends StatelessWidget {
+  const _WarehouseGroupSection({
     required this.group,
     required this.checkingOut,
     required this.busyLineId,
@@ -320,192 +228,99 @@ class _WarehouseGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
-    final tk = context.tokens;
+    final meets = group.meetsMinimum;
 
-    return Material(
-      color: cs.surface,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: cs.outline),
-          boxShadow: tk.cardShadow,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _WarehouseHeader(group: group, onRemove: onRemoveWarehouse),
+        const SizedBox(height: AppSpacing.md),
+
+        for (var i = 0; i < group.items.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          Dismissible(
+            key: ValueKey(group.items[i].id),
+            direction: DismissDirection.horizontal,
+            background: const _SwipeToDeleteBackground(),
+            secondaryBackground: const _SwipeToDeleteBackground(),
+            onDismissed: (_) => onRemoveItem(group.items[i]),
+            child: _CartItemCard(
+              item: group.items[i],
+              busy: busyLineId == group.items[i].id,
+              onQuantityChanged: (v) => onQuantityChanged(group.items[i], v),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'إجمالي هذا المستودع: '
+          '${formatMoneyWith(group.total, group.currency)}',
+          textAlign: TextAlign.start,
+          style: context.text.labelSmall?.copyWith(color: cs.onSurface),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── رأس الكارد ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: tk.brandSurface,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Center(
-                      child: AppIcon(AppIcons.warehouse, size: 22,
-                          color: cs.primary),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(group.warehouseName,
-                            style: context.text.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 3),
-                        if (group.city.isNotEmpty)
-                          Row(
-                            children: [
-                              AppIcon(AppIcons.mapPin, size: 12, color: tk.hint),
-                              const SizedBox(width: 3),
-                              Text(
-                                '${group.city}، ${group.governorate}',
-                                style: context.text.bodySmall
-                                    ?.copyWith(color: tk.hint),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  IconButton(
-                    onPressed: onRemoveWarehouse,
-                    icon: AppIcon(AppIcons.x, size: 16,
-                        color: context.tokens.danger),
-                    tooltip: 'حذف من السلّة',
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
 
-            Divider(height: 1, color: cs.outline),
+        if (!meets) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _MinimumWarning(group: group),
+          const SizedBox(height: AppSpacing.sm),
+        ] else
+          const SizedBox(height: AppSpacing.md),
 
-            // ── الأصناف — معروضة مباشرة بنفس الصفحة ─────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final item in group.items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: Dismissible(
-                        key: ValueKey(item.id),
-                        direction: DismissDirection.horizontal,
-                        background: const _SwipeToDeleteBackground(),
-                        secondaryBackground: const _SwipeToDeleteBackground(),
-                        onDismissed: (_) => onRemoveItem(item),
-                        child: _CartLineCard(
-                          item: item,
-                          currency: group.currency,
-                          busy: busyLineId == item.id,
-                          onQuantityChanged: (v) => onQuantityChanged(item, v),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // ── الإجمالي وحالة الحدّ الأدنى ───────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('الإجمالي', style: context.text.labelSmall
-                            ?.copyWith(color: tk.hint)),
-                        Text(
-                          formatMoneyWith(group.total, group.currency),
-                          style: context.priceBrandStyle,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!group.meetsMinimum)
-                    const StatusBadge(
-                        label: 'لم يكتمل الحدّ', tone: StatusTone.warning)
-                  else
-                    const StatusBadge(
-                        label: 'جاهز للإرسال', tone: StatusTone.success),
-                ],
-              ),
-            ),
-
-            if (!group.meetsMinimum) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg),
-                child: _MinimumHint(group: group),
-              ),
-            ],
-
-            const SizedBox(height: AppSpacing.md),
-            Divider(height: 1, color: cs.outline),
-
-            // ── تذييل: زرّ إتمام الطلبية ─────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: AppButton(
-                label: group.meetsMinimum
-                    ? 'إتمام الطلبية — '
-                        '${formatMoneyWith(group.total, group.currency)}'
-                    : 'إتمام الطلبية',
-                compact: true,
-                loading: checkingOut,
-                onPressed:
-                    (group.meetsMinimum && !checkingOut) ? onCheckout : null,
-              ),
-            ),
-          ],
+        AppButton(
+          label: meets
+              ? 'إتمام طلبية هذا المستودع — '
+                  '${formatMoneyWith(group.total, group.currency)}'
+              : 'إتمام طلبية هذا المستودع',
+          loading: checkingOut,
+          onPressed: (meets && !checkingOut) ? onCheckout : null,
         ),
-      ),
+      ],
     );
   }
 }
 
-// تنبيه الحدّ الأدنى المختصر — يظهر داخل الكارد.
-class _MinimumHint extends StatelessWidget {
-  const _MinimumHint({required this.group});
+// رأس المجموعة (Figma 199:1955): اسم المستودع في بداية القراءة وأيقونته
+// بعده، وعدد الأصناف في نهايتها.
+class _WarehouseHeader extends StatelessWidget {
+  const _WarehouseHeader({required this.group, required this.onRemove});
+
   final CartWarehouseGroup group;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final tk = context.tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: tk.warningSurface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
+    final cs = context.colors;
+
+    return GestureDetector(
+      // التصميم لا يحمل زرّ حذف للمستودع، والضغط المطوّل يبقي الإجراء
+      // متاحاً بلا عنصر إضافي على الشاشة.
+      onLongPress: onRemove,
+      behavior: HitTestBehavior.opaque,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          AppIcon(AppIcons.alertTriangle, size: 14, color: tk.warning),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              'ينقص ${formatMoneyWith(group.missingAmount, group.currency)} '
-              'للحدّ الأدنى',
-              style: context.text.labelSmall?.copyWith(color: tk.warning),
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    group.warehouseLabel,
+                    style: context.text.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                AppIcon(AppIcons.warehouse, size: 16, color: cs.primary),
+              ],
             ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            group.itemsLabel,
+            style: context.text.bodySmall?.copyWith(color: cs.onSurface),
           ),
         ],
       ),
@@ -513,17 +328,16 @@ class _MinimumHint extends StatelessWidget {
   }
 }
 
-// بطاقة صنف داخل كارد المستودع.
-class _CartLineCard extends StatelessWidget {
-  const _CartLineCard({
+// بطاقة صنف (Figma 199:1963): اسم الدواء وسعر وحدته في بداية القراءة،
+// إجمالي السطر في نهايتها، ومنتقي الكمية أسفلها يساراً.
+class _CartItemCard extends StatelessWidget {
+  const _CartItemCard({
     required this.item,
-    required this.currency,
     required this.busy,
     required this.onQuantityChanged,
   });
 
   final CartItem item;
-  final String currency;
   final bool busy;
   final ValueChanged<int> onQuantityChanged;
 
@@ -531,13 +345,14 @@ class _CartLineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = context.colors;
     final qty = item.quantityInt;
+    final bonus = item.bonusPercentage;
+    final hasBonus = bonus != null && bonus > 0;
 
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: cs.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -557,8 +372,10 @@ class _CartLineCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'سعر الوحدة: ${formatMoneyWith(item.unitPrice, item.currency)}',
-                      style: context.text.bodySmall,
+                      'سعر الوحدة: '
+                      '${formatMoneyWith(item.unitPrice, item.currency)}',
+                      style:
+                          context.text.bodySmall?.copyWith(color: cs.onSurface),
                     ),
                     if (item.fromOffer && item.salesOfferTitle != null) ...[
                       const SizedBox(height: 2),
@@ -572,11 +389,16 @@ class _CartLineCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.md),
+              // نهاية القراءة: «الإجمالي» فوق مبلغ السطر، محاذيان لحافّتها.
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('الإجمالي', style: context.text.bodySmall),
+                  Text(
+                    'الإجمالي',
+                    style:
+                        context.text.bodySmall?.copyWith(color: cs.onSurface),
+                  ),
                   Text(
                     formatMoneyWith(item.lineTotal, item.currency),
                     style: context.priceStyle,
@@ -585,30 +407,151 @@ class _CartLineCard extends StatelessWidget {
               ),
             ],
           ),
-
-          if (item.bonusPercentage != null && item.bonusPercentage! > 0) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: BonusBadge(
-                label: 'بونص ${item.bonusPercentage!.toStringAsFixed(0)}٪',
-              ),
-            ),
-          ],
-
           const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: QuantityStepper(
-              value: '$qty',
-              enabled: !busy,
-              onDecrement: () => onQuantityChanged(qty - 1),
-              onIncrement: () => onQuantityChanged(qty + 1),
-              onValueChanged: onQuantityChanged,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (hasBonus)
+                BonusBadge(label: 'بونص ${bonus.toStringAsFixed(0)}٪')
+              else
+                const SizedBox.shrink(),
+              QuantityStepper(
+                value: '$qty',
+                enabled: !busy,
+                onDecrement: () => onQuantityChanged(qty - 1),
+                onIncrement: () => onQuantityChanged(qty + 1),
+                onValueChanged: onQuantityChanged,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// تنبيه الحدّ الأدنى (Figma 199:1979): سطر كهرماني بأيقونة في نهاية القراءة.
+class _MinimumWarning extends StatelessWidget {
+  const _MinimumWarning({required this.group});
+
+  final CartWarehouseGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final minimum = group.minimumOrderAmount ?? 0;
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+      decoration: BoxDecoration(
+        color: tk.warningSurface,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        // Figma: الأيقونة يسار النصّ والنصّ محاذٍ لليمين.
+        textDirection: TextDirection.ltr,
+        children: [
+          AppIcon(AppIcons.alertTriangle, size: 18, color: tk.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'الحدّ الأدنى لهذا المستودع '
+              '${formatMoneyWith(minimum, group.currency)} — أضف '
+              '${formatMoneyWith(group.missingAmount, group.currency)} '
+              'أخرى أو احذف هذا المستودع من السلة.',
+              textAlign: TextAlign.right,
+              style: context.text.labelSmall?.copyWith(color: tk.warning),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ملخّص السلّة (Figma 200:178) — التسمية يساراً والقيمة يميناً كما في التصميم.
+class _CartSummaryCard extends StatelessWidget {
+  const _CartSummaryCard({required this.cart});
+
+  final Cart cart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SummaryRow(label: 'عدد الأصناف', value: '${cart.totalLines}'),
+          const SizedBox(height: 10),
+          _SummaryRow(
+              label: 'عدد المستودعات', value: '${cart.totalWarehouses}'),
+          const SizedBox(height: 10),
+          _SummaryRow(
+            label: 'الإجمالي العام',
+            value: formatMoneyWith(cart.grandTotal, cart.currency),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      textDirection: TextDirection.ltr,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // التسمية تتقلّص قبل المبلغ: الرقم هو ما جاء المستخدم ليقرأه.
+        Flexible(
+          child: Text(
+            label,
+            style: context.text.bodyMedium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(value, style: context.priceStyle),
+      ],
+    );
+  }
+}
+
+// ملاحظة التصميم (Figma 200:188): لماذا لا يوجد زرّ «طلب الكل».
+class _IndependentOrdersNote extends StatelessWidget {
+  const _IndependentOrdersNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    return Row(
+      textDirection: TextDirection.ltr,
+      children: [
+        AppIcon(AppIcons.warehouse, size: 14, color: cs.primary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'أكمل كل طلبية مستودع بشكل مستقل — يمكنك إرسال طلبية مستودع الآن '
+            'وترك أصناف مستودع آخر في السلّة لإكمالها لاحقاً.',
+            textAlign: TextAlign.right,
+            style: context.text.bodySmall?.copyWith(color: cs.onSurface),
+          ),
+        ),
+      ],
     );
   }
 }

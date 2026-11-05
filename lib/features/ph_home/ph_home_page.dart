@@ -5,14 +5,13 @@ import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/cart/cart_controller.dart';
-import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/notification_repository.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
 
 // الحالات الجارية: من بانتظار الموافقة إلى جاري الشحن (لا مكتملة ولا ملغاة).
 const _activeStatuses = {
@@ -22,6 +21,17 @@ const _activeStatuses = {
   SupplyOrderStatus.shipped,
 };
 
+// الرئيسية (الصيدلي).
+//
+// مرتَّبة بحسب ما يفعله الصيدلي لا بحسب ما يملكه التطبيق من شاشات:
+//   ١ ابحث عن دواء        — شريط بحث يفتح البحث المقارن بالنصّ أو بالباركود
+//   ٢ ما الذي ينتظرك الآن — شريط تنبيه واحد: سلّة لم تُتمَّ، أو طلب قيد التوصيل
+//   ٣ ابدأ عملاً جديداً    — إجراء رئيسي واحد بارز، ثم إجراءان ثانويان
+//   ٤ صيدلي إلى صيدلي والتقارير — ميزات ثانوية أسفل الصفحة
+//
+// الطلبيات الجارية لها تبويبها المستقل، فلا تُكرَّر هنا. تبقى قائمتها
+// محمَّلة لغرض واحد: شريط «طلبك قيد التوصيل». الشاشة تُرسَم فوراً ولا
+// تنتظر تلك الشبكة.
 class PhHomePage extends ConsumerStatefulWidget {
   const PhHomePage({super.key});
 
@@ -30,9 +40,9 @@ class PhHomePage extends ConsumerStatefulWidget {
 }
 
 class _PhHomePageState extends ConsumerState<PhHomePage> {
+  final _searchController = TextEditingController();
+
   List<SupplyOrderSummary> _activeOrders = const [];
-  bool _loading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -40,27 +50,27 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
     try {
       final orders = await ref
           .read(supplyOrderRepositoryProvider)
           .getMyOrders(limit: 100);
       if (!mounted) return;
       setState(() {
-        _activeOrders =
-            orders.where((o) => _activeStatuses.contains(o.status)).toList();
-        _loading = false;
+        _activeOrders = orders
+            .where((o) => _activeStatuses.contains(o.status))
+            .toList();
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = ApiException.from(e).message;
-        _loading = false;
-      });
+    } catch (_) {
+      // شريط «قيد التوصيل» زينةٌ مفيدة لا عمود الشاشة: فشل قراءته يُخفيه
+      // ولا يُسقط الرئيسية. الخطأ نفسه يظهر في تبويب الطلبيات حيث يَهُمّ.
+      if (mounted) setState(() => _activeOrders = const []);
     }
   }
 
@@ -69,6 +79,30 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
     if (h < 12) return 'صباح الخير،';
     if (h < 17) return 'طاب يومك،';
     return 'مساء الخير،';
+  }
+
+  /// «صنف واحد» · «صنفان» · «٥ أصناف» · «١٢ صنفاً» — الرقم وحده يُقرأ
+  /// ببطء في سطر عربي.
+  static String _itemsLabel(int n) => switch (n) {
+    1 => 'صنف واحد',
+    2 => 'صنفان',
+    _ when n <= 10 => '$n أصناف',
+    _ => '$n صنفاً',
+  };
+
+  void _search(String query) {
+    final q = query.trim();
+    context.push(
+      q.isEmpty ? TRoutes.phPriceSearch : TRoutes.phPriceCompareItem(name: q),
+    );
+  }
+
+  Future<void> _scanBarcode() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+    _search(code);
   }
 
   @override
@@ -94,154 +128,362 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    final cartCount = ref.watch(cartCountProvider);
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: AppSpacing.x3l),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.md,
+        AppSpacing.page,
+        AppSpacing.x3l,
+      ),
       children: [
-        const SizedBox(height: AppSpacing.lg),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-          child: _QuickActionsGrid(
-            onNewOrder: () => context.push(TRoutes.phPriceSearch),
-            onNewTender: () => context.push(TRoutes.phCreateTender),
-            onSearchMedicine: () => context.push(TRoutes.phPriceSearch),
-            onCatalog: () => context.push(TRoutes.phMedicineSearch),
-            onReports: () => context.push(TRoutes.phReports),
-            onTenderReports: () => context.push(TRoutes.phTenderReports),
-          ),
+        // ١ — البحث: أول ما تقع عليه العين، وهو أكثر ما يفعله الصيدلي.
+        AppSearchBar(
+          controller: _searchController,
+          hint: 'ابحث عن دواء، مادة فعالة، أو مستودع…',
+          onSubmitted: _search,
+          onScanTap: _scanBarcode,
         ),
 
-        const SizedBox(height: AppSpacing.lg),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-          child: _PhToPhBanner(
-            onBrowse: () => context.push(TRoutes.phListings),
-            onMyListings: () => context.push(TRoutes.phMyListings),
-          ),
+        // ٢ — ما الذي ينتظرك: تنبيه واحد لا أكثر، وإلا صار ضجيجاً.
+        ..._alertStrip(cartCount),
+
+        const SizedBox(height: AppSpacing.xl),
+
+        // ٣ — ابدأ عملاً جديداً: إجراء رئيسي واحد بارز يسبق الباقي.
+        _ActionTile(
+          icon: AppIcons.package,
+          label: 'طلبية جديدة',
+          subtitle: 'ابحث عن دواء، قارن أسعاره، وأضفه إلى السلّة',
+          primary: true,
+          onTap: () => context.push(TRoutes.phPriceSearch),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionTile(
+                icon: AppIcons.fileText,
+                label: 'طلب تسعير',
+                onTap: () => context.push(TRoutes.phCreateTender),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: _ActionTile(
+                icon: AppIcons.pill,
+                label: 'كتالوج الأدوية',
+                onTap: () => context.push(TRoutes.phMedicineSearch),
+              ),
+            ),
+          ],
         ),
 
         const SizedBox(height: AppSpacing.x2l),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-          child: AppSectionHeader(
-            title: 'الطلبيات الجارية',
-            trailing: _SeeAllLink(
-              onTap: () => context.go(TRoutes.phOrders),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
 
-        if (_activeOrders.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: EmptyState(
-              icon: Icons.inbox_outlined,
-              message: 'لا طلبيات جارية حالياً',
-            ),
-          )
-        else
-          for (final order in _activeOrders)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page, 0, AppSpacing.page, AppSpacing.md),
-              child: OrderCard(
-                title: 'طلب ${order.orderNumber}',
-                subtitle: '${order.warehouseName} — ${order.warehouseCity}',
-                metaText: '${order.itemCount} صنف',
-                price: order.totalAmount != null
-                    ? '${order.totalAmount!.toStringAsFixed(2)} ل.س'
-                    : '—',
-                statusLabel: order.status.label,
-                statusTone: _statusTone(order.status),
-                onDetails: () =>
-                    context.push(TRoutes.phOrderDetail(order.id)),
+        // ٤ — ميزات ثانوية.
+        _PhToPhBanner(
+          onBrowse: () => context.push(TRoutes.phListings),
+          onMyListings: () => context.push(TRoutes.phMyListings),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: _ReportLink(
+                icon: AppIcons.clipboardList,
+                label: 'تقرير مشترياتي',
+                onTap: () => context.push(TRoutes.phReports),
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _ReportLink(
+                icon: AppIcons.tag,
+                label: 'تقرير طلبات التسعير',
+                onTap: () => context.push(TRoutes.phTenderReports),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  static StatusTone _statusTone(SupplyOrderStatus s) => switch (s) {
-        SupplyOrderStatus.pending => StatusTone.warning,
-        SupplyOrderStatus.confirmed => StatusTone.info,
-        SupplyOrderStatus.processing => StatusTone.brand,
-        SupplyOrderStatus.shipped => StatusTone.success,
-        _ => StatusTone.neutral,
-      };
+  /// تنبيه واحد بأولوية واضحة: سلّة لم تُتمَّ أولاً (عملٌ بدأه الصيدلي ولم
+  /// ينهه)، وإلا طلبٌ قيد التوصيل (ما ينتظره منّا).
+  List<Widget> _alertStrip(int cartCount) {
+    if (cartCount > 0) {
+      return [
+        const SizedBox(height: AppSpacing.md),
+        _AlertStrip(
+          icon: AppIcons.shoppingCart,
+          title: 'في سلّتك ${_itemsLabel(cartCount)}',
+          subtitle: 'اضغط لإتمام الطلبية',
+          tone: _AlertTone.brand,
+          onTap: () => context.push(TRoutes.phCart),
+        ),
+      ];
+    }
+
+    final shipping = _activeOrders
+        .where((o) => o.status == SupplyOrderStatus.shipped)
+        .firstOrNull;
+    if (shipping != null) {
+      return [
+        const SizedBox(height: AppSpacing.md),
+        _AlertStrip(
+          icon: AppIcons.truck,
+          title: 'طلبك ${shipping.orderNumber} قيد التوصيل',
+          subtitle: 'اضغط لتتبّع مراحل التسليم',
+          tone: _AlertTone.info,
+          onTap: () => context.push(TRoutes.phOrderDetail(shipping.id)),
+        ),
+      ];
+    }
+
+    return const [];
+  }
 }
 
-// شبكة الإجراءات السريعة (٢×٣): طلبية · تسعير · بحث سعر · كتالوج · تقارير.
-class _QuickActionsGrid extends StatelessWidget {
-  const _QuickActionsGrid({
-    required this.onNewOrder,
-    required this.onNewTender,
-    required this.onSearchMedicine,
-    required this.onCatalog,
-    required this.onReports,
-    required this.onTenderReports,
+// ── شريط التنبيه ─────────────────────────────────────────────────────────
+enum _AlertTone { brand, info }
+
+// سطر واحد يقول «هذا ما ينتظرك»: أيقونة في بداية القراءة، عنوان وسطر
+// إرشاد، وشيفرون في نهايتها.
+class _AlertStrip extends StatelessWidget {
+  const _AlertStrip({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.tone,
+    required this.onTap,
   });
 
-  final VoidCallback onNewOrder;
-  final VoidCallback onNewTender;
-  final VoidCallback onSearchMedicine;
-  final VoidCallback onCatalog;
-  final VoidCallback onReports;
-  final VoidCallback onTenderReports;
+  final AppIcons icon;
+  final String title;
+  final String subtitle;
+  final _AlertTone tone;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 2.4,
-      children: [
-        _ActionTile(
-          icon: AppIcons.package,
-          label: 'طلبية جديدة',
-          onTap: onNewOrder,
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    final (Color surface, Color accent) = switch (tone) {
+      _AlertTone.brand => (tk.brandSurface, cs.primary),
+      _AlertTone.info => (tk.successSurface, tk.success),
+    };
+
+    return Material(
+      color: surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: accent.withValues(alpha: 0.2)),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 10,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(child: AppIcon(icon, size: 18, color: accent)),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: context.text.titleSmall?.copyWith(color: accent),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subtitle,
+                      style: context.text.labelSmall?.copyWith(color: tk.hint),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              AppIcon(AppIcons.chevronForwardRtl, size: 16, color: accent),
+            ],
+          ),
         ),
-        _ActionTile(
-          icon: AppIcons.fileText,
-          label: 'طلب تسعير جديد',
-          onTap: onNewTender,
+      ),
+    );
+  }
+}
+
+// ── بلاطة إجراء ──────────────────────────────────────────────────────────
+// نمطان من مكوّن واحد: [primary] إجراء الشاشة الرئيسي — بعرض كامل وبلون
+// العلامة وشيفرون؛ والعادي بلاطة هادئة تُصفّ جنب أختها.
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.subtitle,
+    this.primary = false,
+  });
+
+  final AppIcons icon;
+  final String label;
+  final String? subtitle;
+  final bool primary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    final fg = primary ? cs.onPrimary : cs.onSurface;
+    final iconBg = primary ? cs.onPrimary.withValues(alpha: 0.16) : cs.primary;
+    final iconFg = primary ? cs.onPrimary : cs.onPrimary;
+
+    return Material(
+      color: primary ? cs.primary : cs.surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: primary ? cs.primary : cs.outline),
+            boxShadow: tk.cardShadow,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: primary ? 14 : AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: primary ? 40 : 32,
+                height: primary ? 40 : 32,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Center(
+                  child: AppIcon(icon, size: primary ? 20 : 16, color: iconFg),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style:
+                          (primary
+                                  ? context.text.titleMedium
+                                  : context.text.titleSmall)
+                              ?.copyWith(color: fg),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: context.text.labelSmall?.copyWith(
+                          color: fg.withValues(alpha: 0.75),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              if (primary) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppIcon(AppIcons.chevronForwardRtl, size: 16, color: fg),
+              ],
+            ],
+          ),
         ),
-        _ActionTile(
-          icon: AppIcons.search,
-          label: 'ابحث عن دواء',
-          onTap: onSearchMedicine,
+      ),
+    );
+  }
+}
+
+// ── رابط تقرير ───────────────────────────────────────────────────────────
+// التقارير تُفتح مرةً في الأسبوع لا في كل جلسة — سطرٌ هادئ بلا حدّ ولا ظل،
+// فلا ينازع الإجراءات على الانتباه.
+class _ReportLink extends StatelessWidget {
+  const _ReportLink({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final AppIcons icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Material(
+      color: tk.surfaceAlt,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 10,
+          ),
+          child: Row(
+            children: [
+              AppIcon(icon, size: 16, color: cs.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  label,
+                  style: context.text.bodySmall?.copyWith(color: cs.onSurface),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
-        _ActionTile(
-          icon: AppIcons.pill,
-          label: 'الكتالوج',
-          onTap: onCatalog,
-        ),
-        _ActionTile(
-          icon: AppIcons.clipboardList,
-          label: 'تقرير مشترياتي',
-          onTap: onReports,
-        ),
-        _ActionTile(
-          icon: AppIcons.tag,
-          label: 'تقرير طلبات التسعير',
-          onTap: onTenderReports,
-        ),
-      ],
+      ),
     );
   }
 }
 
 // بانر «صيدلي إلى صيدلي» — يعرّف بالميزة ويفتح تصفح الإعلانات أو إعلاناتي.
 class _PhToPhBanner extends StatelessWidget {
-  const _PhToPhBanner({
-    required this.onBrowse,
-    required this.onMyListings,
-  });
+  const _PhToPhBanner({required this.onBrowse, required this.onMyListings});
 
   final VoidCallback onBrowse;
   final VoidCallback onMyListings;
@@ -264,7 +506,10 @@ class _PhToPhBanner extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.md,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,21 +528,27 @@ class _PhToPhBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'صيدلي إلى صيدلي',
-                  style: context.text.titleMedium
-                      ?.copyWith(color: cs.primary),
+                Expanded(
+                  child: Text(
+                    'صيدلي إلى صيدلي',
+                    style: context.text.titleMedium?.copyWith(
+                      color: cs.primary,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'أدوية كاسدة أو قاربت انتهاء صلاحيتها؟\nأعلن عنها لصيادلة في منطقتك وتواصل معهم مباشرةً.',
+              'أدوية كاسدة أو قاربت انتهاء صلاحيتها؟\n'
+              'أعلن عنها لصيادلة في منطقتك وتواصل معهم مباشرةً.',
               style: context.text.bodySmall?.copyWith(color: tk.hint),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
+                // هذان نداءا البانر الرئيسيان لا زرّا بطاقةٍ في قائمة، فيأخذان
+                // ارتفاع الزرّ القياسي من الثيم: ٣٢ كان يضغط النصّ فيبهت.
                 Expanded(
                   child: AppButton(
                     label: 'تصفح الإعلانات',
@@ -309,7 +560,6 @@ class _PhToPhBanner extends StatelessWidget {
                 Expanded(
                   child: AppButton(
                     label: 'إعلاناتي',
-                    variant: AppButtonVariant.filled,
                     onPressed: onMyListings,
                   ),
                 ),
@@ -317,91 +567,6 @@ class _PhToPhBanner extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final AppIcons icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final t = context.tokens;
-    return Material(
-      color: cs.surface,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: cs.outline),
-            boxShadow: t.cardShadow,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Center(
-                  child: AppIcon(icon, size: 16, color: cs.onPrimary),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  label,
-                  style: context.text.titleSmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// رابط «عرض الكل ›» في ترويسة القسم.
-class _SeeAllLink extends StatelessWidget {
-  const _SeeAllLink({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('عرض الكل',
-              style: context.text.bodySmall?.copyWith(color: cs.primary)),
-          const SizedBox(width: 2),
-          AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
-        ],
       ),
     );
   }
