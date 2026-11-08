@@ -116,7 +116,10 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Domain\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Application\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Infrastructure\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.api\\\\Controllers\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.api\\\\Controllers\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
+      "Bash(git fetch *)",
+      "Bash(git stash *)",
+      "Bash(git pull *)"
     ]
   }
 }

@@ -239,11 +239,23 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          '${item.medicineName} '
-                          '(${item.quantity.toStringAsFixed(0)} ${item.unit}'
-                          '${(item.bonusPercentage ?? 0) > 0 ? ' + ${(item.quantity * item.bonusPercentage! / 100).toStringAsFixed(0)} بونص' : ''})',
-                          style: context.text.bodyMedium,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${item.medicineName} '
+                              '(${item.quantity.toStringAsFixed(0)} ${item.unit}'
+                              '${(item.bonusPercentage ?? 0) > 0 ? ' + ${(item.quantity * item.bonusPercentage! / 100).toStringAsFixed(0)} بونص' : ''})',
+                              style: context.text.bodyMedium,
+                            ),
+                            if (item.manufacturerName != null &&
+                                item.manufacturerName!.isNotEmpty)
+                              Text(
+                                'الشركة المصنعة: ${item.manufacturerName}',
+                                style: context.text.bodySmall
+                                    ?.copyWith(color: context.tokens.hint),
+                              ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),

@@ -35,6 +35,15 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
   /// كميات محلية مؤقتة أثناء استجابة الخادم — تُحدِّث الفاتورة فوراً.
   final Map<String, int> _localQuantities = {};
 
+  /// مرجع محفوظ مسبقاً — ref غير آمن داخل dispose().
+  late final CartController _cartNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _cartNotifier = ref.read(cartProvider.notifier);
+  }
+
   /// يُنشئ نسخة مُصحَّحة من السلّة بالكميات المحلية المؤقتة، فتبدو الأرقام
   /// محدَّثة قبل أن يُجيب الخادم.
   Cart _patchCart(Cart cart) {
@@ -96,7 +105,7 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
       if (value > 0) _localQuantities[item.id] = value;
     });
     try {
-      await ref.read(cartProvider.notifier).setQuantity(item.id, value);
+      await _cartNotifier.setQuantity(item.id, value);
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
@@ -135,7 +144,7 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
 
   Future<void> _removeItem(CartItem item) async {
     try {
-      await ref.read(cartProvider.notifier).removeItem(item.id);
+      await _cartNotifier.removeItem(item.id);
       if (mounted) {
         AppSnackbar.show(context, 'حُذف «${item.medicineName}» من السلّة');
       }
@@ -146,11 +155,9 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
 
   @override
   void dispose() {
-    // حفظ أي كميات مكتوبة لم تُرسَل بعد عند الخروج من الصفحة.
     if (_localQuantities.isNotEmpty) {
-      final notifier = ref.read(cartProvider.notifier);
       for (final entry in _localQuantities.entries) {
-        notifier.setQuantity(entry.key, entry.value).ignore();
+        _cartNotifier.setQuantity(entry.key, entry.value).ignore();
       }
     }
     super.dispose();

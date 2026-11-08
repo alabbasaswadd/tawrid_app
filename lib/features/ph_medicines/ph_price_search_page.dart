@@ -590,13 +590,19 @@ class _PriceResultCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (r.specLine.isNotEmpty || r.manufacturerName.isNotEmpty) ...[
+                    if (r.specLine.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        [
-                          if (r.specLine.isNotEmpty) r.specLine,
-                          if (r.manufacturerName.isNotEmpty) r.manufacturerName,
-                        ].join(' · '),
+                        r.specLine,
+                        style: context.text.labelSmall?.copyWith(color: tk.hint),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (r.manufacturerName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'الشركة المصنعة: ${r.manufacturerName}',
                         style: context.text.labelSmall?.copyWith(color: tk.hint),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

@@ -73,6 +73,7 @@ class SupplyOrderItem {
   final String id;
   final String medicineName;
   final String? catalogItemId;
+  final String? manufacturerName;
   final double quantity;
   final String unit;
   final double? agreedUnitPrice;
@@ -82,6 +83,7 @@ class SupplyOrderItem {
     required this.id,
     required this.medicineName,
     this.catalogItemId,
+    this.manufacturerName,
     required this.quantity,
     required this.unit,
     this.agreedUnitPrice,
@@ -92,6 +94,7 @@ class SupplyOrderItem {
         id: j['id'] as String,
         medicineName: j['medicineName'] as String,
         catalogItemId: j['catalogItemId'] as String?,
+        manufacturerName: j['manufacturerName'] as String?,
         quantity: (j['quantity'] as num).toDouble(),
         unit: j['unit'] as String,
         agreedUnitPrice: (j['agreedUnitPrice'] as num?)?.toDouble(),
