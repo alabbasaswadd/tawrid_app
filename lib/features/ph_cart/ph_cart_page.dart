@@ -109,6 +109,30 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
     }
   }
 
+  Future<bool> _confirmRemoveItem(CartItem item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف الصنف'),
+        content: Text('هل تريد حذف «${item.medicineName}» من السلّة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('تراجع'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: context.colors.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   Future<void> _removeItem(CartItem item) async {
     try {
       await ref.read(cartProvider.notifier).removeItem(item.id);
@@ -118,6 +142,18 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     }
+  }
+
+  @override
+  void dispose() {
+    // حفظ أي كميات مكتوبة لم تُرسَل بعد عند الخروج من الصفحة.
+    if (_localQuantities.isNotEmpty) {
+      final notifier = ref.read(cartProvider.notifier);
+      for (final entry in _localQuantities.entries) {
+        notifier.setQuantity(entry.key, entry.value).ignore();
+      }
+    }
+    super.dispose();
   }
 
   Future<void> _checkout(CartWarehouseGroup group) async {
@@ -261,6 +297,7 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
             onLiveQuantityChanged: (item, v) =>
                 setState(() => _localQuantities[item.id] = v),
             onRemoveItem: _removeItem,
+            onConfirmRemoveItem: _confirmRemoveItem,
           ),
         ],
         const SizedBox(height: AppSpacing.xl),
@@ -283,6 +320,7 @@ class _WarehouseGroupSection extends StatelessWidget {
     required this.onQuantityChanged,
     required this.onLiveQuantityChanged,
     required this.onRemoveItem,
+    required this.onConfirmRemoveItem,
   });
 
   final CartWarehouseGroup group;
@@ -293,6 +331,7 @@ class _WarehouseGroupSection extends StatelessWidget {
   final void Function(CartItem item, int value) onQuantityChanged;
   final void Function(CartItem item, int value) onLiveQuantityChanged;
   final void Function(CartItem item) onRemoveItem;
+  final Future<bool> Function(CartItem item) onConfirmRemoveItem;
 
   @override
   Widget build(BuildContext context) {
@@ -312,6 +351,7 @@ class _WarehouseGroupSection extends StatelessWidget {
             direction: DismissDirection.horizontal,
             background: const _SwipeToDeleteBackground(),
             secondaryBackground: const _SwipeToDeleteBackground(),
+            confirmDismiss: (_) => onConfirmRemoveItem(group.items[i]),
             onDismissed: (_) => onRemoveItem(group.items[i]),
             child: _CartItemCard(
               item: group.items[i],

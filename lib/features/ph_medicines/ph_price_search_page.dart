@@ -197,13 +197,17 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   Future<void> _addToCart(MedicineSearchResult r) async {
     final key = _keyOf(r);
     if (_adding != null) return;
+
+    final qty = await _showQuantityDialog(r.medicineName);
+    if (qty == null || !mounted) return;
+
     setState(() => _adding = key);
     try {
       final notifier = ref.read(cartProvider.notifier);
       if (r.isOffer) {
-        await notifier.addOfferItem(r.salesOfferItemId!);
+        await notifier.addOfferItem(r.salesOfferItemId!, quantity: qty);
       } else {
-        await notifier.addWarehouseMedicine(r.warehouseMedicineId!);
+        await notifier.addWarehouseMedicine(r.warehouseMedicineId!, quantity: qty);
       }
       if (!mounted) return;
       AppSnackbar.success(context, 'أُضيف «${r.medicineName}» إلى السلّة');
@@ -212,6 +216,59 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     } finally {
       if (mounted) setState(() => _adding = null);
     }
+  }
+
+  Future<int?> _showQuantityDialog(String medicineName) async {
+    int qty = 1;
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('تحديد الكمية'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                medicineName,
+                style: context.text.bodyMedium,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'الكمية:',
+                    style: context.text.bodySmall
+                        ?.copyWith(color: context.tokens.hint),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  QuantityStepper(
+                    value: '$qty',
+                    onDecrement: qty > 1 ? () => setS(() => qty--) : null,
+                    onIncrement: () => setS(() => qty++),
+                    onValueChanged: (v) => setS(() => qty = v.clamp(1, 999)),
+                    onLiveChanged: (v) => setS(() => qty = v.clamp(1, 999)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, qty),
+              child: const Text('أضف للسلة'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   static String _keyOf(MedicineSearchResult r) => r.isOffer
@@ -533,10 +590,13 @@ class _PriceResultCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (r.specLine.isNotEmpty) ...[
+                    if (r.specLine.isNotEmpty || r.manufacturerName.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        r.specLine,
+                        [
+                          if (r.specLine.isNotEmpty) r.specLine,
+                          if (r.manufacturerName.isNotEmpty) r.manufacturerName,
+                        ].join(' · '),
                         style: context.text.labelSmall?.copyWith(color: tk.hint),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -923,41 +983,35 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _section(context, 'الترتيب'),
+                    const SizedBox(height: AppSpacing.sm),
+                    for (final s in MedicineSearchSort.values) ...[
+                      _FilterOptionRow(
+                        icon: AppIcons.sliders,
+                        title: s.label,
+                        selected: _sort == s,
+                        onTap: () => setState(() => _sort = s),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
+
+                    const SizedBox(height: AppSpacing.md),
+                    _section(context, 'المصدر'),
+                    const SizedBox(height: AppSpacing.sm),
+                    for (final s in MedicineSearchSource.values) ...[
+                      _FilterOptionRow(
+                        icon: AppIcons.tag,
+                        title: s.label,
+                        selected: _source == s,
+                        onTap: () => setState(() => _source = s),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
+
+                    const SizedBox(height: AppSpacing.md),
                     _section(context, 'الشركة المصنّعة'),
                     const SizedBox(height: AppSpacing.sm),
                     _manufacturerSection(context),
-
-                    const SizedBox(height: AppSpacing.lg),
-                    _section(context, 'المصدر'),
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: [
-                        for (final s in MedicineSearchSource.values)
-                          AppFilterChip(
-                            label: s.label,
-                            selected: _source == s,
-                            onTap: () => setState(() => _source = s),
-                          ),
-                      ],
-                    ),
-
-                    const SizedBox(height: AppSpacing.lg),
-                    _section(context, 'الترتيب'),
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: [
-                        for (final s in MedicineSearchSort.values)
-                          AppFilterChip(
-                            label: s.label,
-                            selected: _sort == s,
-                            onTap: () => setState(() => _sort = s),
-                          ),
-                      ],
-                    ),
                   ],
                 ),
               ),

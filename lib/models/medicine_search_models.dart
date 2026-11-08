@@ -22,7 +22,10 @@ enum MedicineSearchSort {
   priceLowToHigh(2, 'الأقل سعراً'),
   // يتطلّب موقعاً مسجَّلاً للصيدلية، وإلا ردّ الخادم برسالة صريحة.
   nearest(3, 'الأقرب'),
-  priceHighToLow(4, 'الأعلى سعراً');
+  priceHighToLow(4, 'الأعلى سعراً'),
+  netAfterBonus(5, 'الأقل نتاً بعد البونص'),
+  highestBonus(6, 'أعلى بونص'),
+  highestDiscount(7, 'أعلى حسم');
 
   const MedicineSearchSort(this.code, this.label);
   final int code;
