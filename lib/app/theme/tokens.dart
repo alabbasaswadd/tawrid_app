@@ -53,25 +53,29 @@ abstract final class AppPalette {
   static const infoDark = Color(0xFF5B9BE0);
 
   // ── محايدات (فاتح): خلفية الصفحة (#F8FAF9)، الأسطح (#FFFFFF)،
-  //    الحدود (#E3EAE6)، النص (#18332D / #71817B) ─────────────────────
+  //    الحدود (#E3EAE6) ─────────────────────────────────────────────────
+  // النص محايد تماماً (أسود/رمادي) بلا صبغة خضراء — لأعلى وضوح وراحة للعين
+  // عبر كل الشاشات: أساسي أسود، ثانوي/عناوين فرعية رمادي غامق محايد،
+  // تلميحات رمادي أفتح يحافظ على تباين AA (٤٫٥:١ على الأقل).
   static const bgLight = Color(0xFFF8FAF9);
   static const surfaceLight = Color(0xFFFFFFFF);
   static const surfaceAltLight = Color(0xFFF1F5F3);
   static const outlineLight = Color(0xFFE3EAE6);
   static const outlineStrongLight = Color(0xFFC9D4CE);
-  static const textPrimaryLight = Color(0xFF18332D);
-  static const textSecondaryLight = Color(0xFF71817B);
-  static const textHintLight = Color(0xFF93A29C);
+  static const textPrimaryLight = Color(0xFF000000);
+  static const textSecondaryLight = Color(0xFF4A4A4A);
+  static const textHintLight = Color(0xFF767676);
 
-  // ── محايدات (داكن) — مشتقّة بنفس الصبغة الخضراء ─────────────────────
+  // ── محايدات (داكن) — نفس المنطق: نص محايد بلا صبغة، لا أسود هنا لأن
+  //    الخلفية داكنة (الأساسي أبيض قريب، الثانوي/التلميح رمادي فاتح) ────
   static const bgDark = Color(0xFF0D1613);
   static const surfaceDark = Color(0xFF131F1A);
   static const surfaceAltDark = Color(0xFF1A2A23);
   static const outlineDark = Color(0xFF2A3C33);
   static const outlineStrongDark = Color(0xFF3A5045);
-  static const textPrimaryDark = Color(0xFFE4ECE8);
-  static const textSecondaryDark = Color(0xFF9FB3AA);
-  static const textHintDark = Color(0xFF6E8279);
+  static const textPrimaryDark = Color(0xFFF2F2F2);
+  static const textSecondaryDark = Color(0xFFB5B5B5);
+  static const textHintDark = Color(0xFF8A8A8A);
 }
 
 // مدد الحركة الموحّدة.

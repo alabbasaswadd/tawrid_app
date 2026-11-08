@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 // (الهوية · الخطوط والمقاسات — خط Tajawal):
 //   عنوان رئيسي  Bold 22 / 32      → displayMedium
 //   عنوان قسم    Bold 18 / 26      → titleLarge
-//   عنوان عنصر   Medium 16 / 24    → titleMedium
+//   عنوان عنصر (عنوان البطاقة)  Bold 17 / 25    → titleMedium
 //   نص أساسي     Regular 14 / 22   → bodyMedium
 //   نص مساعد     Regular 12 / 18   → bodySmall
 //   بيانات ثانوية Regular 11 / 16  → labelSmall
@@ -61,9 +61,9 @@ abstract final class AppTypography {
         color: primary,
       ),
       titleMedium: _tajawal(
-        size: 16,
-        weight: FontWeight.w500,
-        lineHeight: 24,
+        size: 17,
+        weight: FontWeight.w700,
+        lineHeight: 25,
         color: primary,
       ),
       titleSmall: _tajawal(

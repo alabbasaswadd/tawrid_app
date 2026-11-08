@@ -58,7 +58,7 @@ class MultiRegionPicker extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text('اختر مناطق الاستهداف من مناطق خدمتك',
-                        style: GoogleFonts.cairo(
+                        style: GoogleFonts.tajawal(
                             fontSize: 13, color: TawridColors.warehouse, fontWeight: FontWeight.w600)),
                   ),
                   const Icon(Icons.chevron_left, color: TawridColors.warehouse),
@@ -73,7 +73,7 @@ class MultiRegionPicker extends StatelessWidget {
             children: [
               for (var i = 0; i < regions.length; i++)
                 Chip(
-                  label: Text(regions[i].label, style: GoogleFonts.cairo(fontSize: 12.5)),
+                  label: Text(regions[i].label, style: GoogleFonts.tajawal(fontSize: 12.5)),
                   avatar: const Icon(Icons.location_on,
                       size: 16, color: TawridColors.warehouse),
                   onDeleted: () {
@@ -91,7 +91,7 @@ class MultiRegionPicker extends StatelessWidget {
             onPressed: () => _openSheet(context),
             icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
             label: Text('تعديل المناطق (${regions.length})',
-                style: GoogleFonts.cairo(fontSize: 12.5)),
+                style: GoogleFonts.tajawal(fontSize: 12.5)),
             style: TextButton.styleFrom(
               foregroundColor: TawridColors.warehouse,
               padding: EdgeInsets.zero,
@@ -180,7 +180,7 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 2),
                   Text('من مناطق خدمة مستودعك فقط',
-                      style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
+                      style: GoogleFonts.tajawal(fontSize: 12, color: TawridColors.hint)),
                 ],
               ),
             ),
@@ -192,7 +192,7 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Text('تعذّر تحميل مناطق الخدمة',
-                        style: GoogleFonts.cairo(color: TawridColors.hint)),
+                        style: GoogleFonts.tajawal(color: TawridColors.hint)),
                   ),
                 ),
                 data: (govs) {
@@ -207,12 +207,12 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
                             const SizedBox(height: AppSpacing.sm),
                             Text('لم تُحدَّد مناطق خدمة لمستودعك بعد',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.cairo(
+                                style: GoogleFonts.tajawal(
                                     fontSize: 14, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
                             Text('حدِّد مناطق التغطية من: المستودع ← مناطق الخدمة',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.cairo(fontSize: 12, color: TawridColors.hint)),
+                                style: GoogleFonts.tajawal(fontSize: 12, color: TawridColors.hint)),
                           ],
                         ),
                       ),
@@ -244,12 +244,12 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(g.name,
-                                      style: GoogleFonts.cairo(
+                                      style: GoogleFonts.tajawal(
                                           fontSize: 14, fontWeight: FontWeight.w700)),
                                 ),
                                 FilterChip(
                                   label: Text('كل المحافظة',
-                                      style: GoogleFonts.cairo(fontSize: 11.5)),
+                                      style: GoogleFonts.tajawal(fontSize: 11.5)),
                                   selected: whole,
                                   onSelected: (_) => _toggleWhole(g.name),
                                   selectedColor: TawridColors.warehouse.withValues(alpha: 0.15),
@@ -267,7 +267,7 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
                                 for (final c in g.cities)
                                   FilterChip(
                                     label: Text(c.name,
-                                        style: GoogleFonts.cairo(fontSize: 12.5)),
+                                        style: GoogleFonts.tajawal(fontSize: 12.5)),
                                     selected: whole || _isCity(g.name, c.name),
                                     onSelected:
                                         whole ? null : (_) => _toggleCity(g.name, c.name),
@@ -295,7 +295,7 @@ class _SelectRegionsSheetState extends ConsumerState<_SelectRegionsSheet> {
                 child: Row(
                   children: [
                     Text('${_sel.length} منطقة مختارة',
-                        style: GoogleFonts.cairo(fontSize: 12.5, color: TawridColors.hint)),
+                        style: GoogleFonts.tajawal(fontSize: 12.5, color: TawridColors.hint)),
                     const Spacer(),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, _sel),

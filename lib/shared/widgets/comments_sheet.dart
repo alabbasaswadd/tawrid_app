@@ -171,12 +171,17 @@ class _CommentsSheetState extends State<CommentsSheet> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(c.authorName,
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 12)),
+                    style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        color: TawridColors.textPrimary)),
                 const SizedBox(height: 2),
-                Text(c.content, style: GoogleFonts.cairo(fontSize: 13)),
+                Text(c.content,
+                    style: GoogleFonts.tajawal(
+                        fontSize: 13, color: TawridColors.textPrimary)),
                 const SizedBox(height: 2),
                 Text(formatSmartTimestamp(c.createdOn),
-                    style: GoogleFonts.cairo(fontSize: 10, color: TawridColors.hint)),
+                    style: GoogleFonts.tajawal(fontSize: 11, color: TawridColors.hint)),
               ],
             ),
           ),
