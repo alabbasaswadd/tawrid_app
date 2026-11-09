@@ -224,6 +224,14 @@ class _PhWarehouseCatalogPageState
       hint: r.isOffer && r.availableQuantity != null
           ? 'كمية العرض المعلنة: ${formatQuantity(r.availableQuantity!)} ${r.unit}'
           : null,
+      // بوجود سلّم بونص يتولّى الحوار الكمية الابتدائية وخطوة الزيادة.
+      tiers: r.bonusTiers,
+      // الصنف ومستودعه وسعره: الحوار يعرض إجمالي ما سيُدفع عند الكمية
+      // المختارة، فلا يُضيف الصيدلي ثمّ يكتشف المبلغ في السلّة.
+      unit: r.unit,
+      unitPrice: r.netUnitPrice ?? r.unitPrice,
+      currency: r.currency,
+      warehouseName: r.warehouseName,
     );
     if (qty == null || !mounted) return;
 

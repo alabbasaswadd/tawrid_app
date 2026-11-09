@@ -77,7 +77,6 @@ abstract final class TRoutes {
   static String phCompareQuotations(String id) => '/tenders/$id';
 
   // إنشاء طلبية توريد جديدة مباشرة (اختيار مستودع + أصناف)
-  static const String phCreateOrder = '/orders/create';
 
   // تفاصيل طلبية التوريد — المسار والأصناف والفاتورة ومشاركة PDF
   static const String phOrderDetailPattern = '/orders/:orderId';

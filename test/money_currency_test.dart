@@ -49,4 +49,40 @@ void main() {
       expect(freeQuantityFor([t(10, 2)], 25), 4);
     });
   });
+
+  group('حوار الكمية — الخطوة والعتبة', () {
+    BonusTier t(double buy, double free) =>
+        BonusTier(buyQuantity: buy, freeQuantity: free, label: '$buy + $free');
+
+    // الخطوة من الإنتاج نفسه: يستخدمها حوار الإضافة ومِعداد السلّة
+    // معاً، فنسختُها هنا كانت تختبر نفسها لا الشاشتين.
+    const stepOf = quantityStepFor;
+
+    test('(10+2): تبدأ من 10 وتقفز إلى 20 والبونص يتبعها', () {
+      final tiers = [t(10, 2)];
+      final step = stepOf(tiers);
+      expect(step, 10);
+      expect(freeQuantityFor(tiers, step.toDouble()), 2);
+      expect(freeQuantityFor(tiers, (step * 2).toDouble()), 4);
+      expect(freeQuantityFor(tiers, (step * 3).toDouble()), 6);
+    });
+
+    test('سلّم متعدّد: الخطوة أصغر عتبة', () {
+      final tiers = [t(10, 5), t(5, 2), t(3, 1)];
+      expect(stepOf(tiers), 3);
+      expect(freeQuantityFor(tiers, 3), 1);
+      expect(freeQuantityFor(tiers, 25), 12);
+    });
+
+    test('بلا شرائح: الخطوة واحد ولا بونص', () {
+      expect(stepOf(const []), 1);
+      expect(freeQuantityFor(const [], 10), 0);
+    });
+
+    test('شريحة بكمية غير موجبة لا تصير خطوة', () {
+      // سلّمٌ فيه شريحة تالفة كان سيجعل الخطوة صفراً فيتجمّد المِعداد.
+      expect(stepOf([t(0, 5), t(10, 2)]), 10);
+      expect(stepOf([t(0, 5)]), 1);
+    });
+  });
 }

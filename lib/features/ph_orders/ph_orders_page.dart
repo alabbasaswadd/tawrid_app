@@ -114,11 +114,14 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
+      // الطلبية لا تُنشأ بإدخال أصناف يدوياً: تُبنى من البحث عن دواء ←
+      // السلّة ← الإتمام. فشاشة «طلبية جديدة» أُلغيت، والزرّ يقود إلى بداية
+      // المسار الصحيح لا إلى مسارٍ ثانٍ يتجاوز السلّة وحرّاسها.
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'ph_orders_fab',
-        onPressed: () => context.push(TRoutes.phCreateOrder),
-        icon: const Icon(Icons.add),
-        label: const Text('طلبية جديدة'),
+        onPressed: () => context.push(TRoutes.phPriceSearch),
+        icon: const Icon(Icons.search),
+        label: const Text('ابحث عن دواء'),
       ),
     );
   }

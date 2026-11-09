@@ -88,3 +88,19 @@ double _greedy(List<BonusTier> tiers, double quantity) {
 
   return free;
 }
+
+/// خطوة الزيادة والنقصان المناسبة لسلّم بونص — أصغر كمية شراء فيه، أو ‎1‎
+/// بلا سلّم.
+///
+/// مشتركة بين حوار «تحديد الكمية» ومِعداد السلّة: كلاهما يزيد الكمية على
+/// صنفٍ واحد، فاختلافُ خطوتهما يُقرأ عطلاً — يختار الصيدلي ‎10‎ في الحوار
+/// ثمّ يضغط ‎+‎ في السلّة فتصير ‎11‎، فيخسر البونص بزيادةٍ ظنّها ربحاً.
+int quantityStepFor(List<BonusTier> tiers) {
+  var step = 0;
+  for (final t in tiers) {
+    final buy = t.buyQuantity.round();
+    if (buy <= 0) continue;
+    if (step == 0 || buy < step) step = buy;
+  }
+  return step == 0 ? 1 : step;
+}

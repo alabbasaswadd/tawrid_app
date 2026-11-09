@@ -29,7 +29,6 @@ import 'package:tawrid_app/features/ph_reports/ph_tender_reports_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_profile_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offer_detail_page.dart';
 import 'package:tawrid_app/features/ph_offers/ph_offers_page.dart';
-import 'package:tawrid_app/features/ph_orders/ph_create_order_page.dart';
 import 'package:tawrid_app/features/ph_orders/ph_order_detail_page.dart';
 import 'package:tawrid_app/features/ph_orders/ph_orders_page.dart';
 import 'package:tawrid_app/features/ph_tenders/ph_compare_quotations_page.dart';
@@ -458,12 +457,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // إنشاء طلبية جديدة — «create» ثابت قبل النمط بمعرّف لمنع التقاطه.
-      GoRoute(
-        path: TRoutes.phCreateOrder,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const PhCreateOrderPage(),
-      ),
 
       // تفاصيل طلبية التوريد — المسار والأصناف والفاتورة ومشاركة PDF
       GoRoute(

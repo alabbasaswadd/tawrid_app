@@ -12,6 +12,10 @@ import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 
+// إظهار «طلب تسعير» في الرئيسية. مطفأٌ مؤقتاً بطلب العميل: الميزة كاملةٌ
+// في الخادم والشاشات، والمخفيّ مدخلُها من الرئيسية وحده.
+const bool _showTenderRequest = false;
+
 // الحالات الجارية: من بانتظار الموافقة إلى جاري الشحن (لا مكتملة ولا ملغاة).
 const _activeStatuses = {
   SupplyOrderStatus.pending,
@@ -119,33 +123,17 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
 
         const SizedBox(height: AppSpacing.xl),
 
-        // ٣ — ابدأ عملاً جديداً: إجراء رئيسي واحد بارز يسبق الباقي.
+        // ٣ — ابدأ عملاً جديداً: إجراء رئيسي واحد بارز يسبق الباقي، وكلّ
+        // بلاطة تحمل سطراً يقول ما تفعله: أسماء مثل «كاتالوج المستودعات»
+        // و«كتالوج الأدوية» تتشابه على من يراها أوّل مرة فلا يُعرف أيّهما
+        // يُشترى منه وأيّهما مرجع. والبلاطات بعرض الصفحة لا مثنّاةً في
+        // صفّ، ليتّسع السطر لشرحها.
         _ActionTile(
           icon: AppIcons.package,
           label: 'طلبية جديدة',
-          subtitle: 'ابحث عن دواء، قارن أسعاره، وأضفه إلى السلّة',
+          subtitle: 'ابحث عن دواء، قارن أسعار المستودعات، وأضفه إلى السلّة',
           primary: true,
           onTap: () => context.push(TRoutes.phPriceSearch),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: AppIcons.fileText,
-                label: 'طلب تسعير',
-                onTap: () => context.push(TRoutes.phCreateTender),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: _ActionTile(
-                icon: AppIcons.pill,
-                label: 'كتالوج الأدوية',
-                onTap: () => context.push(TRoutes.phMedicineSearch),
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: AppSpacing.md),
         // كاتالوج المستودعات — سؤالٌ غير سؤال الكتالوج الوطني: ذاك مرجعٌ
@@ -153,8 +141,30 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         _ActionTile(
           icon: AppIcons.warehouse,
           label: 'كاتالوج المستودعات',
+          subtitle:
+              'ما تعرضه مستودعات منطقتك وعروض البونص — مع الإضافة للسلّة',
           onTap: () => context.push(TRoutes.phWarehouseCatalog),
         ),
+        const SizedBox(height: AppSpacing.md),
+        _ActionTile(
+          icon: AppIcons.pill,
+          label: 'كتالوج الأدوية',
+          subtitle: 'مرجعٌ دوائي: الشركة المصنّعة، البدائل، وسعر النشرة',
+          onTap: () => context.push(TRoutes.phMedicineSearch),
+        ),
+
+        // بلاطة «طلب تسعير» مخفيّة مؤقتاً بطلب العميل — المسار والشاشات
+        // باقية كما هي (تُفتح من الإشعارات والتقارير)، فإعادتها تغييرُ
+        // الثابت أعلاه إلى true لا إعادةُ بناء.
+        if (_showTenderRequest) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ActionTile(
+            icon: AppIcons.fileText,
+            label: 'طلب تسعير',
+            subtitle: 'اطلب أسعاراً من عدّة مستودعات دفعةً واحدة، ثمّ قارِن',
+            onTap: () => context.push(TRoutes.phCreateTender),
+          ),
+        ],
 
         const SizedBox(height: AppSpacing.x2l),
 
@@ -165,24 +175,14 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         ),
 
         const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: AppIcons.clipboardList,
-                label: 'تقرير مشترياتي',
-                onTap: () => context.push(TRoutes.phReports),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: _ActionTile(
-                icon: AppIcons.search,
-                label: 'بحث عن دواء',
-                onTap: () => context.push(TRoutes.phPriceSearch),
-              ),
-            ),
-          ],
+        // الصفّ السابق كان يضمّ «بحث عن دواء» وهو نفسُ مسار «طلبية جديدة»
+        // أعلاه — مدخلان لشاشةٍ واحدة لا يُكتب لهما شرحان مختلفان، فبقي
+        // الأبرز وحده.
+        _ActionTile(
+          icon: AppIcons.clipboardList,
+          label: 'تقرير مشترياتي',
+          subtitle: 'ماذا اشتريت ومن أيّ مستودع، وكم أنفقت خلال مدّة تختارها',
+          onTap: () => context.push(TRoutes.phReports),
         ),
       ],
     );
@@ -383,15 +383,17 @@ class _ActionTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (subtitle != null)
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
                       Text(
                         subtitle!,
                         style: context.text.labelSmall?.copyWith(
-                          color: fg.withValues(alpha: 0.75),
+                          color: primary ? fg.withValues(alpha: 0.78) : tk.hint,
+                          height: 1.35,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
                       ),
+                    ],
                   ],
                 ),
               ),

@@ -12,6 +12,7 @@ import 'package:tawrid_app/models/medicine_search_models.dart';
 import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/repositories/medicine_search_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/widgets/quantity_dialog.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
@@ -198,7 +199,24 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     final key = _keyOf(r);
     if (_adding != null) return;
 
-    final qty = await _showQuantityDialog(r.medicineName);
+    // الحوار المشترك — واعٍ بشرائح البونص: يبدأ من أصغر عتبة ويقفز بخطوتها
+    // ويعرض ما سيناله مجاناً. نسخةٌ خاصّة هنا كانت تفترق عن أختها في
+    // الكاتالوج، والفرق في حوارٍ واحد يُقرأ عطلاً.
+    final qty = await showQuantityDialog(
+      context,
+      medicineName: r.medicineName,
+      initialQuantity: _defaultQuantity(r),
+      hint: r.isOffer && r.availableQuantity != null
+          ? 'كمية العرض المعلنة: ${formatQuantity(r.availableQuantity!)} ${r.unit}'
+          : null,
+      tiers: r.bonusTiers,
+      // الصنف ومستودعه وسعره: الحوار يعرض إجمالي ما سيُدفع عند الكمية
+      // المختارة، فلا يُضيف الصيدلي ثمّ يكتشف المبلغ في السلّة.
+      unit: r.unit,
+      unitPrice: r.netUnitPrice ?? r.unitPrice,
+      currency: r.currency,
+      warehouseName: r.warehouseName,
+    );
     if (qty == null || !mounted) return;
 
     setState(() => _adding = key);
@@ -217,58 +235,12 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       if (mounted) setState(() => _adding = null);
     }
   }
-
-  Future<int?> _showQuantityDialog(String medicineName) async {
-    int qty = 1;
-    return showDialog<int>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('تحديد الكمية'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                medicineName,
-                style: context.text.bodyMedium,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'الكمية:',
-                    style: context.text.bodySmall
-                        ?.copyWith(color: context.tokens.hint),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  QuantityStepper(
-                    value: '$qty',
-                    onDecrement: qty > 1 ? () => setS(() => qty--) : null,
-                    onIncrement: () => setS(() => qty++),
-                    onValueChanged: (v) => setS(() => qty = v.clamp(1, 999)),
-                    onLiveChanged: (v) => setS(() => qty = v.clamp(1, 999)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, qty),
-              child: const Text('أضف للسلة'),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// الكمية الافتراضية بلا سلّم بونص: الكمية المعلنة في العرض إن وُجدت،
+  /// وإلا واحد. ومع السلّم يتولّاها الحوار.
+  static int _defaultQuantity(MedicineSearchResult r) {
+    final declared = r.availableQuantity;
+    if (declared == null || declared <= 0) return 1;
+    return declared.round().clamp(1, 9999);
   }
 
   static String _keyOf(MedicineSearchResult r) => r.isOffer
@@ -308,14 +280,47 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
               AppSpacing.page,
               0,
             ),
-            child: AppSearchBar(
-              controller: _searchController,
-              hint: scoped
-                  ? 'ابحث عن دواء داخل هذا المستودع…'
-                  : 'ابحث عن دواء، مادة فعالة، أو مستودع…',
-              onChanged: _onSearchChanged,
-              onSubmitted: (_) => _run(reset: true),
-              onScanTap: _scanBarcode,
+            child: Row(
+              children: [
+                Expanded(
+                  child: AppSearchBar(
+                    controller: _searchController,
+                    hint: scoped
+                        ? 'ابحث عن دواء داخل هذا المستودع…'
+                        : 'ابحث عن دواء، مادة فعالة، أو مستودع…',
+                    onChanged: _onSearchChanged,
+                    onSubmitted: (_) => _run(reset: true),
+                    onScanTap: _scanBarcode,
+                  ),
+                ),
+                // مخرجٌ إلى كاتالوج المستودعات: من لا يعرف اسم ما يريد لا
+                // يجد شيئاً بالبحث — فيتصفّح ما تعرضه المستودعات بدلاً منه.
+                // ولا يظهر في البحث المحصور بمستودع واحد: هو فيه أصلاً.
+                if (!scoped) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Material(
+                    color: context.colors.surface,
+                    shape: CircleBorder(
+                      side: BorderSide(color: context.colors.outline),
+                    ),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => context.push(TRoutes.phWarehouseCatalog),
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: AppIcon(
+                            AppIcons.warehouse,
+                            size: 20,
+                            color: context.colors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
 

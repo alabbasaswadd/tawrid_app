@@ -238,7 +238,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
             children: [
               for (final item in order.items)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -247,28 +247,62 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${item.medicineName} '
-                              '(${item.quantity.toStringAsFixed(0)} ${item.unit}'
-                              '${(item.bonusPercentage ?? 0) > 0 ? ' + ${(item.quantity * item.bonusPercentage! / 100).toStringAsFixed(0)} بونص' : ''})',
+                              item.medicineName,
                               style: context.text.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            // الكمية وسعر الوحدة سطرٌ مستقلّ كما في السلّة:
+                            // كانا محشورَين بين قوسين في الاسم فيُقرأ السطر
+                            // جملةً واحدة لا بيانات.
+                            Text(
+                              '${formatQuantity(item.quantity)} ${item.unit}'
+                              '${item.agreedUnitPrice == null ? '' : ' · سعر الوحدة '
+                                  '${formatMoneyWith(item.agreedUnitPrice!, _currency)}'}',
+                              style: context.text.bodySmall
+                                  ?.copyWith(color: context.tokens.hint),
                             ),
                             if (item.manufacturerName != null &&
-                                item.manufacturerName!.isNotEmpty)
+                                item.manufacturerName!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
                               Text(
-                                'الشركة المصنعة: ${item.manufacturerName}',
-                                style: context.text.bodySmall
+                                item.manufacturerName!,
+                                style: context.text.labelSmall
                                     ?.copyWith(color: context.tokens.hint),
                               ),
+                            ],
+                            // البونص شارةٌ ذهبية كما في السلّة لا نصّاً
+                            // داخل الاسم — وهو ما يُحضَّر مع الطلبية، فحقّه
+                            // أن يُرى لا أن يُستخرَج من بين قوسين.
+                            if (_freeUnitsOf(item) > 0) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              BonusBadge(
+                                label:
+                                    '+${formatQuantity(_freeUnitsOf(item))} ${item.unit} مجاناً',
+                              ),
+                            ],
                           ],
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        item.agreedUnitPrice == null
-                            ? '—'
-                            : formatMoneyWith(
-                                item.agreedUnitPrice! * item.quantity, _currency),
-                        style: context.text.bodyMedium,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'الإجمالي',
+                            style: context.text.labelSmall
+                                ?.copyWith(color: context.tokens.hint),
+                          ),
+                          Text(
+                            item.agreedUnitPrice == null
+                                ? '—'
+                                : formatMoneyWith(
+                                    item.agreedUnitPrice! * item.quantity,
+                                    _currency),
+                            style: context.text.bodyMedium,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -490,79 +524,114 @@ class _Journey extends StatelessWidget {
 
     final currentIndex = _orderJourney.indexOf(order.status);
 
+    // أفقيّ لا رأسيّ: ستّ محطات رأسية كانت تستهلك شاشةً كاملة قبل أن يصل
+    // الصيدلي إلى الأصناف والإجمالي — وهما ما جاء من أجله. والمحطات صفٌّ
+    // واحد، وتفصيلُ المحطة الحالية وحدها أسفله (الباقي معروفٌ ضمناً).
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final (i, step) in _orderJourney.indexed)
-          IntrinsicHeight(
-            // العمود البصري أولاً: في RTL يُرسم أول أبناء الصف في اليمين،
-            // فيأتي خطّ المحطات على يمين النص كما يُقرأ العربي.
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (i, step) in _orderJourney.indexed)
+              Expanded(
+                child: Column(
                   children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i <= currentIndex ? cs.primary : cs.surface,
-                        border: Border.all(
-                          color: i <= currentIndex ? cs.primary : cs.outline,
-                        ),
-                      ),
-                      child: Center(
-                        child: i <= currentIndex
-                            ? Icon(
-                                i == currentIndex
-                                    ? Icons.local_shipping_outlined
-                                    : Icons.check,
-                                size: 15,
-                                color: cs.onPrimary,
-                              )
-                            : Text('${i + 1}',
-                                style: context.text.labelSmall
-                                    ?.copyWith(color: tk.hint)),
-                      ),
-                    ),
-                    if (i < _orderJourney.length - 1)
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          color: i < currentIndex ? cs.primary : cs.outline,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        Text(
-                          step.label,
-                          style: i <= currentIndex
-                              ? context.text.titleSmall?.copyWith(
-                                  color: i == currentIndex ? cs.primary : null)
-                              : context.text.titleSmall?.copyWith(color: tk.hint),
+                        // الواصل نصفان: يسار الدائرة ويمينها — فيلتقي
+                        // نصفا كل محطتين متجاورتين خطّاً واحداً متّصلاً،
+                        // ويبقى طرفا الصفّ بلا خطّ معلّق.
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: i == 0
+                                ? Colors.transparent
+                                : (i <= currentIndex ? cs.primary : cs.outline),
+                          ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          switch (reachedAt(step)) {
-                            final DateTime t => formatSmartTimestamp(t),
-                            _ => _journeyHint(step),
-                          },
-                          style: context.text.bodySmall?.copyWith(color: tk.hint),
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i <= currentIndex ? cs.primary : cs.surface,
+                            border: Border.all(
+                              color: i <= currentIndex ? cs.primary : cs.outline,
+                            ),
+                          ),
+                          child: Center(
+                            child: i <= currentIndex
+                                ? Icon(
+                                    i == currentIndex
+                                        ? Icons.local_shipping_outlined
+                                        : Icons.check,
+                                    size: 14,
+                                    color: cs.onPrimary,
+                                  )
+                                : Text(
+                                    '${i + 1}',
+                                    style: context.text.labelSmall
+                                        ?.copyWith(color: tk.hint),
+                                  ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: i == _orderJourney.length - 1
+                                ? Colors.transparent
+                                : (i < currentIndex ? cs.primary : cs.outline),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      step.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.labelSmall?.copyWith(
+                        color: i == currentIndex ? cs.primary : tk.hint,
+                        fontWeight: i == currentIndex ? FontWeight.w700 : null,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+        Divider(height: 1, color: cs.outline),
+        const SizedBox(height: AppSpacing.sm),
+
+        // المحطة الحالية وحدها بتفصيلها: التسميات أعلاه مختصرة بحكم ضيق
+        // العمود، فالسطر هنا يقول أين وصلت الطلبية ومتى، أو ما يُنتظَر.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.schedule, size: 16, color: cs.primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(order.status.label, style: context.text.titleSmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    switch (reachedAt(order.status)) {
+                      final DateTime t => formatSmartTimestamp(t),
+                      _ => _journeyHint(order.status),
+                    },
+                    style: context.text.bodySmall?.copyWith(color: tk.hint),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
+        ),
       ],
     );
   }

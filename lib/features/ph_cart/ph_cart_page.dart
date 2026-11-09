@@ -474,6 +474,11 @@ class _CartItemCard extends StatelessWidget {
     final bonus = item.bonusPercentage;
     final hasBonus = bonus != null && bonus > 0;
 
+    // خطوة المِعداد = أصغر كمية في سلّم بونص الصنف، كما في حوار الإضافة:
+    // اختار ١٠ ليبلغ «(10+2)» ثمّ ضغط + هنا فصارت ١١ — زيادةٌ لا
+    // تزيده بونصاً وتكسر الحساب الذي بنى عليه طلبه. فالقفزة تتبع العرض.
+    final step = quantityStepFor(item.bonusTiers);
+
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -560,13 +565,22 @@ class _CartItemCard extends StatelessWidget {
             children: [
               if (hasBonus)
                 BonusBadge(label: 'بونص ${bonus.toStringAsFixed(0)}٪')
+              else if (step > 1)
+                Text(
+                  'بخطوة $step',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: context.tokens.hint),
+                )
               else
                 const SizedBox.shrink(),
               QuantityStepper(
                 value: '$qty',
                 enabled: !busy,
-                onDecrement: () => onQuantityChanged(qty - 1),
-                onIncrement: () => onQuantityChanged(qty + 1),
+                // النزول بالخطوة نفسها، وأدناه واحد: الحذف بالسحب لا
+                // بضغطة − واحدة تفرّغ السطر بلا تأكيد.
+                onDecrement: () =>
+                    onQuantityChanged(qty - step < 1 ? 1 : qty - step),
+                onIncrement: () => onQuantityChanged(qty + step),
                 onValueChanged: onQuantityChanged,
                 onLiveChanged: onLiveQuantityChanged,
               ),

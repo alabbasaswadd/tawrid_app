@@ -9,7 +9,6 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/medicine_catalog_models.dart';
-import 'package:tawrid_app/models/medicine_search_models.dart';
 import 'package:tawrid_app/features/ph_medicines/widgets/catalog_filter_widgets.dart';
 import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
