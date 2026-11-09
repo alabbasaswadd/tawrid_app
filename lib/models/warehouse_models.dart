@@ -14,6 +14,10 @@ class WarehousePicker {
   /// بلا التزام صريح بمدينة الصيدلية، وهذا فرق يهمّ الصيدلي.
   final bool servesAllAreas;
 
+  /// عملة كل أسعار هذا المستودع — تُطبَع بجانب كل سعر منه. بلا تحويل:
+  /// مستودع إدلبي يَرِد بالدولار ولو كانت الصيدلية بالليرة.
+  final String pricingCurrency;
+
   WarehousePicker({
     required this.id,
     required this.name,
@@ -23,6 +27,7 @@ class WarehousePicker {
     this.phone = '',
     this.serviceAreaCount = 0,
     this.servesAllAreas = false,
+    this.pricingCurrency = 'SYP',
   });
 
   factory WarehousePicker.fromJson(Map<String, dynamic> j) => WarehousePicker(
@@ -36,6 +41,7 @@ class WarehousePicker {
         phone: j['phone'] as String? ?? '',
         serviceAreaCount: j['serviceAreaCount'] as int? ?? 0,
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
       );
 }
 
@@ -59,6 +65,10 @@ class WarehouseProfile {
 
   final int activeOffersCount;
 
+  /// عملة كل أسعار هذا المستودع — تُطبَع بجانب كل سعر منه. بلا تحويل:
+  /// مستودع إدلبي يَرِد بالدولار ولو كانت الصيدلية بالليرة.
+  final String pricingCurrency;
+
   const WarehouseProfile({
     required this.id,
     required this.name,
@@ -71,6 +81,7 @@ class WarehouseProfile {
     required this.serviceAreas,
     required this.servesAllAreas,
     required this.activeOffersCount,
+    this.pricingCurrency = 'SYP',
   });
 
   factory WarehouseProfile.fromJson(Map<String, dynamic> j) => WarehouseProfile(
@@ -86,5 +97,6 @@ class WarehouseProfile {
             ((j['serviceAreas'] as List?) ?? const []).cast<String>(),
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
         activeOffersCount: j['activeOffersCount'] as int? ?? 0,
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
       );
 }

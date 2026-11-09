@@ -19,7 +19,9 @@ import 'package:tawrid_app/features/ph_listings/ph_create_listing_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_listing_detail_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_listings_browse_page.dart';
 import 'package:tawrid_app/features/ph_listings/ph_my_listings_page.dart';
+import 'package:tawrid_app/features/auth/force_password_change_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_medicine_search_page.dart';
+import 'package:tawrid_app/features/ph_medicines/ph_warehouse_catalog_page.dart';
 import 'package:tawrid_app/features/ph_medicines/ph_price_search_page.dart';
 import 'package:tawrid_app/features/ph_more/ph_more_page.dart';
 import 'package:tawrid_app/features/ph_reports/ph_reports_page.dart';
@@ -110,6 +112,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         return TRoutes.phLogin;
       }
 
+      // كلمة المرور ما زالت الافتراضية → لا شيء إلا شاشة تغييرها. الخادم
+      // يرفض بقية المسارات على أي حال، فالحجب هنا يجنّب المستخدم شاشاتٍ
+      // فارغةً ورسائلَ رفضٍ متكرّرة.
+      final phMustChange =
+          phState is SessionAuthenticated && phState.mustChangePassword;
+      final whMustChange = whState is WarehouseSessionAuthenticated &&
+          whState.mustChangePassword;
+      if (phMustChange || whMustChange) {
+        return loc == TRoutes.forcePasswordChange
+            ? null
+            : TRoutes.forcePasswordChange;
+      }
+      if (loc == TRoutes.forcePasswordChange) {
+        if (phAuth) return TRoutes.phHome;
+        if (whAuth) return TRoutes.whHome;
+        return TRoutes.phLogin;
+      }
+
       if (loc == TRoutes.splash) {
         if (phAuth) return TRoutes.phHome;
         if (whAuth) return TRoutes.whHome;
@@ -134,6 +154,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phMyListings,
         TRoutes.phListingCreate,
         TRoutes.phMedicineSearch,
+        TRoutes.phWarehouseCatalog,
         TRoutes.phPriceSearch,
         TRoutes.phCart,
         TRoutes.phNotifications,
@@ -351,6 +372,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.phMedicineSearch,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const PhMedicineSearchPage(),
+      ),
+
+      // إعادة تعيين إجبارية لكلمة المرور — خارج أي Shell: لا تبويبات
+      // سفلية ولا رجوع، فالحساب محجوب حتى يُغيّرها.
+      GoRoute(
+        path: TRoutes.forcePasswordChange,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const ForcePasswordChangePage(),
+      ),
+
+      // كاتالوج المستودعات — «من يبيعه الآن وبكم؟»، يُفتح من الرئيسية
+      // ومن الكتالوج الوطني معاً.
+      GoRoute(
+        path: TRoutes.phWarehouseCatalog,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhWarehouseCatalogPage(),
       ),
 
       // بحث الأسعار المقارن — عروض وتسعير مباشر معاً، ومنه تُبنى السلّة.

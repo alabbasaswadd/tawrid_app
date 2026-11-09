@@ -9,6 +9,7 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
@@ -33,6 +34,24 @@ enum _OffersTab {
       };
 }
 
+/// محور ثانٍ مستقلّ عن الحالة: الحالة تقول «أين وصل العرض» والنوع يقول
+/// «ما طبيعته». خلطُهما في صفٍّ واحد يجعل «منشور» و«ثابت» يبدوان بديلين
+/// وهما ليسا كذلك — فعرضٌ منشورٌ وثابتٌ معاً أمرٌ عادي.
+enum _KindTab {
+  all('كل الأنواع'),
+  standing('ثابتة'),
+  timeLimited('لفترة محدّدة');
+
+  const _KindTab(this.label);
+  final String label;
+
+  bool matches(SalesOfferKind k) => switch (this) {
+        _KindTab.all => true,
+        _KindTab.standing => k == SalesOfferKind.standing,
+        _KindTab.timeLimited => k == SalesOfferKind.timeLimited,
+      };
+}
+
 // عروضي عند المستودع (Figma: المستودع / العروض).
 //
 // شاشة إدارة لا تصفّح: لكل عرض حالته وإجراءاه، والسطر العلوي ينبّه إلى
@@ -50,6 +69,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
   bool _busy = false;
   String? _error;
   _OffersTab _tab = _OffersTab.all;
+  _KindTab _kind = _KindTab.all;
 
   @override
   void initState() {
@@ -83,10 +103,12 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
       .where((o) => o.status == SalesOfferStatus.active)
       .toList();
 
-  List<SalesOfferSummary> get _expiringSoon => _active.where((o) {
-        final days = o.expiresAt.difference(DateTime.now()).inDays;
-        return days >= 0 && days <= 3;
-      }).toList();
+  List<SalesOfferSummary> get _expiringSoon =>
+      _active.where((o) => isOfferExpiringSoon(o.expiresAt)).toList();
+
+  /// كم من السارية ثابتٌ لا ينتهي — يُقال في سطر الحالة لأن بقيّته مؤقّتة.
+  int get _standingActive =>
+      _active.where((o) => o.kind == SalesOfferKind.standing).length;
 
   Future<void> _publish(SalesOfferSummary offer) async {
     setState(() => _busy = true);
@@ -176,7 +198,9 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final all = _offers ?? const <SalesOfferSummary>[];
-    final shown = all.where((o) => _tab.matches(o.status)).toList();
+    final shown = all
+        .where((o) => _tab.matches(o.status) && _kind.matches(o.kind))
+        .toList();
     final expiring = _expiringSoon.length;
     final tk = context.tokens;
 
@@ -200,6 +224,25 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
           ),
         ),
 
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 34,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            itemCount: _KindTab.values.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (_, i) {
+              final k = _KindTab.values[i];
+              return AppFilterChip(
+                label: k.label,
+                selected: _kind == k,
+                onTap: () => setState(() => _kind = k),
+              );
+            },
+          ),
+        ),
+
         // سطر الحالة: السارية، ثم تحذير ما يقارب على الانتهاء.
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -209,6 +252,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
             child: Text(
               [
                 '${_active.length} ${_active.length == 1 ? 'عرض سارٍ' : 'عرضاً سارياً'}',
+                if (_standingActive > 0) '$_standingActive ثابت',
                 if (expiring > 0)
                   '$expiring ${expiring == 1 ? 'ينتهي قريباً' : 'تنتهي قريباً'}',
               ].join(' · '),
@@ -225,9 +269,9 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
                     const SizedBox(height: AppSpacing.x3l),
                     EmptyState(
                       icon: Icons.sell_outlined,
-                      message: _tab == _OffersTab.all
+                      message: _tab == _OffersTab.all && _kind == _KindTab.all
                           ? 'لا عروض بعد — أنشئ عرضاً ليصل الصيدليات التي تخدمها'
-                          : 'لا عروض في «${_tab.label}»',
+                          : 'لا عروض في «${_tab.label}» ضمن «${_kind.label}»',
                     ),
                   ],
                 )
@@ -244,9 +288,9 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
   }
 
   Widget _card(SalesOfferSummary o) {
-    final days = o.expiresAt.difference(DateTime.now()).inDays;
+    // العرض الثابت لا يوشك على الانتهاء — لا تاريخ له.
     final expiringSoon =
-        o.status == SalesOfferStatus.active && days >= 0 && days <= 3;
+        o.status == SalesOfferStatus.active && isOfferExpiringSoon(o.expiresAt);
 
     // «ينتهي قريباً» تسبق «منشور» في الشارة: الأهمّ ما يستدعي إجراءً،
     // لا ما هو قائم أصلاً.
@@ -271,11 +315,13 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
       itemsText: '${o.itemCount} ${o.itemCount == 1 ? 'صنف' : 'أصناف'} · $bonus',
       expiryText: switch (o.status) {
         SalesOfferStatus.draft => 'لم تُنشر بعد',
+        // العرض الثابت: نوعُه هو الخبر، لا تاريخٌ لا وجود له.
+        _ when o.expiresAt == null => o.kind.label,
         SalesOfferStatus.cancelled =>
-          'أُوقف ${formatSmartTimestamp(o.expiresAt)}',
-        _ when o.expiresAt.isBefore(DateTime.now()) =>
-          'انتهى ${formatSmartTimestamp(o.expiresAt)}',
-        _ => 'ينتهي ${formatSmartTimestamp(o.expiresAt)}',
+          'أُوقف ${formatSmartTimestamp(o.expiresAt!)}',
+        _ when o.expiresAt!.isBefore(DateTime.now()) =>
+          'انتهى ${formatSmartTimestamp(o.expiresAt!)}',
+        _ => 'ينتهي ${formatSmartTimestamp(o.expiresAt!)}',
       },
       statusLabel: label,
       statusTone: tone,

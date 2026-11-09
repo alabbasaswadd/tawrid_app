@@ -32,11 +32,14 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
     final status = AccountStatus.fromName(
       await _store.read(key: StorageKeys.pharmacyAccountStatus),
     );
+    final mustChange =
+        await _store.read(key: StorageKeys.pharmacyMustChangePassword) == 'true';
     return SessionAuthenticated(
       token: token,
       userId: userId,
       tenantId: tenantId,
       accountStatus: status,
+      mustChangePassword: mustChange,
     );
   }
 
@@ -45,6 +48,7 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
     String? userId,
     String? tenantId,
     AccountStatus accountStatus = AccountStatus.approved,
+    bool mustChangePassword = false,
   }) async {
     await _store.write(key: StorageKeys.pharmacyToken, value: token);
     if (userId != null) {
@@ -57,6 +61,10 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
       key: StorageKeys.pharmacyAccountStatus,
       value: accountStatus.name,
     );
+    await _store.write(
+      key: StorageKeys.pharmacyMustChangePassword,
+      value: mustChangePassword.toString(),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(StorageKeys.hasPharmacySession, true);
     state = AsyncData(
@@ -65,6 +73,7 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
         userId: userId,
         tenantId: tenantId,
         accountStatus: accountStatus,
+        mustChangePassword: mustChangePassword,
       ),
     );
 
@@ -88,6 +97,26 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
         userId: current.userId,
         tenantId: current.tenantId,
         accountStatus: status,
+        mustChangePassword: current.mustChangePassword,
+      ),
+    );
+  }
+
+  /// يرفع الحجب بعد تغيير كلمة المرور بنجاح — ويُحفَظ فلا يعود بعد إقلاع.
+  Future<void> clearMustChangePassword() async {
+    final current = state.value;
+    if (current is! SessionAuthenticated) return;
+    await _store.write(
+      key: StorageKeys.pharmacyMustChangePassword,
+      value: 'false',
+    );
+    state = AsyncData(
+      SessionAuthenticated(
+        token: current.token,
+        userId: current.userId,
+        tenantId: current.tenantId,
+        accountStatus: current.accountStatus,
+        mustChangePassword: false,
       ),
     );
   }
@@ -103,6 +132,7 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
     await _store.delete(key: StorageKeys.pharmacyUserId);
     await _store.delete(key: StorageKeys.pharmacyTenantId);
     await _store.delete(key: StorageKeys.pharmacyAccountStatus);
+    await _store.delete(key: StorageKeys.pharmacyMustChangePassword);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(StorageKeys.hasPharmacySession, false);
     state = const AsyncData(SessionUnauthenticated());

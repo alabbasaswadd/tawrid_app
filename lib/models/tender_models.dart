@@ -117,6 +117,11 @@ class TenderOffer {
   final TenderOfferType offerType;
   final TenderOfferStatus status;
   final String? notes;
+
+  /// عملة أسعار هذا العرض — عملة تسعير مستودعه. لازمة للمقارنة: عرضان
+  /// بـ«2.25» و«29000» ليسا متفاوتين بل بعملتين.
+  final String currency;
+
   final bool isSelectedByPharmacy;
   final DateTime createdOn;
   final List<TenderOfferItem> items;
@@ -128,6 +133,7 @@ class TenderOffer {
     required this.offerType,
     required this.status,
     this.notes,
+    this.currency = 'SYP',
     required this.isSelectedByPharmacy,
     required this.createdOn,
     required this.items,
@@ -140,6 +146,7 @@ class TenderOffer {
         offerType: TenderOfferType.fromCode(j['quotationType'] as int),
         status: TenderOfferStatus.fromCode(j['status'] as int),
         notes: j['notes'] as String?,
+        currency: j['currency'] as String? ?? 'SYP',
         isSelectedByPharmacy: j['isSelectedByPharmacy'] as bool,
         createdOn: DateTime.parse(j['createdOn'] as String),
         items: ((j['items'] as List?) ?? [])

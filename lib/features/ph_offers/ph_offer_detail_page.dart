@@ -4,13 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
-import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
-import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
@@ -18,19 +18,6 @@ import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 /// سعر الوحدة بعد الحسم.
 double _netUnitPrice(SalesOfferItem i) =>
     i.unitPrice * (1 - (i.discountPercentage ?? 0) / 100);
-
-String _money(double v) {
-  final whole = v.round();
-  final s = whole.toString();
-  // فاصل آلاف يدوي: الأرقام هنا تُقرأ بسرعة في قرار شراء، و«530000»
-  // بلا فواصل تُقرأ خطأً.
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
-  }
-  return buf.toString();
-}
 
 // تفاصيل العرض للصيدلي (Figma: الصيدلي / تفاصيل العرض).
 //
@@ -144,67 +131,56 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
         !_submitting;
   }
 
-  Future<void> _addToOrder() async {
+  /// يُضيف الأصناف المحدَّدة إلى السلّة — لا يُنشئ طلبية.
+  ///
+  /// الإضافة صنفاً صنفاً عبر `addOfferItem`: الخادم هو من يقرأ سعر الصنف
+  /// وحسمه وسلّم بونصه ويُجمّدها في السطر، فلا يُرسَل من هنا سعرٌ ولا بونص
+  /// — وهو ما يمنع اختلاف ما في السلّة عمّا في العرض.
+  ///
+  /// والفشل جزئيّ لا كلّي: صنفٌ لم يعد متاحاً لا يُسقِط إضافة بقيّته، ويُقال
+  /// عددُ ما نجح وما أخفق صراحةً.
+  Future<void> _addSelectedToCart() async {
     final offer = _offer;
     if (offer == null || _selected.isEmpty) return;
 
-    final chosen = offer.items.where((i) => _selected.containsKey(i.id)).toList();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة إلى الطلبية'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-                'ستُنشأ طلبية توريد إلى «${offer.warehouseName}» تضم '
-                '${chosen.length} ${chosen.length == 1 ? 'صنفاً' : 'أصناف'} '
-                'بحالة «بانتظار التأكيد».',
-                style: Theme.of(ctx).textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Text('الإجمالي التقديري: ${_money(_selectedTotal)} ${offer.currency}',
-                style: Theme.of(ctx).textTheme.titleSmall),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false), child: const Text('تراجع')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true), child: const Text('إنشاء الطلبية')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    final chosen =
+        offer.items.where((i) => _selected.containsKey(i.id)).toList();
 
     setState(() => _submitting = true);
+    var added = 0;
+    String? firstError;
+
     try {
-      // الأسعار والبونص تُثبَّت من العرض وقت الإنشاء، فلا يتغيّر ما اتُّفق
-      // عليه إن عدّل المستودع عرضه لاحقاً.
-      final order = await ref.read(supplyOrderRepositoryProvider).createOrder(
-            supplyWarehouseId: offer.supplyWarehouseId,
-            notes: 'من عرض: ${offer.title}',
-            items: chosen
-                .map((i) => SupplyOrderItem(
-                      id: '',
-                      medicineName: i.medicineName,
-                      catalogItemId: i.catalogItemId,
-                      quantity: (_selected[i.id] ?? _maxFor(i)).toDouble(),
-                      unit: i.unit,
-                      agreedUnitPrice: _netUnitPrice(i),
-                      bonusPercentage: i.bonusPercentage,
-                    ))
-                .toList(),
-          );
-      if (!mounted) return;
-      AppSnackbar.success(context, 'أُنشئت الطلبية ${order.orderNumber}');
-      context.go(TRoutes.phOrders);
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+      final cart = ref.read(cartProvider.notifier);
+      for (final item in chosen) {
+        final qty = _selected[item.id] ?? _maxFor(item);
+        try {
+          await cart.addOfferItem(item.id, quantity: qty);
+          added++;
+        } catch (e) {
+          firstError ??= ApiException.from(e).message;
+        }
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+
+    if (!mounted) return;
+
+    if (added == 0) {
+      AppSnackbar.error(context, firstError ?? 'تعذّرت الإضافة إلى السلّة');
+      return;
+    }
+
+    setState(() => _selected.clear());
+
+    final failed = chosen.length - added;
+    AppSnackbar.success(
+      context,
+      failed == 0
+          ? 'أُضيف $added ${added == 1 ? 'صنف' : 'أصناف'} إلى السلّة'
+          : 'أُضيف $added، وتعذّر $failed — ${firstError ?? ''}',
+    );
   }
 
   void _openComments() {
@@ -262,10 +238,8 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
               if (item.discountPercentage != null)
                 'حسم ${item.discountPercentage!.toStringAsFixed(0)}٪',
             ].join(' · '),
-            unitPrice: '${_money(_netUnitPrice(item))} ${offer.currency}',
-            bonusLabel: item.bonusPercentage != null
-                ? 'بونص ${item.bonusPercentage!.toStringAsFixed(0)}٪'
-                : null,
+            unitPrice: formatMoneyWith(_netUnitPrice(item), offer.currency),
+            bonusLabel: item.bonusLabel,
             availableText:
                 'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
             mode: OfferItemRowMode.select,
@@ -315,7 +289,7 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
           const SizedBox(height: AppSpacing.md),
         ],
 
-        if (offer.bonusMedicineName != null || offer.items.any((i) => i.bonusPercentage != null))
+        if (offer.bonusMedicineName != null || offer.items.any((i) => i.hasBonus))
           _BonusExplainer(offer: offer),
 
         if (offer.consignmentTerms != null && offer.consignmentTerms!.isNotEmpty) ...[
@@ -342,6 +316,7 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     final offer = _offer!;
     final count = _selected.length;
     final closed = offer.status != SalesOfferStatus.active;
+    final inCart = ref.watch(cartCountProvider);
 
     return SafeArea(
       top: false,
@@ -361,8 +336,19 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
               children: [
                 Text('إجمالي المحدد',
                     style: context.text.labelSmall?.copyWith(color: tk.hint)),
-                Text('${_money(_selectedTotal)} ${offer.currency}',
+                Text(formatMoneyWith(_selectedTotal, offer.currency),
                     style: context.priceBrandStyle),
+                // ما في السلّة أصلاً يُقال هنا: بعد الإضافة يحتاج الصيدلي
+                // أن يعرف أين ذهب ما أضافه وكيف يُتمّه.
+                if (inCart > 0)
+                  GestureDetector(
+                    onTap: () => context.push(TRoutes.phCart),
+                    child: Text(
+                      'في سلّتك $inCart — إتمام الطلبية',
+                      style: context.text.labelSmall
+                          ?.copyWith(color: context.colors.primary),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(width: AppSpacing.md),
@@ -372,9 +358,10 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
                     ? 'العرض ${offer.status.label}'
                     : count == 0
                         ? 'اختر صنفاً لإضافته'
-                        : 'إضافة المحدد إلى الطلبية ($count)',
+                        : 'إضافة المحدد إلى السلّة ($count)',
+                icon: Icons.add_shopping_cart,
                 loading: _submitting,
-                onPressed: _canOrder ? _addToOrder : null,
+                onPressed: _canOrder ? _addSelectedToCart : null,
               ),
             ),
           ],
@@ -395,7 +382,7 @@ class _HeaderCard extends StatelessWidget {
     final cs = context.colors;
     final tk = context.tokens;
     final hasBonus = offer.bonusMedicineName != null ||
-        offer.items.any((i) => i.bonusPercentage != null);
+        offer.items.any((i) => i.hasBonus);
 
     return AppCard(
       child: Column(

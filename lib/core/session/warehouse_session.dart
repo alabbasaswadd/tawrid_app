@@ -32,11 +32,14 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
     final status = AccountStatus.fromName(
       await _store.read(key: StorageKeys.warehouseAccountStatus),
     );
+    final mustChange =
+        await _store.read(key: StorageKeys.warehouseMustChangePassword) == 'true';
     return WarehouseSessionAuthenticated(
       token: token,
       warehouseUserId: userId,
       warehouseId: whId,
       accountStatus: status,
+      mustChangePassword: mustChange,
     );
   }
 
@@ -45,6 +48,7 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
     String? warehouseUserId,
     String? warehouseId,
     AccountStatus accountStatus = AccountStatus.approved,
+    bool mustChangePassword = false,
   }) async {
     await _store.write(key: StorageKeys.warehouseToken, value: token);
     if (warehouseUserId != null) {
@@ -60,6 +64,10 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
       key: StorageKeys.warehouseAccountStatus,
       value: accountStatus.name,
     );
+    await _store.write(
+      key: StorageKeys.warehouseMustChangePassword,
+      value: mustChangePassword.toString(),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(StorageKeys.hasWarehouseSession, true);
     state = AsyncData(
@@ -68,6 +76,7 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
         warehouseUserId: warehouseUserId,
         warehouseId: warehouseId,
         accountStatus: accountStatus,
+        mustChangePassword: mustChangePassword,
       ),
     );
 
@@ -91,6 +100,26 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
         warehouseUserId: current.warehouseUserId,
         warehouseId: current.warehouseId,
         accountStatus: status,
+        mustChangePassword: current.mustChangePassword,
+      ),
+    );
+  }
+
+  /// يرفع الحجب بعد تغيير كلمة المرور بنجاح.
+  Future<void> clearMustChangePassword() async {
+    final current = state.value;
+    if (current is! WarehouseSessionAuthenticated) return;
+    await _store.write(
+      key: StorageKeys.warehouseMustChangePassword,
+      value: 'false',
+    );
+    state = AsyncData(
+      WarehouseSessionAuthenticated(
+        token: current.token,
+        warehouseUserId: current.warehouseUserId,
+        warehouseId: current.warehouseId,
+        accountStatus: current.accountStatus,
+        mustChangePassword: false,
       ),
     );
   }
@@ -104,6 +133,7 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
     await store.delete(key: StorageKeys.warehouseUserId);
     await store.delete(key: StorageKeys.warehouseId);
     await store.delete(key: StorageKeys.warehouseAccountStatus);
+    await store.delete(key: StorageKeys.warehouseMustChangePassword);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(StorageKeys.hasWarehouseSession, false);
     state = const AsyncData(WarehouseSessionUnauthenticated());

@@ -8,6 +8,7 @@ import 'package:tawrid_app/core/session/session_state.dart';
 import 'package:tawrid_app/models/ph_listing_models.dart';
 import 'package:tawrid_app/repositories/ph_listing_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
 // تفاصيل الإعلان + نقاشه العلني.
@@ -226,7 +227,7 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
               _InfoRow(
                 icon: AppIcons.tag,
                 label: 'السعر',
-                value: '${l.pricePerUnit.toStringAsFixed(0)} ل.س / الوحدة',
+                value: '${formatMoneyWith(l.pricePerUnit, l.currency)} / الوحدة',
                 valueStyle: context.priceBrandStyle,
               ),
               _InfoRow(icon: AppIcons.mapPin,

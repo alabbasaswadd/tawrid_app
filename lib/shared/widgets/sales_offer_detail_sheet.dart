@@ -161,7 +161,13 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 children: [
                   _chip(context, Icons.sell_outlined, '${offer.items.length} صنف'),
                   _chip(context, Icons.payments_outlined, offer.currency),
-                  _chip(context, Icons.timer_outlined, 'ينتهي ${formatSmartTimestamp(offer.expiresAt)}'),
+                  _chip(
+                    context,
+                    Icons.timer_outlined,
+                    offer.expiresAt == null
+                        ? 'عرض ثابت'
+                        : 'ينتهي ${formatSmartTimestamp(offer.expiresAt!)}',
+                  ),
                 ],
               ),
               if (offer.targetRegions.isNotEmpty) ...[

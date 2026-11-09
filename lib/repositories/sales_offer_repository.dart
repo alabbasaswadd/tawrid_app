@@ -20,6 +20,8 @@ class SalesOfferRepository {
     String? warehouseId,
     bool? hasBonus,
     int? expiringWithinDays,
+    /// نوع العرض: ثابت (بلا انتهاء) أو لفترة محدّدة. null = النوعان.
+    SalesOfferKind? kind,
     double? minUnitPrice,
     double? maxUnitPrice,
     DosageForm? dosageForm,
@@ -32,6 +34,7 @@ class SalesOfferRepository {
       'warehouseId': ?warehouseId,
       'hasBonus': ?hasBonus,
       'expiringWithinDays': ?expiringWithinDays,
+      'kind': ?kind?.code,
       'minUnitPrice': ?minUnitPrice,
       'maxUnitPrice': ?maxUnitPrice,
       if (dosageForm != null) 'dosageForm': dosageForm.code,
@@ -68,8 +71,8 @@ class SalesOfferRepository {
     required String title,
     String? description,
     required DateTime startsAt,
-    required DateTime expiresAt,
-    String currency = 'SYP',
+    /// null = عرض **ثابت** لا ينتهي تلقائياً.
+    required DateTime? expiresAt,
     required List<TargetRegion> targetRegions,
     bool isPublicInRegion = false,
     double? upfrontPercentage,
@@ -86,8 +89,9 @@ class SalesOfferRepository {
       'title': title,
       'description': description,
       'startsAt': startsAt.toUtc().toIso8601String(),
-      'expiresAt': expiresAt.toUtc().toIso8601String(),
-      'currency': currency,
+      'expiresAt': expiresAt?.toUtc().toIso8601String(),
+      // لا 'currency' هنا: الخادم يفرض عملة تسعير المستودع ويتجاهل ما يصله
+      // في الجسم — إرسالها يوهم الواجهة أنها تختار.
       'targetRegions': targetRegions.map((e) => e.toJson()).toList(),
       'isPublicInRegion': isPublicInRegion,
       'upfrontPercentage': upfrontPercentage,

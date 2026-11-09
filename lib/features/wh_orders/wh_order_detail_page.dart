@@ -76,10 +76,20 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
         0, (sum, i) => sum + (i.agreedUnitPrice ?? 0) * i.quantity);
   }
 
+  /// عملة أسعار هذه الطلبية — مجمَّدة فيها، لا ثابتَ منصّة.
+  String get _currency => _order?.currency ?? 'SYP';
+
+  /// الكمية المجانية: يحسبها الخادم من الشرائح المركَّبة ويُجمّدها
+  /// (freeQuantity)؛ والنسبة القديمة احتياطٌ لطلبيات سبقت الشرائح.
+  /// هذا ما يُحضِّره المستودع فعلاً مع الطلبية.
   double get _freeUnits {
     final items = _order?.items ?? const <SupplyOrderItem>[];
     return items.fold<double>(
-        0, (sum, i) => sum + i.quantity * ((i.bonusPercentage ?? 0) / 100));
+        0,
+        (sum, i) => sum +
+            (i.freeQuantity > 0
+                ? i.freeQuantity
+                : i.quantity * ((i.bonusPercentage ?? 0) / 100)));
   }
 
   Future<void> _move(SupplyOrderStatus next, {String? confirmText}) async {
@@ -243,8 +253,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
                     item.agreedUnitPrice == null
                         ? '—'
                         : formatMoneyWith(
-                            item.agreedUnitPrice! * item.quantity,
-                            kPlatformCurrency),
+                            item.agreedUnitPrice! * item.quantity, _currency),
                     style: context.text.bodyMedium,
                   ),
                 ],
@@ -258,12 +267,12 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
             children: [
               _SummaryRow(
                   label: 'قيمة الأصناف',
-                  value: formatMoneyWith(_itemsTotal, kPlatformCurrency)),
+                  value: formatMoneyWith(_itemsTotal, _currency)),
               if (_freeUnits > 0) ...[
                 const SizedBox(height: 4),
                 _SummaryRow(
                   label: 'كميات مجانية (بونص)',
-                  value: '${_freeUnits.toStringAsFixed(0)} عبوة',
+                  value: '${formatQuantity(_freeUnits)} عبوة',
                   valueColor: tk.goldStrong,
                 ),
               ],
@@ -274,7 +283,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
                 children: [
                   Expanded(
                       child: Text('إجمالي الطلب', style: context.text.titleSmall)),
-                  Text(formatMoneyWith(_itemsTotal, kPlatformCurrency),
+                  Text(formatMoneyWith(_itemsTotal, _currency),
                       style: context.priceBrandStyle),
                 ],
               ),

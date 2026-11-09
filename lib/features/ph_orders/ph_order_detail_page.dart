@@ -96,17 +96,21 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     }
   }
 
+  /// عملة أسعار هذه الطلبية — مجمَّدة فيها، لا ثابتَ منصّة.
+  String get _currency => _order?.currency ?? 'SYP';
+
   double get _total {
     final items = _order?.items ?? const <SupplyOrderItem>[];
     return items.fold<double>(
         0, (sum, i) => sum + (i.agreedUnitPrice ?? 0) * i.quantity);
   }
 
-  // الكميات المجانية: البونص نسبةً من الكمية المطلوبة لكل صنف.
+  // الكميات المجانية: يحسبها الخادم من شرائح البونص المركَّبة ويُجمّدها في
+  // الطلبية (freeQuantity). النسبة المئوية تبقى احتياطاً للطلبيات التي
+  // أُنشئت قبل الشرائح — وحسابها هنا لا يُعاد لئلّا يخالف ما اتُّفق عليه.
   double get _freeUnits {
     final items = _order?.items ?? const <SupplyOrderItem>[];
-    return items.fold<double>(
-        0, (sum, i) => sum + i.quantity * ((i.bonusPercentage ?? 0) / 100));
+    return items.fold<double>(0, (sum, i) => sum + _freeUnitsOf(i));
   }
 
   /// متى بلغت الطلبية هذه الحالة، إن سجّلها الخادم.
@@ -263,7 +267,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                         item.agreedUnitPrice == null
                             ? '—'
                             : formatMoneyWith(
-                                item.agreedUnitPrice! * item.quantity, kPlatformCurrency),
+                                item.agreedUnitPrice! * item.quantity, _currency),
                         style: context.text.bodyMedium,
                       ),
                     ],
@@ -276,7 +280,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                     Expanded(
                         child: Text('كميات مجانية',
                             style: context.text.bodySmall?.copyWith(color: tk.hint))),
-                    Text('${_freeUnits.toStringAsFixed(0)} عبوة',
+                    Text('${formatQuantity(_freeUnits)} عبوة',
                         style: context.text.titleSmall
                             ?.copyWith(color: tk.goldStrong)),
                   ],
@@ -288,7 +292,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
               Row(
                 children: [
                   Expanded(child: Text('الإجمالي', style: context.text.titleSmall)),
-                  Text(formatMoneyWith(_total, kPlatformCurrency),
+                  Text(formatMoneyWith(_total, _currency),
                       style: context.priceBrandStyle),
                 ],
               ),
@@ -590,6 +594,12 @@ class _MetaLine extends StatelessWidget {
 }
 
 // ── توليد PDF للطلبية (تصميم فاتورة رسمية RTL بخط Cairo) ───────────────
+/// الكمية المجانية لصنف طلبية: المحسوبة من الخادم إن وُجدت، وإلا
+/// المشتقّة من النسبة القديمة. تعريفٌ واحد تستعمله الشاشة والفاتورة معاً.
+double _freeUnitsOf(SupplyOrderItem i) => i.freeQuantity > 0
+    ? i.freeQuantity
+    : i.quantity * ((i.bonusPercentage ?? 0) / 100);
+
 Future<Uint8List> _buildOrderPdf(
   SupplyOrderDetail order,
   List<StatusHistoryItem> history,
@@ -607,13 +617,17 @@ Future<Uint8List> _buildOrderPdf(
 
   final dateStr = order.createdOn.toLocal().toString().split(' ').first;
 
-  // حساب الإجماليات
+  // عملة الفاتورة من الطلبية نفسها — فاتورةٌ بالدولار كانت تُطبع أرقامها
+  // مبتورةً وموسومةً «ل.س» قبل أن تحمل الطلبية عملتها.
+  final currency = order.currency;
+  final currencyTag = currencySymbol(currency);
+
+  // قيمة البونص = الكمية المجانية × سعر الوحدة. الكمية تأتي محسوبةً من
+  // الخادم (شرائح مركَّبة)، وتُشتقّ من النسبة للطلبيات التي سبقت الشرائح.
   double totalBonus = 0;
   for (final i in order.items) {
-    if ((i.bonusPercentage ?? 0) > 0 && i.agreedUnitPrice != null) {
-      final bonusUnits = i.quantity * i.bonusPercentage! / 100;
-      totalBonus += bonusUnits * i.agreedUnitPrice!;
-    }
+    if (i.agreedUnitPrice == null) continue;
+    totalBonus += _freeUnitsOf(i) * i.agreedUnitPrice!;
   }
   final netAmount = total - totalBonus;
 
@@ -720,21 +734,30 @@ Future<Uint8List> _buildOrderPdf(
 
         // ── جدول الأصناف ─────────────────────────────────────────────────
         pw.TableHelper.fromTextArray(
-          headers: ['التسلسل', 'الصنف', 'السعر الفردي\n(ل.س)', 'العدد', 'السعر الإجمالي\n(ل.س)', 'البونص\n(ل.س)'],
+          headers: [
+            'التسلسل',
+            'الصنف',
+            'السعر الفردي\n($currencyTag)',
+            'العدد',
+            'السعر الإجمالي\n($currencyTag)',
+            'البونص\n($currencyTag)',
+          ],
           data: order.items.asMap().entries.map((e) {
             final idx = e.key + 1;
             final i = e.value;
             final lineTotal = (i.agreedUnitPrice ?? 0) * i.quantity;
-            final bonusVal = (i.bonusPercentage ?? 0) > 0 && i.agreedUnitPrice != null
-                ? i.quantity * i.bonusPercentage! / 100 * i.agreedUnitPrice!
-                : 0.0;
+            final bonusVal = i.agreedUnitPrice == null
+                ? 0.0
+                : _freeUnitsOf(i) * i.agreedUnitPrice!;
             return [
               '$idx',
               i.medicineName,
-              i.agreedUnitPrice == null ? '—' : formatMoney(i.agreedUnitPrice!),
-              i.quantity.toStringAsFixed(0),
-              i.agreedUnitPrice == null ? '—' : formatMoney(lineTotal),
-              bonusVal > 0 ? formatMoney(bonusVal) : '0',
+              i.agreedUnitPrice == null
+                  ? '—'
+                  : formatAmount(i.agreedUnitPrice!, currency),
+              formatQuantity(i.quantity),
+              i.agreedUnitPrice == null ? '—' : formatAmount(lineTotal, currency),
+              bonusVal > 0 ? formatAmount(bonusVal, currency) : '0',
             ];
           }).toList(),
           headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
@@ -768,13 +791,14 @@ Future<Uint8List> _buildOrderPdf(
               pw.SizedBox(width: 4),
               pw.Expanded(
                 flex: 1,
-                child: pw.Text(formatMoney(total),
+                child: pw.Text(formatAmount(total, currency),
                     style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
                     textAlign: pw.TextAlign.center),
               ),
               pw.Expanded(
                 flex: 1,
-                child: pw.Text(totalBonus > 0 ? formatMoney(totalBonus) : '0',
+                child: pw.Text(
+                    totalBonus > 0 ? formatAmount(totalBonus, currency) : '0',
                     style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
                     textAlign: pw.TextAlign.center),
               ),
@@ -822,13 +846,23 @@ Future<Uint8List> _buildOrderPdf(
                 ),
                 child: pw.Column(
                   children: [
-                    _pdfSummaryRow('إجمالي المبلغ قبل الحسم والبونص', formatMoney(total), base, bold, isHeader: false),
+                    _pdfSummaryRow('إجمالي المبلغ قبل الحسم والبونص',
+                        formatMoneyWith(total, currency), base, bold,
+                        isHeader: false),
                     pw.Divider(color: brandLight, thickness: 0.5),
                     _pdfSummaryRow('إجمالي الحسم', '0', base, bold),
                     pw.Divider(color: brandLight, thickness: 0.5),
-                    _pdfSummaryRow('إجمالي البونص', totalBonus > 0 ? formatMoney(totalBonus) : '0', base, bold),
+                    _pdfSummaryRow(
+                        'إجمالي البونص',
+                        totalBonus > 0
+                            ? formatMoneyWith(totalBonus, currency)
+                            : '0',
+                        base,
+                        bold),
                     pw.Divider(color: brand, thickness: 1),
-                    _pdfSummaryRow('المبلغ المستحق', formatMoney(netAmount), base, bold, isHeader: true),
+                    _pdfSummaryRow('المبلغ المستحق',
+                        formatMoneyWith(netAmount, currency), base, bold,
+                        isHeader: true),
                   ],
                 ),
               ),

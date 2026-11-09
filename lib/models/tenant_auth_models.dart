@@ -28,6 +28,10 @@ class TenantMe {
   final String? city;
   final String? address;
 
+  /// عملة أسعار صيدليتي فيما أعرضه أنا (عروض الفائض) — مشتقّة من محافظتي.
+  /// لا أثر لها على ما أشتريه: سعر المستودع يُعرَض بعملة المستودع.
+  final String pricingCurrency;
+
   TenantMe({
     required this.tenantId,
     required this.pharmacyName,
@@ -36,6 +40,7 @@ class TenantMe {
     required this.governorate,
     this.city,
     this.address,
+    this.pricingCurrency = 'SYP',
   });
 
   factory TenantMe.fromJson(Map<String, dynamic> j) => TenantMe(
@@ -46,5 +51,6 @@ class TenantMe {
         governorate: j['governorate'] as String,
         city: j['city'] as String?,
         address: j['address'] as String?,
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
       );
 }

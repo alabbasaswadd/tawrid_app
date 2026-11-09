@@ -147,6 +147,7 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.onBack,
     this.trailing,
+    this.showBack = true,
     super.key,
   });
 
@@ -157,6 +158,11 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   // عنصر اختياري مكان الموازن (مثل زر إجراء).
   final Widget? trailing;
+
+  // يُخفي زرّ الرجوع — لشاشةٍ لا مخرج منها إلا بإتمامها (إعادة تعيين كلمة
+  // المرور الإجبارية). زرٌّ معطَّل يبقى دائرةً فارغة تُقرأ عطلاً، وإخفاؤه
+  // أصدق. ويُستبدَل بموازنٍ بنفس عرضه فيبقى العنوان في وسطه.
+  final bool showBack;
 
   @override
   Size get preferredSize => const Size.fromHeight(60);
@@ -173,25 +179,28 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         child: Row(
           children: [
-            Material(
-              color: cs.surface,
-              shape: CircleBorder(side: BorderSide(color: cs.outline)),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onBack ?? () => Navigator.of(context).maybePop(),
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Center(
-                    child: AppIcon(
-                      AppIcons.chevronBackRtl,
-                      size: 20,
-                      color: cs.onSurface,
+            if (showBack)
+              Material(
+                color: cs.surface,
+                shape: CircleBorder(side: BorderSide(color: cs.outline)),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onBack ?? () => Navigator.of(context).maybePop(),
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Center(
+                      child: AppIcon(
+                        AppIcons.chevronBackRtl,
+                        size: 20,
+                        color: cs.onSurface,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              )
+            else
+              const SizedBox(width: 40, height: 40),
             Expanded(
               child: Text(
                 title,

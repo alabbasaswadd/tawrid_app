@@ -6,7 +6,11 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 ///
 /// الصياغة تتدرّج مع قرب الموعد لأن «ينتهي ٢٠٢٦/١١/٠٢» لا يعني شيئاً
 /// لصيدلي يقرأ القائمة بسرعة، بينما «ينتهي خلال ٣ أيام» يعني قراراً.
-String offerExpiryText(DateTime expiresAt) {
+/// نصّ مهلة العرض. <c>null</c> = **عرض ثابت** لا ينتهي — فلا يُقال فيه
+/// «انتهى» ولا «ينتهي»، بل يُعلَن ثباته صراحةً.
+String offerExpiryText(DateTime? expiresAt) {
+  if (expiresAt == null) return 'عرض ثابت — بلا تاريخ انتهاء';
+
   final days = expiresAt.difference(DateTime.now()).inDays;
   if (days < 0) return 'انتهى';
   if (days == 0) return 'ينتهي اليوم';
@@ -17,7 +21,9 @@ String offerExpiryText(DateTime expiresAt) {
 
 /// عرضٌ يُعدّ «قريب الانتهاء» خلال ثلاثة أيام — العتبة نفسها التي تُلوّن
 /// سطر المهلة وتضع شارة «ينتهي قريباً» في التصميم.
-bool isOfferExpiringSoon(DateTime expiresAt) {
+/// هل يوشك العرض أن ينتهي؟ العرض الثابت لا يوشك — لا مهلة له أصلاً.
+bool isOfferExpiringSoon(DateTime? expiresAt) {
+  if (expiresAt == null) return false;
   final days = expiresAt.difference(DateTime.now()).inDays;
   return days >= 0 && days <= 3;
 }
@@ -73,6 +79,9 @@ class OfferSummaryCard extends StatelessWidget {
             ? 'بونص على العرض'
             : 'بونص على الأصناف',
         OfferCardStatus.expiring => 'ينتهي قريباً',
+        // العرض الثابت يستحقّ وسماً: غيابُ تاريخٍ ليس نقصاً في البطاقة
+        // بل خاصّيةٌ تُطمئن الصيدلي أن السعر لن يختفي غداً.
+        _ when offer.kind == SalesOfferKind.standing => 'عرض ثابت',
         _ => null,
       };
 

@@ -4,13 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/models/bonus_tier.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_medicine_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_medicine_repository.dart';
+import 'package:tawrid_app/repositories/warehouse_settings_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/multi_region_picker.dart';
 
 // إنشاء عرض بيع — اختيار الأصناف يتم من أدوية المستودع المُضافة مسبقاً
@@ -23,31 +26,74 @@ class WhCreateOfferPage extends ConsumerStatefulWidget {
   ConsumerState<WhCreateOfferPage> createState() => _WhCreateOfferPageState();
 }
 
+/// شريحة بونص قيد التحرير: «اشترِ [buy] واحصل على [free] مجاناً».
+class _BonusTierDraft {
+  _BonusTierDraft()
+      : buy = TextEditingController(),
+        free = TextEditingController();
+
+  final TextEditingController buy;
+  final TextEditingController free;
+
+  bool get isEmpty => buy.text.trim().isEmpty && free.text.trim().isEmpty;
+
+  BonusTier? toTier() {
+    final b = double.tryParse(buy.text.trim());
+    final f = double.tryParse(free.text.trim());
+    if (b == null || f == null || b <= 0 || f <= 0) return null;
+    return BonusTier(buyQuantity: b, freeQuantity: f, label: '');
+  }
+
+  void dispose() {
+    buy.dispose();
+    free.dispose();
+  }
+}
+
 class _OfferItemDraft {
-  _OfferItemDraft(this.medicine, {double? defaultPrice})
+  _OfferItemDraft(this.medicine, {double? defaultPrice, String currency = 'SYP'})
       : unit = TextEditingController(text: 'علبة'),
         quantity = TextEditingController(text: '100'),
         unitPrice = TextEditingController(
           text: defaultPrice != null && defaultPrice > 0
-              ? defaultPrice.toStringAsFixed(0)
+              // بمنازل العملة: تقريبُ 2.25 إلى «2» كان يُسقط سعر العرض
+              // الافتراضي على رقم آخر قبل أن يراه المستودع.
+              ? formatAmount(defaultPrice, currency).replaceAll(',', '')
               : '',
         ),
-        discount = TextEditingController(),
-        bonus = TextEditingController();
+        discount = TextEditingController();
 
   final WarehouseMedicine medicine;
   final TextEditingController unit;
   final TextEditingController quantity;
   final TextEditingController unitPrice;
   final TextEditingController discount;
-  final TextEditingController bonus;
+
+  /// سلّم البونص لهذا الصنف — «(10+5) (5+2) (3+1)». فارغ = لا بونص.
+  final List<_BonusTierDraft> bonusTiers = [];
+
+  /// الشرائح الصالحة وحدها تُرسَل؛ الصفّ الفارغ يُهمَل بلا خطأ.
+  List<BonusTier> validTiers() =>
+      bonusTiers.map((t) => t.toTier()).whereType<BonusTier>().toList();
+
+  /// صفٌّ مملوء جزئياً (كمية بلا مقابلها) — خطأُ إدخال لا إغفال.
+  bool get hasIncompleteTier =>
+      bonusTiers.any((t) => !t.isEmpty && t.toTier() == null);
+
+  /// كميتا شراء متساويتان في سلّم واحد تناقضٌ لا خيار — والخادم يرفضه.
+  bool get hasDuplicateTier {
+    final buys = validTiers().map((t) => t.buyQuantity).toList();
+    return buys.toSet().length != buys.length;
+  }
 
   void dispose() {
     unit.dispose();
     quantity.dispose();
     unitPrice.dispose();
     discount.dispose();
-    bonus.dispose();
+    for (final t in bonusTiers) {
+      t.dispose();
+    }
   }
 }
 
@@ -61,6 +107,14 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
 
   DateTime _startsAt = DateTime.now();
   DateTime _expiresAt = DateTime.now().add(const Duration(days: 7));
+
+  /// نوع العرض. الثابت يُرسَل بلا تاريخ انتهاء — وهو ما يجعله ثابتاً في
+  /// الخادم (لا حقلَ «نوع» منفصلاً يناقض التاريخ).
+  SalesOfferKind _kind = SalesOfferKind.timeLimited;
+
+  /// عملة تسعير المستودع — تُعرَض ولا تُختار: الخادم يفرضها ويتجاهل أي
+  /// عملة في جسم الطلب، فمنتقي عملةٍ هنا كان يَعِد بتحكّمٍ لا وجود له.
+  /// تبديلها من «إعدادات الطلبيات».
   String _currency = 'SYP';
   List<TargetRegion> _targetRegions = [];
   final List<_OfferItemDraft> _items = [];
@@ -70,6 +124,23 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
   WarehouseMedicine? _bonusMedicine;
   final _bonusQuantity = TextEditingController(text: '1');
   final _bonusUnit = TextEditingController(text: 'علبة');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrency();
+  }
+
+  Future<void> _loadCurrency() async {
+    try {
+      final settings = await ref.read(warehouseSettingsRepositoryProvider).get();
+      if (!mounted) return;
+      setState(() => _currency = settings.pricingCurrency);
+    } catch (_) {
+      // تعذّر جلب العملة لا يمنع إنشاء العرض: الخادم يفرضها على أي حال،
+      // وكل ما يضيع هنا هو دقّة الرمز المعروض بجانب الحقول.
+    }
+  }
 
   @override
   void dispose() {
@@ -158,6 +229,28 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
       return;
     }
 
+    // سلالم البونص: يُرفضان هنا برسالة تسمّي الصنف بدل أن يردّهما الخادم
+    // برسالة عامة بعد رحلة شبكة.
+    final incomplete = _items.where((d) => d.hasIncompleteTier).toList();
+    if (incomplete.isNotEmpty) {
+      AppSnackbar.error(
+        context,
+        'أكمِل شريحة البونص في «${incomplete.first.medicine.displayName}» — '
+        'كلّ شريحة تحتاج كمية شراء وكمية مجانية، كلتاهما أكبر من صفر.',
+      );
+      return;
+    }
+
+    final duplicate = _items.where((d) => d.hasDuplicateTier).toList();
+    if (duplicate.isNotEmpty) {
+      AppSnackbar.error(
+        context,
+        'في «${duplicate.first.medicine.displayName}» شريحتان بنفس كمية '
+        'الشراء — اجعل لكل كمية شريحةً واحدة.',
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final items = _items
@@ -170,7 +263,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                 unitPrice: double.tryParse(d.unitPrice.text) ?? 0,
                 discountPercentage:
                     d.discount.text.trim().isEmpty ? null : double.tryParse(d.discount.text),
-                bonusPercentage: d.bonus.text.trim().isEmpty ? null : double.tryParse(d.bonus.text),
+                bonusTiers: d.validTiers(),
               ))
           .toList();
 
@@ -178,8 +271,8 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
             title: _title.text.trim(),
             description: _description.text.trim().isEmpty ? null : _description.text.trim(),
             startsAt: _startsAt,
-            expiresAt: _expiresAt,
-            currency: _currency,
+            expiresAt:
+                _kind == SalesOfferKind.standing ? null : _expiresAt,
             targetRegions: _targetRegions,
             // الحقل مُبقًى في الطلب لأن أمر الخادم يطلبه، لكنه لا أثر له:
             // حارس الرؤية يتجاهله ويعرض العرض لكل صيدلية تغطّيها مناطقه
@@ -252,23 +345,57 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                   hint: 'ما يميّز هذا العرض',
                 ),
                 const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: _currency,
+                InputDecorator(
                   decoration: const InputDecoration(
-                      labelText: 'العملة',
-                      prefixIcon: Icon(Icons.payments_outlined)),
-                  items: const [
-                    DropdownMenuItem(value: 'SYP', child: Text('ليرة سورية (SYP)')),
-                    DropdownMenuItem(value: 'USD', child: Text('دولار أمريكي (USD)')),
-                  ],
-                  onChanged: (v) => setState(() => _currency = v ?? 'SYP'),
+                    labelText: 'العملة',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                  ),
+                  child: Text(
+                    '${currencyName(_currency)} (${currencySymbol(_currency)})',
+                    style: context.text.bodyMedium,
+                  ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  'عملة أسعارك كلها — تُبدَّل من «إعدادات الطلبيات» لا لكل '
+                  'عرض على حدة.',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: context.tokens.hint),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text('نوع العرض', style: context.text.titleSmall),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final k in SalesOfferKind.values)
+                      AppFilterChip(
+                        label: k.label,
+                        selected: _kind == k,
+                        onTap: () => setState(() => _kind = k),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _kind == SalesOfferKind.standing
+                      ? 'عرض ثابت: يبقى سارياً حتى تُلغيه بنفسك — كنشرة '
+                            'أسعارٍ دائمة، بلا تاريخ انتهاء.'
+                      : 'عرض لفترة محدّدة: ينتهي تلقائياً عند تاريخه '
+                            'ويختفي عن الصيدليات.',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: context.tokens.hint),
+                ),
+
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
                     Expanded(child: _DatePickerField(label: 'يبدأ في', date: _startsAt, onTap: () => _pickDate(isStart: true))),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: _DatePickerField(label: 'ينتهي في', date: _expiresAt, onTap: () => _pickDate(isStart: false))),
+                    if (_kind == SalesOfferKind.timeLimited) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: _DatePickerField(label: 'ينتهي في', date: _expiresAt, onTap: () => _pickDate(isStart: false))),
+                    ],
                   ],
                 ),
               ],
@@ -521,19 +648,96 @@ class _OfferItemCard extends StatelessWidget {
                     decoration: const InputDecoration(labelText: 'حسم % (اختياري)', isDense: true),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: TextFormField(
-                    controller: draft.bonus,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'بونص % (اختياري)', isDense: true),
-                  ),
-                ),
               ],
             ),
+            const SizedBox(height: AppSpacing.sm),
+            _BonusTiersEditor(draft: draft),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── محرّر شرائح البونص ─────────────────────────────────────────────────
+//
+// صنفٌ واحد قد يحمل سلّماً كاملاً — «(10+5) (5+2) (3+1)» شائعة في نشرات
+// المستودعات — فحقل «بونص %» الواحد كان يُسقط السلّم على رقم. والشرائح
+// تُركَّب عند الشراء: الكمية 25 أمام (10+5) و(5+2) تستحقّ 12 مجاناً.
+class _BonusTiersEditor extends StatefulWidget {
+  const _BonusTiersEditor({required this.draft});
+
+  final _OfferItemDraft draft;
+
+  @override
+  State<_BonusTiersEditor> createState() => _BonusTiersEditorState();
+}
+
+class _BonusTiersEditorState extends State<_BonusTiersEditor> {
+  void _add() => setState(() => widget.draft.bonusTiers.add(_BonusTierDraft()));
+
+  void _removeAt(int index) =>
+      setState(() => widget.draft.bonusTiers.removeAt(index).dispose());
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final tiers = widget.draft.bonusTiers;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'شرائح البونص (اختياري)',
+                style: context.text.labelMedium,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _add,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('إضافة شريحة'),
+            ),
+          ],
+        ),
+        if (tiers.isEmpty)
+          Text(
+            'مثال: «اشترِ 10 واحصل على 5» — أضف شريحةً لكل درجة في سلّمك.',
+            style: context.text.labelSmall?.copyWith(color: tk.hint),
+          ),
+        for (var i = 0; i < tiers.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: tiers[i].buy,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'اشترِ', isDense: true),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: TextFormField(
+                    controller: tiers[i].free,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'واحصل مجاناً', isDense: true),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _removeAt(i),
+                  icon: const Icon(Icons.close, size: 18),
+                  tooltip: 'حذف الشريحة',
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

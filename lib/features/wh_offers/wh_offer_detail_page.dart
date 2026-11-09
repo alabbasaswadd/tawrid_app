@@ -191,8 +191,12 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
               const SizedBox(height: 10),
               _Line(
                 icon: Icons.event_outlined,
-                text: 'ساري من ${formatSmartTimestamp(o.startsAt)} '
-                    'إلى ${formatSmartTimestamp(o.expiresAt)}',
+                text: o.expiresAt == null
+                    // العرض الثابت: بدايةٌ بلا نهاية — فلا يُفتعَل له «إلى».
+                    ? 'ساري من ${formatSmartTimestamp(o.startsAt)} — '
+                        'عرض ثابت بلا تاريخ انتهاء'
+                    : 'ساري من ${formatSmartTimestamp(o.startsAt)} '
+                        'إلى ${formatSmartTimestamp(o.expiresAt!)}',
               ),
               const SizedBox(height: 6),
               _Line(
@@ -309,10 +313,10 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
                             context.text.labelSmall?.copyWith(color: tk.hint),
                       ),
                       const Spacer(),
-                      if ((item.bonusPercentage ?? 0) > 0)
+                      if (item.hasBonus)
                         BonusBadge(
                           label:
-                              'بونص ${item.bonusPercentage!.toStringAsFixed(0)}٪',
+                              item.bonusLabel!,
                           compact: true,
                         ),
                     ],

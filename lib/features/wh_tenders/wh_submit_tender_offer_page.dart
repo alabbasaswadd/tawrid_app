@@ -7,6 +7,8 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/tender_models.dart';
 import 'package:tawrid_app/repositories/tender_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
+import 'package:tawrid_app/repositories/warehouse_settings_repository.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
@@ -65,6 +67,10 @@ class _WhSubmitTenderOfferPageState
   final _notes = TextEditingController();
   TenderOfferType _type = TenderOfferType.mixed;
 
+  /// عملة تسعير المستودع — أسعار عرض التسعير بها، والخادم يُجمّدها في
+  /// العرض. تُعرَض هنا ليعرف المستودع بأي عملة يُدخل أرقامه.
+  String _currency = 'SYP';
+
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -73,6 +79,18 @@ class _WhSubmitTenderOfferPageState
   void initState() {
     super.initState();
     _load();
+    _loadCurrency();
+  }
+
+  Future<void> _loadCurrency() async {
+    try {
+      final settings = await ref.read(warehouseSettingsRepositoryProvider).get();
+      if (!mounted) return;
+      setState(() => _currency = settings.pricingCurrency);
+    } catch (_) {
+      // تعذّر جلبها لا يمنع التسعير: الخادم يفرض العملة على أي حال، وكل
+      // ما يضيع هو دقّة الرمز المعروض في التلميح.
+    }
   }
 
   @override
@@ -239,6 +257,7 @@ class _WhSubmitTenderOfferPageState
                 draft: d,
                 showPrice: _showPrice,
                 showBonus: _showBonus,
+                currency: _currency,
                 onChanged: () => setState(() {}),
               ),
             ),
@@ -318,12 +337,14 @@ class _ItemCard extends StatelessWidget {
     required this.draft,
     required this.showPrice,
     required this.showBonus,
+    required this.currency,
     required this.onChanged,
   });
 
   final _ItemDraft draft;
   final bool showPrice;
   final bool showBonus;
+  final String currency;
   final VoidCallback onChanged;
 
   @override
@@ -351,7 +372,7 @@ class _ItemCard extends StatelessWidget {
                   child: AppTextField(
                     controller: draft.unitPrice,
                     label: 'سعر الوحدة',
-                    hint: 'ل.س',
+                    hint: currencySymbol(currency),
                     keyboardType: TextInputType.number,
                     onChanged: (_) => onChanged(),
                   ),

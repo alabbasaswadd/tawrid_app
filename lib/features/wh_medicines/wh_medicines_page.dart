@@ -129,15 +129,21 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
             const SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: controller,
-              label: 'سعر الوحدة (${currencySymbol(kPlatformCurrency)})',
-              hint: '12500',
+              label: 'سعر الوحدة (${currencySymbol(m.currency)})',
+              hint: m.currency == 'SYP' ? '12500' : '2.25',
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'اتركه فارغاً ليعود السعر إلى التقديري (٧٤٪ من سعر '
-              'المستهلك في النشرة).',
+              // مستودعٌ بعملة غير عملة النشرة لا اشتقاق له أصلاً، فوعدُه
+              // بـ«سعر تقديري» عند الإفراغ كذب: الصنف يعود بلا سعر.
+              m.needsManualPrice
+                  ? 'أسعارك بـ${currencyName(m.currency)} والنشرة الوطنية '
+                        'بالليرة، فلا يُشتقّ سعر تقديري — إفراغ الحقل يترك '
+                        'الصنف بلا سعر في بحث الصيدليات.'
+                  : 'اتركه فارغاً ليعود السعر إلى التقديري (٧٤٪ من سعر '
+                        'المستهلك في النشرة).',
               style: Theme.of(ctx).textTheme.labelSmall,
             ),
           ],
@@ -390,8 +396,17 @@ class _MedicineCard extends StatelessWidget {
                   // يظنّ صنفه بلا سعر بينما يُباع فعلاً بسعر مشتقّ.
                   if (m.effectivePrice != null)
                     Text(
-                      formatMoneyWith(m.effectivePrice!, kPlatformCurrency),
+                      formatMoneyWith(m.effectivePrice!, m.currency),
                       style: context.priceStyle,
+                    )
+                  // سببان مختلفان لغياب السعر وعلاجهما مختلف: اختلافُ
+                  // العملة يحلّه المستودع بإدخال سعر، وغيابُ سعر المستهلك
+                  // لا حيلة فيه.
+                  else if (m.needsManualPrice)
+                    Text(
+                      'سعّره بنفسك',
+                      style: context.text.labelSmall
+                          ?.copyWith(color: tk.warning),
                     )
                   else
                     Text(

@@ -1,3 +1,5 @@
+import 'package:tawrid_app/models/bonus_tier.dart';
+
 import 'enums.dart';
 
 // نتائج البحث المقارن عن دواء (`GET /tawrid-api/medicines/search`).
@@ -73,7 +75,14 @@ class MedicineSearchResult {
   final String? salesOfferItemId;
   final DateTime? offerExpiresAt;
   final double? discountPercentage;
+
+  /// نسبة البونص — الشكل القديم؛ فارغة في العروض ذات الشرائح.
   final double? bonusPercentage;
+
+  /// سلّم بونص الصنف مرتَّباً تنازلياً — «(10+5) (5+2) (3+1)». يُعرَض في
+  /// بطاقة النتيجة ليقرّر الصيدلي كميته قبل الإضافة لا بعدها.
+  final List<BonusTier> bonusTiers;
+
   final double? availableQuantity;
 
   // ── التسعير المباشر فقط ────────────────────────────────────────────
@@ -103,7 +112,16 @@ class MedicineSearchResult {
   /// السعر مشتقٌّ تلقائياً (٧٤٪ من سعر المستهلك) لأن المستودع لم يُدخله
   /// يدوياً. سعرٌ فعلي يُشترى به، لكن تمييزه يهمّ الصيدلي.
   final bool isDerivedPrice;
+
+  /// بلا سعر **لأن** المستودع يسعّر بعملة غير عملة النشرة الوطنية فلا
+  /// يُشتقّ له سعر — لا لأن الصنف بلا سعر مستهلك. تمييزٌ يغيّر ما تعرضه
+  /// الشاشة: «لم يُسعّره المستودع بعد» لا «غير متوفّر».
+  final bool priceBlockedByCurrency;
+
+  /// عملة أسعار هذا الصفّ = عملة تسعير مستودعه. بلا تحويل: صفٌّ إدلبي
+  /// بالدولار وآخر حمصي بالليرة في النتيجة نفسها.
   final String currency;
+
   final String unit;
 
   // ── الدواء ─────────────────────────────────────────────────────────
@@ -125,6 +143,7 @@ class MedicineSearchResult {
     this.offerExpiresAt,
     this.discountPercentage,
     this.bonusPercentage,
+    this.bonusTiers = const [],
     this.availableQuantity,
     this.warehouseMedicineId,
     required this.supplyWarehouseId,
@@ -137,6 +156,7 @@ class MedicineSearchResult {
     this.netUnitPrice,
     this.hasPrice = true,
     this.isDerivedPrice = false,
+    this.priceBlockedByCurrency = false,
     required this.currency,
     required this.unit,
     required this.medicineName,
@@ -162,6 +182,7 @@ class MedicineSearchResult {
           : DateTime.parse(j['offerExpiresAt'] as String),
       discountPercentage: d('discountPercentage'),
       bonusPercentage: d('bonusPercentage'),
+      bonusTiers: BonusTier.listFromJson(j['bonusTiers']),
       availableQuantity: d('availableQuantity'),
       warehouseMedicineId: j['warehouseMedicineId'] as String?,
       supplyWarehouseId: j['supplyWarehouseId'] as String,
@@ -176,6 +197,7 @@ class MedicineSearchResult {
       // خادم أقدم لا يرسل العلَم: وجود سعر هو الدليل.
       hasPrice: j['hasPrice'] as bool? ?? (j['netUnitPrice'] ?? j['unitPrice']) != null,
       isDerivedPrice: j['isDerivedPrice'] as bool? ?? false,
+      priceBlockedByCurrency: j['priceBlockedByCurrency'] as bool? ?? false,
       currency: j['currency'] as String? ?? 'SYP',
       unit: j['unit'] as String? ?? 'عبوة',
       medicineName: j['medicineName'] as String? ?? '',
@@ -198,6 +220,28 @@ class MedicineSearchResult {
 
   /// صنف يتعامل به المستودع بلا سعر معلن — يُعرَض ولا يُضاف إلى السلّة.
   bool get isUnpriced => !hasPrice || netUnitPrice == null;
+
+  /// سببُ غياب السعر بنصّ يفهمه الصيدلي. سببان مختلفان وعلاجهما مختلف:
+  /// اختلافُ العملة عن النشرة يحلّه المستودع بإدخال سعر، وغيابُ سعر
+  /// المستهلك لا حيلة فيه إلا طلب تسعير.
+  String get unpricedReason => priceBlockedByCurrency
+      ? 'لم يُسعّره المستودع بعد'
+      : 'غير مسعَّر';
+
+  /// هل على هذا الصنف بونص بأي شكل؟
+  bool get hasBonus => bonusTiers.isNotEmpty || (bonusPercentage ?? 0) > 0;
+
+  /// نصّ شارة البونص: سلّم الشرائح إن وُجد، وإلا النسبة القديمة.
+  /// «10 + 5 · 5 + 2» أو «بونص 20٪».
+  String? get bonusLabel {
+    if (bonusTiers.isNotEmpty) {
+      return bonusTiers.map((t) => t.label).join(' · ');
+    }
+    if ((bonusPercentage ?? 0) > 0) {
+      return 'بونص ${bonusPercentage!.toStringAsFixed(0)}٪';
+    }
+    return null;
+  }
 
   /// «أموكسيسيلين · كبسولات ٥٠٠» — السطر الثانوي تحت اسم الدواء.
   String get specLine => [

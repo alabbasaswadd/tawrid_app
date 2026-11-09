@@ -561,7 +561,7 @@ class _PriceResultCard extends StatelessWidget {
     final cs = context.colors;
     final tk = context.tokens;
     final r = result;
-    final hasBonus = r.bonusPercentage != null && r.bonusPercentage! > 0;
+    final hasBonus = r.hasBonus;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -622,9 +622,9 @@ class _PriceResultCard extends StatelessWidget {
               ),
               if (hasBonus) ...[
                 const SizedBox(width: AppSpacing.sm),
-                BonusBadge(
-                  label: 'بونص ${r.bonusPercentage!.toStringAsFixed(0)}٪',
-                ),
+                // سلّم الشرائح كاملاً — «10 + 5 · 5 + 2 · 3 + 1» — ليقرّر
+                // الصيدلي كميته قبل الإضافة لا بعدها.
+                BonusBadge(label: r.bonusLabel!),
               ],
             ],
           ),
@@ -742,7 +742,7 @@ class _PriceResultCard extends StatelessWidget {
                   ),
                   if (r.isUnpriced)
                     Text(
-                      'لم يُسعَّر بعد',
+                      r.unpricedReason,
                       style: context.text.bodyMedium?.copyWith(color: tk.hint),
                     )
                   else

@@ -10,13 +10,24 @@ final warehouseSettingsRepositoryProvider =
 /// إعدادات الطلبيات التي يضبطها كل مستودع لنفسه.
 class WarehouseSettings {
   /// حدّ أدنى لقيمة الطلبية الواحدة؛ null = لا حدّ أدنى.
+  /// بعملة [pricingCurrency].
   final double? minimumOrderAmount;
 
-  const WarehouseSettings({this.minimumOrderAmount});
+  /// عملة كل أسعار المستودع — مشتقّة من محافظته عند التسجيل وقابلة
+  /// للتجاوز. الخادم يرفض تبديلها ما دام هناك عرض بيع فعّال، لأن أسعار
+  /// «أدويتي» أرقامٌ بلا عملة مخزَّنة معها فتبديلها يُعيد تسميتها كلها.
+  final String pricingCurrency;
 
-  factory WarehouseSettings.fromJson(Map<String, dynamic> j) => WarehouseSettings(
-    minimumOrderAmount: (j['minimumOrderAmount'] as num?)?.toDouble(),
-  );
+  const WarehouseSettings({
+    this.minimumOrderAmount,
+    this.pricingCurrency = 'SYP',
+  });
+
+  factory WarehouseSettings.fromJson(Map<String, dynamic> j) =>
+      WarehouseSettings(
+        minimumOrderAmount: (j['minimumOrderAmount'] as num?)?.toDouble(),
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+      );
 }
 
 class WarehouseSettingsRepository {
@@ -29,11 +40,22 @@ class WarehouseSettingsRepository {
   }
 
   /// [minimumOrderAmount] فارغاً يرفع الحدّ فيُقبل أي مبلغ.
-  Future<WarehouseSettings> update({double? minimumOrderAmount}) async {
-    final data = await _api.put(
-      ApiEndpoints.whSettings,
-      data: {'minimumOrderAmount': minimumOrderAmount},
-    ) as Map<String, dynamic>;
+  ///
+  /// [pricingCurrency] فارغاً = **لا تغيير** (لا إعادة إلى الافتراضي):
+  /// من أرسل الحدّ الأدنى وحده لا يقصد تصفير عملته.
+  Future<WarehouseSettings> update({
+    double? minimumOrderAmount,
+    String? pricingCurrency,
+  }) async {
+    final data =
+        await _api.put(
+              ApiEndpoints.whSettings,
+              data: {
+                'minimumOrderAmount': minimumOrderAmount,
+                'pricingCurrency': pricingCurrency,
+              },
+            )
+            as Map<String, dynamic>;
     return WarehouseSettings.fromJson(data);
   }
 }

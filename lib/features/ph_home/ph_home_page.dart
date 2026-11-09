@@ -147,6 +147,14 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.md),
+        // كاتالوج المستودعات — سؤالٌ غير سؤال الكتالوج الوطني: ذاك مرجعٌ
+        // دوائي، وهذا سوقٌ حيّ يُشترى منه. فله مدخلُه الخاصّ لا تابٌ مطويّ.
+        _ActionTile(
+          icon: AppIcons.warehouse,
+          label: 'كاتالوج المستودعات',
+          onTap: () => context.push(TRoutes.phWarehouseCatalog),
+        ),
 
         const SizedBox(height: AppSpacing.x2l),
 
@@ -447,8 +455,11 @@ class _PhToPhBanner extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
+                  // «صيدلي إلى صيدلي» اسمٌ اصطلاحي لا يقول ما يفعله القسم:
+                  // الصيدلي يقرؤه فلا يعرف أيبيع أم يشتري. فصار العنوان
+                  // يسمّي الفعل، والسطر تحته يخاطبه مباشرةً.
                   child: Text(
-                    'صيدلي إلى صيدلي',
+                    'بيع واشترِ من زملائك الصيادلة',
                     style: context.text.titleMedium?.copyWith(
                       color: cs.primary,
                     ),
@@ -458,8 +469,11 @@ class _PhToPhBanner extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'أدوية كاسدة أو قاربت انتهاء صلاحيتها؟\n'
-              'أعلن عنها لصيادلة في منطقتك وتواصل معهم مباشرةً.',
+              // الشرح السابق ذكر البيع وحده، والقسم وجهان: الصيدلي بائعٌ
+              // لفائضه ومشترٍ من فائض غيره — وإغفال الشقّ الثاني كان يترك
+              // زرّ التصفّح بلا سبب ظاهر.
+              'عندك دواء كاسد أو قاربت صلاحيته؟ أعلن عنه لصيادلة منطقتك.\n'
+              'ناقصك صنف؟ تصفّح ما يعرضه زملاؤك وتواصل معهم مباشرةً.',
               style: context.text.bodySmall?.copyWith(color: tk.hint),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -469,7 +483,10 @@ class _PhToPhBanner extends StatelessWidget {
                 // ارتفاع الزرّ القياسي من الثيم: ٣٢ كان يضغط النصّ فيبهت.
                 Expanded(
                   child: AppButton(
-                    label: 'تصفح الإعلانات',
+                    // «تصفح الإعلانات» فعلٌ بلا مفعول: إعلاناتُ مَن؟ الاسم
+                    // يسمّي القسم، ويطابق عنوان الشاشة التي يفتحها.
+                    label: 'إعلانات الصيادلة',
+                    icon: Icons.search,
                     variant: AppButtonVariant.tonal,
                     onPressed: onBrowse,
                   ),
@@ -478,6 +495,7 @@ class _PhToPhBanner extends StatelessWidget {
                 Expanded(
                   child: AppButton(
                     label: 'إعلاناتي',
+                    icon: Icons.sell_outlined,
                     onPressed: onMyListings,
                   ),
                 ),

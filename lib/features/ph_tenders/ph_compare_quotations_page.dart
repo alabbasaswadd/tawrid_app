@@ -475,13 +475,13 @@ class _QuoteCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'الإجمالي: ${formatMoneyWith(math.total!, kPlatformCurrency)}',
+                        'الإجمالي: ${formatMoneyWith(math.total!, math.quote.currency)}',
                         style: context.text.bodySmall?.copyWith(color: tk.hint),
                       ),
                       if (math.hasBonus)
                         Text(
                           'الفعلي بعد البونص: '
-                          '${formatMoneyWith(math.effective!, kPlatformCurrency)}',
+                          '${formatMoneyWith(math.effective!, math.quote.currency)}',
                           style: context.priceBrandStyle,
                         ),
                     ],

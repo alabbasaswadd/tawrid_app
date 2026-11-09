@@ -12,6 +12,10 @@ class SupplyOrderSummary {
   final String warehousePhone;
 
   final int itemCount;
+
+  /// عملة [totalAmount] والأسعار المتَّفقة — مجمَّدة من عملة تسعير المستودع.
+  final String currency;
+
   final DateTime createdOn;
   final DateTime? expectedDeliveryDate;
   final bool invoiceCreated;
@@ -40,6 +44,7 @@ class SupplyOrderSummary {
     required this.warehouseCity,
     this.warehousePhone = '',
     required this.itemCount,
+    this.currency = 'SYP',
     required this.createdOn,
     this.expectedDeliveryDate,
     required this.invoiceCreated,
@@ -57,6 +62,7 @@ class SupplyOrderSummary {
         warehouseCity: j['warehouseCity'] as String,
         warehousePhone: j['warehousePhone'] as String? ?? '',
         itemCount: j['itemCount'] as int,
+        currency: j['currency'] as String? ?? 'SYP',
         createdOn: DateTime.parse(j['createdOn'] as String),
         expectedDeliveryDate: j['expectedDeliveryDate'] != null
             ? DateTime.parse(j['expectedDeliveryDate'] as String)
@@ -77,7 +83,14 @@ class SupplyOrderItem {
   final double quantity;
   final String unit;
   final double? agreedUnitPrice;
+
+  /// نسبة البونص — الشكل القديم؛ فارغة فيما جاء من عرضٍ بشرائح.
   final double? bonusPercentage;
+
+  /// الكمية المجانية المتَّفق عليها — يراها المستودع في أمر التحضير
+  /// فيعرف كم يُرفِق مجاناً، وتراها الصيدلية فتتحقّق عند الاستلام.
+  /// لا تدخل في الإجمالي.
+  final double freeQuantity;
 
   SupplyOrderItem({
     required this.id,
@@ -88,6 +101,7 @@ class SupplyOrderItem {
     required this.unit,
     this.agreedUnitPrice,
     this.bonusPercentage,
+    this.freeQuantity = 0,
   });
 
   factory SupplyOrderItem.fromJson(Map<String, dynamic> j) => SupplyOrderItem(
@@ -99,6 +113,7 @@ class SupplyOrderItem {
         unit: j['unit'] as String,
         agreedUnitPrice: (j['agreedUnitPrice'] as num?)?.toDouble(),
         bonusPercentage: (j['bonusPercentage'] as num?)?.toDouble(),
+        freeQuantity: (j['freeQuantity'] as num?)?.toDouble() ?? 0,
       );
 
   Map<String, dynamic> toCreateJson() => {
@@ -108,6 +123,7 @@ class SupplyOrderItem {
         'unit': unit,
         'agreedUnitPrice': agreedUnitPrice,
         'bonusPercentage': bonusPercentage,
+        'freeQuantity': freeQuantity,
       };
 }
 
@@ -121,6 +137,10 @@ class SupplyOrderDetail {
   final String warehouseCity;
   final String warehouseGovernorate;
   final String? notes;
+
+  /// عملة كل الأسعار في هذه الطلبية — مجمَّدة وقت الإنشاء.
+  final String currency;
+
   final DateTime? expectedDeliveryDate;
   final DateTime? deliveredAt;
   final bool invoiceCreated;
@@ -145,6 +165,7 @@ class SupplyOrderDetail {
     required this.warehouseCity,
     required this.warehouseGovernorate,
     this.notes,
+    this.currency = 'SYP',
     this.expectedDeliveryDate,
     this.deliveredAt,
     required this.invoiceCreated,
@@ -168,6 +189,7 @@ class SupplyOrderDetail {
         warehouseCity: j['warehouseCity'] as String,
         warehouseGovernorate: j['warehouseGovernorate'] as String,
         notes: j['notes'] as String?,
+        currency: j['currency'] as String? ?? 'SYP',
         expectedDeliveryDate: j['expectedDeliveryDate'] != null
             ? DateTime.parse(j['expectedDeliveryDate'] as String)
             : null,

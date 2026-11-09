@@ -1,4 +1,9 @@
 abstract final class StorageKeys {
+  /// علَم «كلمة المرور افتراضية» — يُحفَظ مع الجلسة فيبقى الحجب قائماً بعد
+  /// إقلاعٍ جديد بلا انتظار ردّ /me.
+  static const String pharmacyMustChangePassword = 'ph_must_change_password';
+  static const String warehouseMustChangePassword = 'wh_must_change_password';
+
   // Pharmacy session
   static const String pharmacyToken = 'pharmacy_access_token';
   static const String pharmacyUserId = 'pharmacy_user_id';

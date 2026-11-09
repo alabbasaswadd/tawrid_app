@@ -50,6 +50,7 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
             warehouseUserId: data['warehouseUserId'] as String?,
             warehouseId: data['warehouseId'] as String?,
             accountStatus: AccountStatus.fromApi(data['accountStatus']),
+            mustChangePassword: data['mustChangePassword'] as bool? ?? false,
           );
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);

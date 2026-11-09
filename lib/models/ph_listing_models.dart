@@ -47,6 +47,9 @@ class PhListingSummary {
   final String? manufacturer;
   final int quantity;
   final double pricePerUnit;
+
+  /// عملة [pricePerUnit] — عملة الصيدلية العارضة، بلا تحويل.
+  final String currency;
   final DateTime? expiryDate;
   final PhListingReason reason;
   final String? notes;
@@ -66,6 +69,7 @@ class PhListingSummary {
     this.manufacturer,
     required this.quantity,
     required this.pricePerUnit,
+    this.currency = 'SYP',
     this.expiryDate,
     required this.reason,
     this.notes,
@@ -92,6 +96,7 @@ class PhListingSummary {
       manufacturer: j['manufacturer'] as String?,
       quantity: j['quantity'] as int,
       pricePerUnit: (j['pricePerUnit'] as num).toDouble(),
+      currency: j['currency'] as String? ?? 'SYP',
       expiryDate: j['expiryDate'] == null
           ? null
           : DateTime.tryParse(j['expiryDate'] as String),

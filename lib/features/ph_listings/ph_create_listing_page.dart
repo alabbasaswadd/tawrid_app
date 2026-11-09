@@ -13,6 +13,8 @@ import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
 import 'package:tawrid_app/repositories/ph_listing_repository.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
 // إنشاء إعلان جديد «صيدلي إلى صيدلي».
@@ -230,7 +232,8 @@ class _PhCreateListingPageState extends ConsumerState<PhCreateListingPage> {
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: _LabeledField(
-                    label: 'السعر (ل.س/الوحدة) *',
+                    label:
+                        'السعر (${currencySymbol(ref.watch(pharmacyMeProvider).value?.pricingCurrency ?? 'SYP')}/الوحدة) *',
                     child: TextFormField(
                       controller: _priceCtrl,
                       keyboardType: const TextInputType.numberWithOptions(
@@ -516,6 +519,18 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
     _run();
   }
 
+  Future<void> _scanBarcode() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+
+    // الباركود يُنفَّذ فوراً لا بعد مهلة الكتابة: ليس حرفاً يُتبَع بآخر.
+    _debounce?.cancel();
+    _searchCtrl.text = code;
+    _run();
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -590,6 +605,10 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
                 hint: 'ابحث بالاسم التجاري أو الجنيسي أو الباركود',
                 onChanged: _onChanged,
                 onSubmitted: (_) => _run(),
+                // التلميح كان يَعِد بالباركود بلا وسيلةٍ لإدخاله إلا طبعه
+                // رقماً رقماً. والماسح هو نفسه المستعمَل في بقية شاشات
+                // البحث — نفس المكوّن ونفس السلوك.
+                onScanTap: _scanBarcode,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),

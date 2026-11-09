@@ -10,6 +10,7 @@ import 'package:tawrid_app/models/warehouse_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 
@@ -33,6 +34,11 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
   List<SalesOfferSummary> _offers = const [];
   bool _loading = true;
   String? _error;
+
+  /// كم منطقة تُعرَض قبل الطيّ. مستودعٌ يغطّي محافظةً كاملة قد يُدرج ١٨٦
+  /// موضعاً، فعرضُها كلها جدارُ شرائح يدفن ما تحته.
+  static const int _areasPreview = 10;
+  bool _areasExpanded = false;
 
   @override
   void initState() {
@@ -156,6 +162,13 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                 text: '${p.activeOffersCount} '
                     '${p.activeOffersCount == 1 ? 'عرض ساري' : 'عروض سارية'}',
               ),
+              // عملة أسعاره — تُقال صراحةً لأن المنصّة لا تحوّل: أرقام هذا
+              // المستودع كلها بها، وقد تخالف عملة صيدلية الزائر.
+              _Line(
+                icon: Icons.payments_outlined,
+                text: 'يسعّر بـ${currencyName(p.pricingCurrency)}'
+                    ' (${currencySymbol(p.pricingCurrency)})',
+              ),
 
               const SizedBox(height: AppSpacing.md),
               // عروضه السارية أدناه لا تُظهر إلا ما جمّعه في عروض. البحث
@@ -175,16 +188,55 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
 
         if (!p.servesAllAreas && p.serviceAreas.length > 3) ...[
           const SizedBox(height: AppSpacing.lg),
-          Text('مناطق الخدمة', style: context.text.titleSmall),
+          // العنوان وزرّ الطيّ في سطر واحد أعلى القائمة: مع ١٨٦ شريحة
+          // يصير زرٌّ أسفلها بعيداً عن متناول من فتحها، فيُطوى من حيث
+          // فُتح.
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'مناطق الخدمة (${p.serviceAreas.length})',
+                  style: context.text.titleSmall,
+                ),
+              ),
+              if (p.serviceAreas.length > _areasPreview)
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _areasExpanded = !_areasExpanded),
+                  icon: Icon(
+                    _areasExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _areasExpanded
+                        ? 'طيّ'
+                        : 'عرض الكل (${p.serviceAreas.length})',
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              for (final area in p.serviceAreas)
+              for (final area in _areasExpanded
+                  ? p.serviceAreas
+                  : p.serviceAreas.take(_areasPreview))
                 Chip(
                   label: Text(area, style: context.text.bodySmall),
                   visualDensity: VisualDensity.compact,
+                ),
+              // شريحةٌ تقول كم بقي، وتفتح الباقي بنقرة — فالعدد المطويّ
+              // مرئيّ حيث انقطعت القائمة لا في الزرّ أعلاها وحده.
+              if (!_areasExpanded && p.serviceAreas.length > _areasPreview)
+                ActionChip(
+                  label: Text(
+                    '+${p.serviceAreas.length - _areasPreview}',
+                    style: context.text.bodySmall,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() => _areasExpanded = true),
                 ),
             ],
           ),

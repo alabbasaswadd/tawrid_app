@@ -1,4 +1,28 @@
+import 'package:tawrid_app/models/bonus_tier.dart';
+
 import 'enums.dart';
+
+/// نوع عرض البيع — مشتقٌّ في الخادم من وجود تاريخ الانتهاء من عدمه.
+enum SalesOfferKind {
+  /// عرض دائم بلا تاريخ انتهاء — نشرة أسعار سارية حتى يُلغيها المستودع.
+  standing(1),
+
+  /// عرض لفترة محدّدة — ينتهي تلقائياً عند تاريخه.
+  timeLimited(2);
+
+  const SalesOfferKind(this.code);
+  final int code;
+
+  static SalesOfferKind fromCode(int? code) => SalesOfferKind.values.firstWhere(
+        (e) => e.code == code,
+        orElse: () => SalesOfferKind.timeLimited,
+      );
+
+  String get label => switch (this) {
+        SalesOfferKind.standing => 'عرض ثابت',
+        SalesOfferKind.timeLimited => 'لفترة محدّدة',
+      };
+}
 
 // منطقة مستهدفة (محافظة، مع مدينة اختيارية = كل مدن المحافظة) — عرض واحد
 // قد يستهدف أكثر من محافظة وأكثر من مدينة.
@@ -30,7 +54,11 @@ class SalesOfferSummary {
   final int itemCount;
   final List<String> itemNames;
   final DateTime startsAt;
-  final DateTime expiresAt;
+  /// null = عرض ثابت لا ينتهي.
+  final DateTime? expiresAt;
+
+  /// نوع العرض — ثابت أو لفترة محدّدة.
+  final SalesOfferKind kind;
   final DateTime createdOn;
 
   // البونص على مستويين: على أصناف بعينها، وعلى العرض كاملاً (دواء يُهدى مع
@@ -53,6 +81,7 @@ class SalesOfferSummary {
     required this.itemNames,
     required this.startsAt,
     required this.expiresAt,
+    this.kind = SalesOfferKind.timeLimited,
     required this.createdOn,
     this.hasItemBonus = false,
     this.hasOfferBonus = false,
@@ -71,7 +100,10 @@ class SalesOfferSummary {
         itemCount: j['itemCount'] as int,
         itemNames: ((j['itemNames'] as List?) ?? []).map((e) => e as String).toList(),
         startsAt: DateTime.parse(j['startsAt'] as String),
-        expiresAt: DateTime.parse(j['expiresAt'] as String),
+        expiresAt: j['expiresAt'] == null
+            ? null
+            : DateTime.parse(j['expiresAt'] as String),
+        kind: SalesOfferKind.fromCode(j['kind'] as int?),
         createdOn: DateTime.parse(j['createdOn'] as String),
         hasItemBonus: j['hasItemBonus'] as bool? ?? false,
         hasOfferBonus: j['hasOfferBonus'] as bool? ?? false,
@@ -87,7 +119,13 @@ class SalesOfferItem {
   final String unit;
   final double unitPrice;
   final double? discountPercentage;
+
+  /// نسبة البونص — الشكل القديم؛ فارغة في العروض ذات الشرائح.
   final double? bonusPercentage;
+
+  /// شرائح البونص الكمّي مرتَّبة تنازلياً بكمية الشراء — «(10+5) (5+2) (3+1)».
+  /// فارغة = لا بونص كمّي على هذا الصنف.
+  final List<BonusTier> bonusTiers;
 
   SalesOfferItem({
     required this.id,
@@ -98,6 +136,7 @@ class SalesOfferItem {
     required this.unitPrice,
     this.discountPercentage,
     this.bonusPercentage,
+    this.bonusTiers = const [],
   });
 
   factory SalesOfferItem.fromJson(Map<String, dynamic> j) => SalesOfferItem(
@@ -109,6 +148,7 @@ class SalesOfferItem {
         unitPrice: (j['unitPrice'] as num).toDouble(),
         discountPercentage: (j['discountPercentage'] as num?)?.toDouble(),
         bonusPercentage: (j['bonusPercentage'] as num?)?.toDouble(),
+        bonusTiers: BonusTier.listFromJson(j['bonusTiers']),
       );
 
   Map<String, dynamic> toCreateJson() => {
@@ -118,8 +158,25 @@ class SalesOfferItem {
         'unit': unit,
         'unitPrice': unitPrice,
         'discountPercentage': discountPercentage,
-        'bonusPercentage': bonusPercentage,
+        // الخادم يُهمل النسبة متى وصلت شرائح — مصدر حقيقة واحد للبونص.
+        'bonusPercentage': bonusTiers.isEmpty ? bonusPercentage : null,
+        'bonusTiers': bonusTiers.map((t) => t.toCreateJson()).toList(),
       };
+
+  /// هل على هذا الصنف بونص بأي شكل؟
+  bool get hasBonus => bonusTiers.isNotEmpty || (bonusPercentage ?? 0) > 0;
+
+  /// نصّ الشارة: سلّم الشرائح إن وُجد، وإلا النسبة القديمة.
+  /// «10 + 5 · 5 + 2 · 3 + 1» أو «بونص 20٪».
+  String? get bonusLabel {
+    if (bonusTiers.isNotEmpty) {
+      return bonusTiers.map((t) => t.label).join(' · ');
+    }
+    if ((bonusPercentage ?? 0) > 0) {
+      return 'بونص ${bonusPercentage!.toStringAsFixed(0)}٪';
+    }
+    return null;
+  }
 }
 
 class SalesOfferTarget {
@@ -170,7 +227,11 @@ class SalesOfferDetail {
   final String? description;
   final SalesOfferStatus status;
   final DateTime startsAt;
-  final DateTime expiresAt;
+  /// null = عرض ثابت لا ينتهي.
+  final DateTime? expiresAt;
+
+  /// نوع العرض — ثابت أو لفترة محدّدة.
+  final SalesOfferKind kind;
   final String currency;
   final List<TargetRegion> targetRegions;
   final bool isPublicInRegion;
@@ -194,6 +255,7 @@ class SalesOfferDetail {
     required this.status,
     required this.startsAt,
     required this.expiresAt,
+    this.kind = SalesOfferKind.timeLimited,
     required this.currency,
     required this.targetRegions,
     required this.isPublicInRegion,
@@ -217,7 +279,10 @@ class SalesOfferDetail {
         description: j['description'] as String?,
         status: SalesOfferStatus.fromCode(j['status'] as int),
         startsAt: DateTime.parse(j['startsAt'] as String),
-        expiresAt: DateTime.parse(j['expiresAt'] as String),
+        expiresAt: j['expiresAt'] == null
+            ? null
+            : DateTime.parse(j['expiresAt'] as String),
+        kind: SalesOfferKind.fromCode(j['kind'] as int?),
         currency: j['currency'] as String? ?? 'SYP',
         targetRegions: ((j['targetRegions'] as List?) ?? [])
             .map((e) => TargetRegion.fromJson(e as Map<String, dynamic>))

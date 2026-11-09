@@ -2,6 +2,11 @@ abstract final class ApiEndpoints {
   static const String _ph = '/tawrid-api';
   static const String _wh = '/tawrid-api/warehouse';
 
+  /// تغيير كلمة المرور — المسار الوحيد المتاح للحساب الذي ما زال بكلمة
+  /// مروره الافتراضية (مع `me`).
+  static const String phChangePassword = '$_ph/auth/change-password';
+  static const String whChangePassword = '$_wh/auth/change-password';
+
   // ── Pharmacy Auth ──────────────────────────────────────────────────────────
   static const String phLogin         = '$_ph/auth/login';
   static const String phRegister      = '$_ph/auth/register';

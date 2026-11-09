@@ -9,6 +9,10 @@ abstract final class TRoutes {
   // حالة الحساب (قيد المراجعة/مرفوض) — تحجب التطبيق لغير المقبول
   static const String accountStatus = '/account-status';
 
+  /// إعادة تعيين إجبارية لكلمة المرور — تحجب كل شيء ما دام الحساب بكلمته
+  /// الافتراضية، كما تحجب accountStatus الحسابَ غير المقبول.
+  static const String forcePasswordChange = '/force-password-change';
+
   // Warehouse auth
   static const String whLogin = '/wh/login';
   static const String whRegister = '/wh/register';
@@ -31,6 +35,10 @@ abstract final class TRoutes {
   // بحث الأسعار المقارن (عروض + تسعير مباشر) والسلّة المبنيّة من نتائجه.
   // السلّة محفوظة على الخادم ومجمَّعة فيه حسب المستودع.
   static const String phPriceSearch = '/medicines/prices';
+
+  /// كاتالوج المستودعات — «من يبيع هذا الدواء الآن وبكم؟». شاشة مستقلّة
+  /// عن الكتالوج الوطني: سؤالٌ آخر ومجموعةُ فلاترٍ أخرى.
+  static const String phWarehouseCatalog = '/medicines/warehouse-catalog';
 
   /// بحث الأسعار محصوراً بمستودع واحد — يُفتح من ملف المستودع.
   /// الاسم يُمرَّر للعنوان فقط؛ الخادم يفلتر بالمعرّف.

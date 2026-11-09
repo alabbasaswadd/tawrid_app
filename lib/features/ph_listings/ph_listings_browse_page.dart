@@ -13,7 +13,11 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'widgets/ph_listing_card.dart';
 
-// شاشة تصفح إعلانات «صيدلي إلى صيدلي» — تظهر للصيادلة فقط.
+// إعلانات الصيادلة — ما يعرضه زملاء المهنة من فائضٍ أو دواءٍ قاربت
+// صلاحيته. تظهر للصيادلة فقط.
+//
+// العنوان يطابق الزرّ الذي يفتحها: شاشةٌ تُفتَح بزرّ «إعلانات الصيادلة» ثم
+// تُعنوِن نفسها باسمٍ آخر تُقرأ شاشةً خاطئة.
 // يمكن تصفيتها بالمحافظة أو بسبب البيع، والبحث بالاسم.
 class PhListingsBrowsePage extends ConsumerStatefulWidget {
   const PhListingsBrowsePage({super.key});
@@ -82,7 +86,7 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const InnerTopBar(title: 'صيدلي إلى صيدلي'),
+      appBar: const InnerTopBar(title: 'إعلانات الصيادلة'),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }

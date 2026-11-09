@@ -23,6 +23,10 @@ class WhOrderSettingsPage extends ConsumerStatefulWidget {
 class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
   final _controller = TextEditingController();
 
+  /// عملة تسعير المستودع — تُحمَّل من إعداداته لا من ثابتِ منصّة، فكل
+  /// مبلغ في هذه الشاشة (والحدّ الأدنى نفسه) بها.
+  String _currency = 'SYP';
+
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -48,9 +52,13 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
       final settings = await ref.read(warehouseSettingsRepositoryProvider).get();
       if (!mounted) return;
       setState(() {
+        _currency = settings.pricingCurrency;
         _controller.text = settings.minimumOrderAmount == null
             ? ''
-            : settings.minimumOrderAmount!.toStringAsFixed(0);
+            : formatAmount(
+                settings.minimumOrderAmount!,
+                settings.pricingCurrency,
+              ).replaceAll(',', '');
         _loading = false;
       });
     } catch (e) {
@@ -80,14 +88,18 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
     try {
       final saved = await ref
           .read(warehouseSettingsRepositoryProvider)
-          .update(minimumOrderAmount: value);
+          .update(
+            minimumOrderAmount: value,
+            pricingCurrency: _currency,
+          );
       if (!mounted) return;
+      setState(() => _currency = saved.pricingCurrency);
       AppSnackbar.success(
         context,
         saved.minimumOrderAmount == null
             ? 'أُلغي الحدّ الأدنى — تُقبل أي قيمة'
             : 'حُفظ الحدّ الأدنى: '
-                  '${formatMoneyWith(saved.minimumOrderAmount!, kPlatformCurrency)}',
+                  '${formatMoneyWith(saved.minimumOrderAmount!, saved.pricingCurrency)}',
       );
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
@@ -122,10 +134,37 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
                 ),
 
                 const SizedBox(height: AppSpacing.x2l),
+
+                // عملة التسعير: إعداد بائع كالحدّ الأدنى. يرفض الخادم
+                // تبديلها ما دام هناك عرض بيع فعّال — فأسعار «أدويتي»
+                // أرقامٌ بلا عملة مخزَّنة معها، وتبديلها يُعيد تسميتها كلها.
+                DropdownButtonFormField<String>(
+                  initialValue: _currency,
+                  decoration: const InputDecoration(
+                    labelText: 'عملة التسعير',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'SYP', child: Text('ليرة سورية (SYP)')),
+                    DropdownMenuItem(value: 'USD', child: Text('دولار أمريكي (USD)')),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _currency = v ?? _currency),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'عملة كل أسعارك: «أدويتي» وعروض البيع وعروض التسعير والحدّ '
+                  'الأدنى. لا يمكن تبديلها وعندك عرض بيع فعّال — ألغِ '
+                  'العروض الفعّالة أو انتظر انتهاءها، ثم راجع أسعارك بعد '
+                  'التبديل.',
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
+
+                const SizedBox(height: AppSpacing.x2l),
                 AppTextField(
                   controller: _controller,
-                  label: 'الحدّ الأدنى للطلب (${currencySymbol(kPlatformCurrency)})',
-                  hint: '100000',
+                  label: 'الحدّ الأدنى للطلب (${currencySymbol(_currency)})',
+                  hint: _currency == 'SYP' ? '100000' : '50',
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
                 const SizedBox(height: 6),
@@ -137,9 +176,10 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   'مثال: لن تصل طلبية بقيمة '
-                  '${formatMoneyWith(60000, kPlatformCurrency)} إن كان حدّك '
-                  '${formatMoneyWith(100000, kPlatformCurrency)} — سيُطلب من '
-                  'الصيدلي إضافة أصناف لبلوغ الحدّ.',
+                  '${formatMoneyWith(_currency == 'SYP' ? 60000 : 30, _currency)} '
+                  'إن كان حدّك '
+                  '${formatMoneyWith(_currency == 'SYP' ? 100000 : 50, _currency)} '
+                  '— سيُطلب من الصيدلي إضافة أصناف لبلوغ الحدّ.',
                   style: context.text.bodySmall?.copyWith(color: tk.hint),
                 ),
               ],

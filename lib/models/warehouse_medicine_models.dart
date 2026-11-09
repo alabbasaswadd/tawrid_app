@@ -33,6 +33,17 @@ class WarehouseMedicine {
   /// السعر المعروض مشتقٌّ تلقائياً لا مُدخَلاً يدوياً.
   final bool isDerivedPrice;
 
+  /// عملة [price] و[effectivePrice] — عملة تسعير المستودع.
+  final String currency;
+
+  /// عملة [pricePublic] — عملة النشرة الوطنية (ليرة في الغالب).
+  final String catalogCurrency;
+
+  /// صنفٌ بلا سعر **لأن** عملة المستودع تخالف عملة النشرة فلا يُشتقّ له
+  /// سعر — لا لأنه بلا سعر مستهلك. تُبرزه الشاشة ليعرف المستودع أن عليه
+  /// تسعيره يدوياً، وإلا رآه الصيدلي بلا سعر بلا أن يفهم لماذا.
+  final bool needsManualPrice;
+
   final DateTime createdOn;
 
   WarehouseMedicine({
@@ -50,6 +61,9 @@ class WarehouseMedicine {
     this.pricePublic = 0,
     this.effectivePrice,
     this.isDerivedPrice = false,
+    this.currency = 'SYP',
+    this.catalogCurrency = 'SYP',
+    this.needsManualPrice = false,
     required this.createdOn,
   });
 
@@ -68,6 +82,9 @@ class WarehouseMedicine {
         pricePublic: (j['pricePublic'] as num?)?.toDouble() ?? 0,
         effectivePrice: (j['effectivePrice'] as num?)?.toDouble(),
         isDerivedPrice: j['isDerivedPrice'] as bool? ?? false,
+        currency: j['currency'] as String? ?? 'SYP',
+        catalogCurrency: j['catalogCurrency'] as String? ?? 'SYP',
+        needsManualPrice: j['needsManualPrice'] as bool? ?? false,
         createdOn: DateTime.parse(j['createdOn'] as String),
       );
 

@@ -50,6 +50,8 @@ class _PhLoginPageState extends ConsumerState<PhLoginPage> {
             userId: (data['userId'] ?? data['tenantId']) as String?,
             tenantId: data['tenantId'] as String?,
             accountStatus: AccountStatus.fromApi(data['accountStatus']),
+            // خادم أقدم من إضافة الحقل لا يرسله: الغياب = لا حجب.
+            mustChangePassword: data['mustChangePassword'] as bool? ?? false,
           );
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);

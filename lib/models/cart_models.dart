@@ -1,3 +1,8 @@
+export 'package:tawrid_app/models/bonus_tier.dart';
+
+import 'package:tawrid_app/models/bonus_tier.dart';
+import 'package:tawrid_app/shared/utils/money.dart';
+
 // سلّة الصيدلية كما يُرجعها الخادم (`CartDto`) — مجمَّعة حسب المستودع، لأن
 // **وحدة الإتمام مستودع واحد** لا السلّة كلها.
 //
@@ -34,7 +39,18 @@ class CartItem {
   /// السعر المجمَّد وقت الإضافة — هو ما يُرسَل كـ«السعر المتفق عليه».
   final double unitPrice;
   final double lineTotal;
+
+  /// نسبة البونص — الشكل القديم؛ فارغة في أسطر العروض ذات الشرائح.
   final double? bonusPercentage;
+
+  /// الكمية المجانية المستحقّة على [quantity] بعد تركيب الشرائح.
+  /// لا تدخل في [lineTotal]: مجانية لا تُحتسب ثمناً.
+  final double freeQuantity;
+
+  /// سلّم البونص المجمَّد وقت الإضافة — تُعرَض منه الشريحة التالية
+  /// («أضف ٣ لتحصل على ١ مجاناً»).
+  final List<BonusTier> bonusTiers;
+
   final String currency;
 
   const CartItem({
@@ -51,6 +67,8 @@ class CartItem {
     required this.unitPrice,
     required this.lineTotal,
     this.bonusPercentage,
+    this.freeQuantity = 0,
+    this.bonusTiers = const [],
     this.currency = 'SYP',
   });
 
@@ -71,12 +89,28 @@ class CartItem {
       unitPrice: price,
       lineTotal: (j['lineTotal'] as num?)?.toDouble() ?? price * qty,
       bonusPercentage: (j['bonusPercentage'] as num?)?.toDouble(),
+      freeQuantity: (j['freeQuantity'] as num?)?.toDouble() ?? 0,
+      bonusTiers: BonusTier.listFromJson(j['bonusTiers']),
       currency: j['currency'] as String? ?? 'SYP',
     );
   }
 
   bool get fromOffer => source == CartItemSource.offer;
   int get quantityInt => quantity.round();
+
+  bool get hasFreeQuantity => freeQuantity > 0;
+
+  /// كم تنقص الكمية لبلوغ الشريحة التالية — `null` حين لا شريحة أعلى.
+  /// الشرائح تُركَّب، فالمقياس هو ما تبقّى بعد استهلاك ما أمكن منها.
+  BonusTier? get nextTier {
+    if (bonusTiers.isEmpty) return null;
+    final sorted = [...bonusTiers]
+      ..sort((a, b) => a.buyQuantity.compareTo(b.buyQuantity));
+    for (final tier in sorted) {
+      if (quantity < tier.buyQuantity) return tier;
+    }
+    return null;
+  }
 }
 
 class CartWarehouseGroup {
@@ -94,7 +128,13 @@ class CartWarehouseGroup {
   final bool meetsMinimum;
   final double missingAmount;
 
+  /// عملة هذه المجموعة = عملة تسعير مستودعها. موحَّدة داخل المجموعة
+  /// بالبناء: كل أسعار المستودع بعملة واحدة.
   final String currency;
+
+  /// مجموع الكميات المجانية في المجموعة — شارة «+N مجاناً».
+  final double totalFreeQuantity;
+
   final List<CartItem> items;
 
   const CartWarehouseGroup({
@@ -107,6 +147,7 @@ class CartWarehouseGroup {
     required this.meetsMinimum,
     this.missingAmount = 0,
     this.currency = 'SYP',
+    this.totalFreeQuantity = 0,
     required this.items,
   });
 
@@ -124,6 +165,7 @@ class CartWarehouseGroup {
       meetsMinimum: j['meetsMinimum'] as bool? ?? true,
       missingAmount: (j['missingAmount'] as num?)?.toDouble() ?? 0,
       currency: j['currency'] as String? ?? 'SYP',
+      totalFreeQuantity: (j['totalFreeQuantity'] as num?)?.toDouble() ?? 0,
       items: items,
     );
   }
@@ -140,21 +182,47 @@ class CartWarehouseGroup {
   };
 }
 
+/// إجمالي عملة واحدة داخل السلّة.
+class CartCurrencyTotal {
+  final String currency;
+  final double total;
+
+  /// عدد المستودعات التي تُسعّر بهذه العملة في السلّة.
+  final int warehouseCount;
+
+  const CartCurrencyTotal({
+    required this.currency,
+    required this.total,
+    this.warehouseCount = 0,
+  });
+
+  factory CartCurrencyTotal.fromJson(Map<String, dynamic> j) =>
+      CartCurrencyTotal(
+        currency: j['currency'] as String? ?? 'SYP',
+        total: (j['total'] as num?)?.toDouble() ?? 0,
+        warehouseCount: j['warehouseCount'] as int? ?? 0,
+      );
+
+  String get label => formatMoneyWith(total, currency);
+}
+
 class Cart {
   final List<CartWarehouseGroup> groups;
   final int totalLines;
   final double totalQuantity;
   final int totalWarehouses;
-  final double grandTotal;
-  final String currency;
+
+  /// إجمالي السلّة **مفصولاً بالعملة** — لا رقمَ واحداً: المنصّة لا تحوّل،
+  /// فجمع ليرةٍ على دولار يُنتج رقماً لا يدلّ على شيء. سلّةٌ من مستودع
+  /// إدلبي وآخر حمصي تحمل سطرين، وتعرضهما الشاشة سطرين.
+  final List<CartCurrencyTotal> totals;
 
   const Cart({
     this.groups = const [],
     this.totalLines = 0,
     this.totalQuantity = 0,
     this.totalWarehouses = 0,
-    this.grandTotal = 0,
-    this.currency = 'SYP',
+    this.totals = const [],
   });
 
   static const empty = Cart();
@@ -166,12 +234,43 @@ class Cart {
     totalLines: j['totalLines'] as int? ?? 0,
     totalQuantity: (j['totalQuantity'] as num?)?.toDouble() ?? 0,
     totalWarehouses: j['totalWarehouses'] as int? ?? 0,
-    grandTotal: (j['grandTotal'] as num?)?.toDouble() ?? 0,
-    currency: j['currency'] as String? ?? 'SYP',
+    totals: ((j['totals'] as List?) ?? const [])
+        .map((e) => CartCurrencyTotal.fromJson(e as Map<String, dynamic>))
+        .toList(),
   );
 
   bool get isEmpty => groups.isEmpty;
 
   /// العدد على شارة زر السلّة — أسطر لا كميات، فالشارة تقول «كم صنفاً».
   int get badgeCount => totalLines;
+
+  /// هل في السلّة أكثر من عملة؟ حينها لا يصحّ سطر إجمالي واحد.
+  bool get isMultiCurrency => totals.length > 1;
+
+  /// مجموع الكميات المجانية عبر السلّة كلها — كميات تُجمَع بلا عملة.
+  double get totalFreeQuantity =>
+      groups.fold(0.0, (sum, g) => sum + g.totalFreeQuantity);
+
+  /// إعادة احتساب الإجماليات من المجموعات — للتحديث التفاؤلي المحلي وحده،
+  /// فكل استجابة من الخادم تحمل `totals` جاهزة.
+  static List<CartCurrencyTotal> totalsFrom(
+    List<CartWarehouseGroup> groups,
+  ) {
+    final byCurrency = <String, List<CartWarehouseGroup>>{};
+    for (final g in groups) {
+      byCurrency.putIfAbsent(g.currency, () => []).add(g);
+    }
+    final result =
+        byCurrency.entries
+            .map(
+              (e) => CartCurrencyTotal(
+                currency: e.key,
+                total: e.value.fold(0.0, (s, g) => s + g.total),
+                warehouseCount: e.value.length,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.currency.compareTo(b.currency));
+    return result;
+  }
 }

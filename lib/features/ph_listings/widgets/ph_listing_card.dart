@@ -162,7 +162,7 @@ class PhListingCard extends StatelessWidget {
                   style: context.text.labelSmall?.copyWith(color: tk.hint),
                 ),
                 Text(
-                  formatMoneyWith(l.pricePerUnit, kPlatformCurrency),
+                  formatMoneyWith(l.pricePerUnit, l.currency),
                   style: context.priceBrandStyle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -181,7 +181,7 @@ class PhListingCard extends StatelessWidget {
                 style: context.text.titleSmall,
               ),
               Text(
-                'الإجمالي ${formatMoneyWith(total, kPlatformCurrency)}',
+                'الإجمالي ${formatMoneyWith(total, l.currency)}',
                 style: context.text.labelSmall?.copyWith(color: tk.hint),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

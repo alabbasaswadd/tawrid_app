@@ -32,11 +32,17 @@ class SessionAuthenticated extends SessionState {
     this.userId,
     this.tenantId,
     this.accountStatus = AccountStatus.approved,
+    this.mustChangePassword = false,
   });
   final String token;
   final String? userId;
   final String? tenantId;
   final AccountStatus accountStatus;
+
+  /// كلمة المرور ما زالت التي أُنشئ بها الحساب — يحجب الموجِّه كل شيء
+  /// عدا شاشة إعادة التعيين، تماماً كما يحجب الحسابَ غيرَ المقبول.
+  /// والخادم يفرضه أيضاً، فتجاوزُ الواجهة لا يفتح شيئاً.
+  final bool mustChangePassword;
 }
 
 class SessionUnauthenticated extends SessionState {
@@ -57,11 +63,16 @@ class WarehouseSessionAuthenticated extends WarehouseSessionState {
     this.warehouseUserId,
     this.warehouseId,
     this.accountStatus = AccountStatus.approved,
+    this.mustChangePassword = false,
   });
   final String token;
   final String? warehouseUserId;
   final String? warehouseId;
   final AccountStatus accountStatus;
+
+  /// كلمة المرور ما زالت التي أُنشئ بها الحساب — راجع نظيره في
+  /// [SessionAuthenticated].
+  final bool mustChangePassword;
 }
 
 class WarehouseSessionUnauthenticated extends WarehouseSessionState {

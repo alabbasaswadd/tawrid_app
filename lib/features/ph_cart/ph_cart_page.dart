@@ -8,6 +8,7 @@ import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/cart_models.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/utils/bonus_tiers.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
@@ -68,6 +69,10 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
           unitPrice: item.unitPrice,
           lineTotal: item.unitPrice * lq,
           bonusPercentage: item.bonusPercentage,
+          // البونص دالّة في الكمية: تركُه على قيمته القديمة يُظهر للصيدلي
+          // مجانيّةَ كميةٍ لم يعد يطلبها حتى تصل استجابة الخادم.
+          freeQuantity: freeQuantityFor(item.bonusTiers, lq.toDouble()),
+          bonusTiers: item.bonusTiers,
           currency: item.currency,
         );
       }).toList();
@@ -84,17 +89,16 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
         meetsMinimum: min <= 0 || newTotal >= min,
         missingAmount: min <= 0 ? 0 : (min - newTotal).clamp(0.0, double.infinity),
         currency: group.currency,
+        totalFreeQuantity: newItems.fold(0.0, (s, i) => s + i.freeQuantity),
         items: newItems,
       );
     }).toList();
-    final newGrandTotal = newGroups.fold(0.0, (s, g) => s + g.total);
     return Cart(
       groups: newGroups,
       totalLines: cart.totalLines,
       totalQuantity: cart.totalQuantity,
       totalWarehouses: cart.totalWarehouses,
-      grandTotal: newGrandTotal,
-      currency: cart.currency,
+      totals: Cart.totalsFrom(newGroups),
     );
   }
 
@@ -180,7 +184,10 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'الإجمالي: ${formatMoneyWith(group.total, group.currency)}',
+              group.totalFreeQuantity > 0
+                  ? 'الإجمالي: ${formatMoneyWith(group.total, group.currency)}'
+                        ' · +${formatQuantity(group.totalFreeQuantity)} مجاناً'
+                  : 'الإجمالي: ${formatMoneyWith(group.total, group.currency)}',
               style: Theme.of(ctx).textTheme.titleSmall,
             ),
           ],
@@ -507,6 +514,25 @@ class _CartItemCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                    // البونص المستحقّ على الكمية الحالية — رقمٌ يحسبه
+                    // الخادم من شرائح مركَّبة، فيُعرَض لا يُعاد حسابه.
+                    if (item.hasFreeQuantity) ...[
+                      const SizedBox(height: 4),
+                      BonusBadge(
+                        label: '+${formatQuantity(item.freeQuantity)} مجاناً',
+                      ),
+                    ],
+                    // وما ينقصه لبلوغ الشريحة التالية — المعلومة التي
+                    // تجعله يزيد الكمية عن علم لا عن تخمين.
+                    if (item.nextTier case final tier?) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'أضف ${formatQuantity(tier.buyQuantity - item.quantity)} '
+                        'لتبلغ «${tier.label}»',
+                        style: context.text.labelSmall
+                            ?.copyWith(color: context.tokens.goldStrong),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -617,10 +643,25 @@ class _CartSummaryCard extends StatelessWidget {
           _SummaryRow(
               label: 'عدد المستودعات', value: '${cart.totalWarehouses}'),
           const SizedBox(height: 10),
-          _SummaryRow(
-            label: 'الإجمالي العام',
-            value: formatMoneyWith(cart.grandTotal, cart.currency),
-          ),
+          // سطرٌ لكل عملة: المنصّة لا تحوّل، فجمع الليرة على الدولار في رقم
+          // واحد يُنتج عدداً لا يدلّ على شيء. سلّة بعملة واحدة تعرض سطراً
+          // واحداً كما كان، وبعملتين تعرض سطرين موسومين.
+          for (final t in cart.totals) ...[
+            _SummaryRow(
+              label: cart.isMultiCurrency
+                  ? 'إجمالي ${currencyName(t.currency)}'
+                  : 'الإجمالي العام',
+              value: t.label,
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (cart.totals.isEmpty)
+            const _SummaryRow(label: 'الإجمالي العام', value: '—'),
+          if (cart.totalFreeQuantity > 0)
+            _SummaryRow(
+              label: 'إجمالي البونص المجاني',
+              value: '${formatQuantity(cart.totalFreeQuantity)} عبوة',
+            ),
         ],
       ),
     );

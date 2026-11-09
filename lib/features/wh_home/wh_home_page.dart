@@ -15,6 +15,7 @@ import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/repositories/tender_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
+import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
@@ -110,12 +111,9 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   void _ignoreTender(String id) => setState(() => _ignoredTenderIds.add(id));
 
   // «يقارب على الانتهاء» = ثلاثة أيام أو أقل، نفس عتبة بطاقة العرض.
-  List<SalesOfferSummary> get _expiringOffers => _activeOffers
-      .where((o) {
-        final days = o.expiresAt.difference(DateTime.now()).inDays;
-        return days >= 0 && days <= 3;
-      })
-      .toList();
+  // العرض الثابت لا يُحتسب هنا: لا مهلة له توشك.
+  List<SalesOfferSummary> get _expiringOffers =>
+      _activeOffers.where((o) => isOfferExpiringSoon(o.expiresAt)).toList();
 
   static String _greeting() {
     final h = DateTime.now().hour;
@@ -481,7 +479,7 @@ class WhOrderCard extends StatelessWidget {
           Row(
             children: [
               if (order.totalAmount != null)
-                Text(formatMoneyWith(order.totalAmount!, kPlatformCurrency),
+                Text(formatMoneyWith(order.totalAmount!, order.currency),
                     style: context.priceBrandStyle)
               else
                 Text('بانتظار التسعير',

@@ -20,12 +20,24 @@ import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 // المستويين، والتمييز بينهما يأتي من حقول الملخّص.
 enum _QuickFilter {
   all('الكل'),
+  // نوع العرض محورٌ قائم بذاته: «ثابت» نشرة أسعارٍ سارية حتى يُلغيها
+  // المستودع، و«لفترة محدّدة» حملةٌ تنتهي بتاريخها. والفرق قرارُ شراء:
+  // ما يختفي غداً يُشترى اليوم، والثابت يُنتظَر.
+  standing('عروض ثابتة'),
+  timeLimited('لفترة محدّدة'),
   itemBonus('بونص الأصناف'),
   offerBonus('بونص عرض كامل'),
   expiring('قريب الانتهاء');
 
   const _QuickFilter(this.label);
   final String label;
+
+  /// النوع الذي ترشّح به هذه الشريحة — null لما لا يخصّ النوع.
+  SalesOfferKind? get kind => switch (this) {
+        _QuickFilter.standing => SalesOfferKind.standing,
+        _QuickFilter.timeLimited => SalesOfferKind.timeLimited,
+        _ => null,
+      };
 }
 
 // حالة التصفية المتقدّمة كما تظهر في ورقة الفلاتر وزرّ الشريط العلوي.
@@ -118,6 +130,7 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
               _ => null,
             },
             expiringWithinDays: _filters.quick == _QuickFilter.expiring ? 7 : null,
+            kind: _filters.quick.kind,
             minUnitPrice: _filters.minPrice,
             maxUnitPrice: _filters.maxPrice,
             dosageForm: _filters.dosageForm,

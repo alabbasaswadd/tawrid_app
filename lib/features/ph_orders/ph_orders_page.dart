@@ -272,7 +272,7 @@ class _OrderCard extends StatelessWidget {
                           children: [
                             // القيمة تُخفى إن لم يُسعَّر شيء بعد — صفرٌ هنا كذب.
                             if (order.totalAmount != null)
-                              Text(formatMoneyWith(order.totalAmount!, kPlatformCurrency),
+                              Text(formatMoneyWith(order.totalAmount!, order.currency),
                                   style: context.priceBrandStyle)
                             else
                               Text('بانتظار التسعير',

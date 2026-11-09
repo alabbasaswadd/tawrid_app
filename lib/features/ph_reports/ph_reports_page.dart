@@ -98,8 +98,14 @@ class _PhReportsPageState extends ConsumerState<PhReportsPage> {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: SummaryCounter(
-                value: formatMoney(s.totalSpent),
-                label: 'الإنفاق الكلي (ل.س)',
+                // عملة واحدة ⇒ رقمٌ ووسمٌ كما كان. أكثر من عملة ⇒ تُسرَد
+                // مفصولةً بدل جمعها في رقم لا معنى له.
+                value: s.totalSpent.isEmpty
+                    ? '0'
+                    : s.totalSpent.entries
+                          .map((e) => formatMoneyWith(e.value, e.key))
+                          .join(' · '),
+                label: 'الإنفاق الكلي',
                 icon: AppIcons.tag,
               ),
             ),
@@ -192,7 +198,9 @@ class _WarehouseRow extends StatelessWidget {
   final String name;
   final String city;
   final int orderCount;
-  final double totalSpent;
+
+  /// الإنفاق مع هذا المستودع لكل عملة.
+  final Map<String, double> totalSpent;
 
   @override
   Widget build(BuildContext context) {
@@ -235,11 +243,20 @@ class _WarehouseRow extends StatelessWidget {
               ],
             ),
           ),
-          if (totalSpent > 0)
-            Text(
-              '${formatMoney(totalSpent)} ل.س',
-              style: context.priceStyle,
-            ),
+          // سطرٌ لكل عملة — مستودعٌ واحد لا يتعامل إلا بعملة واحدة عملياً،
+          // لكن القائمة تجمع مستودعات من محافظات شتّى.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final e in totalSpent.entries)
+                if (e.value > 0)
+                  Text(
+                    formatMoneyWith(e.value, e.key),
+                    style: context.priceStyle,
+                  ),
+            ],
+          ),
         ],
       ),
     );
@@ -251,7 +268,7 @@ class _WarehouseStat {
   final String name;
   final String city;
   final int count;
-  final double spent;
+  final Map<String, double> spent;
   const _WarehouseStat({
     required this.name,
     required this.city,
@@ -262,7 +279,10 @@ class _WarehouseStat {
 
 class _ReportStats {
   final int total;
-  final double totalSpent;
+
+  /// الإنفاق الكلي لكل عملة — مفتاحه رمز العملة.
+  final Map<String, double> totalSpent;
+
   final Map<SupplyOrderStatus, int> byStatus;
   final List<_WarehouseStat> topWarehouses;
 
@@ -276,9 +296,11 @@ class _ReportStats {
   factory _ReportStats.from(List<SupplyOrderSummary> orders) {
     final byStatus = <SupplyOrderStatus, int>{};
     final whCount = <String, int>{};
-    final whSpent = <String, double>{};
+    // الإنفاق يُجمَّع **حسب العملة**: طلبية بالدولار وأخرى بالليرة لا
+    // تُجمَعان في رقم واحد — نفس قاعدة إجماليات السلّة.
+    final whSpent = <String, Map<String, double>>{};
     final whMeta = <String, ({String name, String city})>{};
-    double totalSpent = 0;
+    final totalSpent = <String, double>{};
 
     for (final o in orders) {
       byStatus[o.status] = (byStatus[o.status] ?? 0) + 1;
@@ -287,8 +309,9 @@ class _ReportStats {
       if (o.status == SupplyOrderStatus.completed ||
           o.status == SupplyOrderStatus.delivered) {
         final amount = o.totalAmount ?? 0;
-        whSpent[o.warehouseName] = (whSpent[o.warehouseName] ?? 0) + amount;
-        totalSpent += amount;
+        final byCurrency = whSpent.putIfAbsent(o.warehouseName, () => {});
+        byCurrency[o.currency] = (byCurrency[o.currency] ?? 0) + amount;
+        totalSpent[o.currency] = (totalSpent[o.currency] ?? 0) + amount;
       }
     }
 
@@ -305,7 +328,7 @@ class _ReportStats {
           name: meta.name,
           city: meta.city,
           count: e.value,
-          spent: whSpent[e.key] ?? 0,
+          spent: whSpent[e.key] ?? const {},
         );
       }).toList(),
     );

@@ -10,17 +10,20 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/medicine_catalog_models.dart';
 import 'package:tawrid_app/models/medicine_search_models.dart';
+import 'package:tawrid_app/features/ph_medicines/widgets/catalog_filter_widgets.dart';
 import 'package:tawrid_app/repositories/medicine_catalog_repository.dart';
-import 'package:tawrid_app/repositories/medicine_search_repository.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/barcode_scanner_page.dart';
 import 'package:tawrid_app/shared/widgets/medicine_list_tile.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 
-// كتالوج الأدوية الوطني عند الصيدلي (نشرة الأسعار) + كاتالوج المستودعات.
-// تاب 1: الكاتالوج الوطني — مرجع لـ «ما هذا الدواء وكم سعره؟»
-// تاب 2: كاتالوج المستودعات — «ما الأدوية التي تعرضها المستودعات الآن؟»
+// كتالوج الأدوية الوطني عند الصيدلي (نشرة الأسعار) — مرجعٌ دوائي يجيب
+// «ما هذا الدواء وكم سعره النظامي؟».
+//
+// كاتالوج المستودعات («من يبيعه الآن وبكم؟») صار شاشةً مستقلّة
+// (PhWarehouseCatalogPage): سؤالان مختلفان لا يُدفَن أحدهما خلف مبدّل،
+// ولكلٍّ مجموعةُ فلاترِه.
 class PhMedicineSearchPage extends ConsumerStatefulWidget {
   const PhMedicineSearchPage({super.key});
 
@@ -31,16 +34,11 @@ class PhMedicineSearchPage extends ConsumerStatefulWidget {
 
 class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
   static const int _catalogPageSize = 30;
-  static const int _whPageSize = 30;
-
-  int _tabIndex = 0;
 
   final _searchController = TextEditingController();
   final _catalogScroll = ScrollController();
-  final _whScroll = ScrollController();
   Timer? _debounce;
 
-  // ─── تاب 1: الكاتالوج الوطني ─────────────────────────────────────────
   final List<MedicineCatalogItem> _catalogResults = [];
   int _catalogOffset = 0;
   bool _catalogHasMore = true;
@@ -50,35 +48,14 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
   String? _catalogManufacturer;
   DosageForm? _catalogDosageForm;
 
-  // ─── تاب 2: كاتالوج المستودعات ───────────────────────────────────────
-  final List<MedicineSearchResult> _whResults = [];
-  final Set<String> _whSeenIds = {};
-  int _whRawOffset = 0;
-  bool _whHasMore = true;
-  bool _whLoadingMore = false;
-  bool _whLoading = false;
-  bool _whInitialized = false;
-  String? _whError;
-  String _whManufacturer = '';
-  MedicineSearchSource _whSource = MedicineSearchSource.all;
-  MedicineSearchSort _whSort = MedicineSearchSort.byDefault;
-
-  int get _activeFilterCount {
-    if (_tabIndex == 0) {
-      return (_catalogManufacturer != null ? 1 : 0) +
-          (_catalogDosageForm != null ? 1 : 0);
-    } else {
-      return (_whSource != MedicineSearchSource.all ? 1 : 0) +
-          (_whSort != MedicineSearchSort.byDefault ? 1 : 0) +
-          (_whManufacturer.isNotEmpty ? 1 : 0);
-    }
-  }
+  int get _activeFilterCount =>
+      (_catalogManufacturer != null ? 1 : 0) +
+      (_catalogDosageForm != null ? 1 : 0);
 
   @override
   void initState() {
     super.initState();
     _catalogScroll.addListener(_onCatalogScroll);
-    _whScroll.addListener(_onWhScroll);
     _runCatalogSearch(reset: true);
   }
 
@@ -87,16 +64,15 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     _debounce?.cancel();
     _searchController.dispose();
     _catalogScroll.dispose();
-    _whScroll.dispose();
     super.dispose();
   }
 
   void _onSearchChanged(String _) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      _runCatalogSearch(reset: true);
-      if (_whInitialized) _runWhSearch(reset: true);
-    });
+    _debounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _runCatalogSearch(reset: true),
+    );
   }
 
   void _onCatalogScroll() {
@@ -104,14 +80,6 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     if (_catalogScroll.position.pixels >=
         _catalogScroll.position.maxScrollExtent - 320) {
       _loadMoreCatalog();
-    }
-  }
-
-  void _onWhScroll() {
-    if (!_whHasMore || _whLoadingMore || _whLoading) return;
-    if (_whScroll.position.pixels >=
-        _whScroll.position.maxScrollExtent - 320) {
-      _loadMoreWh();
     }
   }
 
@@ -164,67 +132,6 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     await _runCatalogSearch(reset: false);
   }
 
-  Future<void> _runWhSearch({required bool reset}) async {
-    final query = _searchController.text.trim();
-    if (!_whInitialized) setState(() => _whInitialized = true);
-    if (reset) {
-      setState(() {
-        _whLoading = true;
-        _whError = null;
-        _whRawOffset = 0;
-        _whHasMore = true;
-        _whResults.clear();
-        _whSeenIds.clear();
-      });
-    } else {
-      setState(() => _whLoadingMore = true);
-    }
-    try {
-      final page = await ref.read(medicineSearchRepositoryProvider).search(
-            name: query.isEmpty ? null : query,
-            manufacturer: _whManufacturer.isEmpty ? null : _whManufacturer,
-            source: _whSource,
-            sort: _whSort,
-            limit: _whPageSize,
-            offset: reset ? 0 : _whRawOffset,
-          );
-      if (!mounted) return;
-      final unique = <MedicineSearchResult>[];
-      for (final r in page.items) {
-        final key = r.catalogItemId ?? '${r.medicineName}_${r.warehouseName}';
-        if (!_whSeenIds.contains(key)) {
-          _whSeenIds.add(key);
-          unique.add(r);
-        }
-      }
-      setState(() {
-        _whRawOffset += page.items.length;
-        _whResults.addAll(unique);
-        _whHasMore = page.items.length == _whPageSize;
-        _whLoading = false;
-        _whLoadingMore = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _whError = ApiException.from(e).message;
-        _whLoading = false;
-        _whLoadingMore = false;
-      });
-    }
-  }
-
-  Future<void> _loadMoreWh() async {
-    await _runWhSearch(reset: false);
-  }
-
-  void _onTabChanged(int index) {
-    setState(() => _tabIndex = index);
-    if (index == 1 && !_whInitialized) {
-      _runWhSearch(reset: true);
-    }
-  }
-
   Future<void> _scanBarcode() async {
     final code = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
@@ -232,18 +139,9 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     if (code == null || code.isEmpty) return;
     _searchController.text = code;
     _runCatalogSearch(reset: true);
-    if (_whInitialized) _runWhSearch(reset: true);
   }
 
   Future<void> _openFilters() async {
-    if (_tabIndex == 0) {
-      await _openCatalogFilters();
-    } else {
-      await _openWhFilters();
-    }
-  }
-
-  Future<void> _openCatalogFilters() async {
     final result = await showModalBottomSheet<
         ({String? manufacturer, DosageForm? dosageForm})>(
       context: context,
@@ -266,31 +164,6 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     _runCatalogSearch(reset: true);
   }
 
-  Future<void> _openWhFilters() async {
-    final result = await showModalBottomSheet<_WhFilters>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _WhFilterSheet(
-        source: _whSource,
-        sort: _whSort,
-        manufacturer: _whManufacturer,
-      ),
-    );
-    if (result == null || !mounted) return;
-    if (result.source == _whSource &&
-        result.sort == _whSort &&
-        result.manufacturer == _whManufacturer) {
-      return;
-    }
-    setState(() {
-      _whSource = result.source;
-      _whSort = result.sort;
-      _whManufacturer = result.manufacturer;
-    });
-    _runWhSearch(reset: true);
-  }
-
   void _showDetails(MedicineCatalogItem item) {
     showModalBottomSheet<void>(
       context: context,
@@ -308,7 +181,7 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     return Scaffold(
       appBar: InnerTopBar(
         title: 'كتالوج الأدوية',
-        trailing: _FiltersBtn(
+        trailing: FiltersBtn(
           count: _activeFilterCount,
           onTap: _openFilters,
         ),
@@ -326,28 +199,25 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
               controller: _searchController,
               hint: 'ابحث بالاسم أو الباركود…',
               onChanged: _onSearchChanged,
-              onSubmitted: (_) {
-                _runCatalogSearch(reset: true);
-                if (_whInitialized) _runWhSearch(reset: true);
-              },
+              onSubmitted: (_) => _runCatalogSearch(reset: true),
               onScanTap: _scanBarcode,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
 
+          // مدخل كاتالوج المستودعات — كان تاباً هنا، وصار شاشةً مستقلّة.
+          // يبقى الرابط في موضعه القديم فلا يفقد من اعتاده طريقه إليه.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-            child: AppSegmentedToggle(
-              items: const [
-                SegmentItem(label: 'الكاتالوج الوطني'),
-                SegmentItem(label: 'كاتالوج المستودعات'),
-              ],
-              selected: _tabIndex,
-              onChanged: _onTabChanged,
+            child: AppButton(
+              label: 'كاتالوج المستودعات — من يبيعه الآن وبكم؟',
+              icon: Icons.storefront_outlined,
+              variant: AppButtonVariant.tonal,
+              onPressed: () => context.push(TRoutes.phWarehouseCatalog),
             ),
           ),
 
-          if (_tabIndex == 0 && _activeFilterCount > 0) ...[
+          if (_activeFilterCount > 0) ...[
             const SizedBox(height: AppSpacing.sm),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
@@ -364,35 +234,15 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
                 },
               ),
             ),
-          ] else if (_tabIndex == 1 && _whManufacturer.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: _FilterChipCloseable(
-                  label: _whManufacturer,
-                  onRemove: () {
-                    setState(() => _whManufacturer = '');
-                    _runWhSearch(reset: true);
-                  },
-                ),
-              ),
-            ),
           ],
 
           const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: _tabIndex == 0
-                ? _buildCatalogBody()
-                : _buildWhBody(),
-          ),
+          Expanded(child: _buildCatalogBody()),
         ],
       ),
     );
   }
 
-  // ── تاب 1: الكاتالوج الوطني ──────────────────────────────────────────
   Widget _buildCatalogBody() {
     if (_catalogLoading) {
       return const AppListSkeleton(variant: SkeletonVariant.row);
@@ -462,140 +312,8 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     );
   }
 
-  // ── تاب 2: كاتالوج المستودعات ─────────────────────────────────────────
-  Widget _buildWhBody() {
-    if (_whLoading) {
-      return const AppListSkeleton(variant: SkeletonVariant.row);
-    }
-    if (_whError != null) {
-      return ErrorState(
-        message: _whError!,
-        onRetry: () => _runWhSearch(reset: true),
-      );
-    }
-    if (!_whInitialized) {
-      return const SizedBox.shrink();
-    }
-    if (_whResults.isEmpty) {
-      return UiEmpty(
-        message: 'لا أدوية متاحة',
-        description: 'لا مستودع في منطقتك سعّر هذا الدواء بعد — '
-            'جرّب بحثاً مختلفاً أو مسح الفلاتر.',
-        actionLabel: _activeFilterCount > 0 ? 'مسح الفلاتر' : null,
-        onAction: _activeFilterCount > 0
-            ? () {
-                setState(() {
-                  _whSource = MedicineSearchSource.all;
-                  _whSort = MedicineSearchSort.byDefault;
-                  _whManufacturer = '';
-                });
-                _runWhSearch(reset: true);
-              }
-            : null,
-      );
-    }
-
-    return ListView.builder(
-      controller: _whScroll,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        0,
-        AppSpacing.page,
-        AppSpacing.x3l,
-      ),
-      itemCount: _whResults.length + (_whLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= _whResults.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        }
-        final r = _whResults[index];
-        return MedicineListTile(
-          displayName: r.medicineName,
-          genericName: r.genericName,
-          manufacturerName: r.manufacturerName,
-          dosageForm: r.dosageForm ?? DosageForm.tablet,
-          strength: r.strength,
-          onTap: r.catalogItemId == null
-              ? null
-              : () => context.push(TRoutes.phMedicineInWarehouses(
-                    catalogItemId: r.catalogItemId!,
-                    name: r.medicineName,
-                  )),
-          trailing: AppIcon(
-            AppIcons.chevronForwardRtl,
-            size: 16,
-            color: context.colors.primary,
-          ),
-        );
-      },
-    );
-  }
 }
 
-// ── زر الفلاتر الدائري ────────────────────────────────────────────────────
-class _FiltersBtn extends StatelessWidget {
-  const _FiltersBtn({required this.count, required this.onTap});
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: cs.surface,
-          shape: CircleBorder(side: BorderSide(color: cs.outline)),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: Center(
-                child: AppIcon(AppIcons.sliders, size: 18, color: cs.onSurface),
-              ),
-            ),
-          ),
-        ),
-        if (count > 0)
-          PositionedDirectional(
-            end: -2,
-            top: -2,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                color: tk.brandDeep,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '$count',
-                  style: context.text.labelSmall?.copyWith(
-                    color: cs.onPrimary,
-                    height: 1,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 // ── شريط الفلاتر النشطة ──────────────────────────────────────────────────
 class _ActiveFiltersRow extends StatelessWidget {
@@ -617,12 +335,12 @@ class _ActiveFiltersRow extends StatelessWidget {
       spacing: AppSpacing.sm,
       children: [
         if (manufacturer != null)
-          _FilterChipCloseable(
+          FilterChipCloseable(
             label: manufacturer!,
             onRemove: onClearManufacturer,
           ),
         if (dosageForm != null)
-          _FilterChipCloseable(
+          FilterChipCloseable(
             label: dosageForm!.label,
             onRemove: onClearDosage,
           ),
@@ -631,124 +349,7 @@ class _ActiveFiltersRow extends StatelessWidget {
   }
 }
 
-class _FilterChipCloseable extends StatelessWidget {
-  const _FilterChipCloseable({required this.label, required this.onRemove});
-  final String label;
-  final VoidCallback onRemove;
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-    return Container(
-      padding: const EdgeInsetsDirectional.only(
-        start: AppSpacing.sm,
-        end: AppSpacing.xs,
-        top: 4,
-        bottom: 4,
-      ),
-      decoration: BoxDecoration(
-        color: tk.brandSurface,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: context.text.labelSmall?.copyWith(color: cs.primary),
-          ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: onRemove,
-            child: AppIcon(AppIcons.x, size: 12, color: cs.primary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── سطر خيار موحّد في ورقة الفلاتر ──────────────────────────────────────
-class _FilterOptionRow extends StatelessWidget {
-  const _FilterOptionRow({
-    required this.icon,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AppIcons icon;
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-
-    return Material(
-      color: selected ? tk.brandSurfaceSubtle : cs.surface,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: selected ? cs.primary : cs.outline,
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: selected ? cs.primary : tk.brandSurface,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Center(
-                  child: AppIcon(
-                    icon,
-                    size: 16,
-                    color: selected ? cs.onPrimary : cs.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: context.text.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              if (selected) ...[
-                const SizedBox(width: AppSpacing.sm),
-                AppIcon(AppIcons.check, size: 16, color: cs.primary),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ── ورقة فلاتر الكاتالوج الوطني ──────────────────────────────────────────
 class _CatalogFilterSheet extends ConsumerStatefulWidget {
@@ -868,7 +469,7 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
                   children: [
                     Text('الشكل الدوائي', style: context.text.titleMedium),
                     const SizedBox(height: AppSpacing.sm),
-                    _FilterOptionRow(
+                    FilterOptionRow(
                       icon: AppIcons.pill,
                       title: 'كل الأشكال',
                       selected: _pickedForm == null,
@@ -876,7 +477,7 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
                     ),
                     for (final f in DosageForm.values) ...[
                       const SizedBox(height: AppSpacing.xs),
-                      _FilterOptionRow(
+                      FilterOptionRow(
                         icon: AppIcons.pill,
                         title: f.label,
                         selected: _pickedForm == f,
@@ -907,7 +508,7 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      _FilterOptionRow(
+                      FilterOptionRow(
                         icon: AppIcons.search,
                         title: 'كل الشركات',
                         selected: _pickedMfr == null,
@@ -915,7 +516,7 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
                       ),
                       for (final name in _filtered) ...[
                         const SizedBox(height: AppSpacing.xs),
-                        _FilterOptionRow(
+                        FilterOptionRow(
                           icon: AppIcons.package,
                           title: name,
                           selected: _pickedMfr == name,
@@ -952,227 +553,13 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
   }
 }
 
-// ── نتيجة ورقة فلاتر كاتالوج المستودعات ─────────────────────────────────
-class _WhFilters {
-  const _WhFilters({
-    required this.source,
-    required this.sort,
-    required this.manufacturer,
-  });
-  final MedicineSearchSource source;
-  final MedicineSearchSort sort;
-  final String manufacturer;
-}
 
-// ── ورقة فلاتر كاتالوج المستودعات ────────────────────────────────────────
-class _WhFilterSheet extends ConsumerStatefulWidget {
-  const _WhFilterSheet({
-    required this.source,
-    required this.sort,
-    required this.manufacturer,
-  });
-  final MedicineSearchSource source;
-  final MedicineSearchSort sort;
-  final String manufacturer;
 
-  @override
-  ConsumerState<_WhFilterSheet> createState() => _WhFilterSheetState();
-}
 
-class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
-  late MedicineSearchSource _source = widget.source;
-  late MedicineSearchSort _sort = widget.sort;
-  late String? _pickedMfr =
-      widget.manufacturer.isEmpty ? null : widget.manufacturer;
-  final _mfrSearchCtrl = TextEditingController();
-  List<String> _manufacturers = [];
-  bool _loadingMfr = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadManufacturers();
-  }
 
-  @override
-  void dispose() {
-    _mfrSearchCtrl.dispose();
-    super.dispose();
-  }
 
-  Future<void> _loadManufacturers() async {
-    try {
-      final list =
-          await ref.read(medicineCatalogRepositoryProvider).getManufacturers();
-      if (!mounted) return;
-      setState(() {
-        _manufacturers = list;
-        _loadingMfr = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loadingMfr = false);
-    }
-  }
 
-  List<String> get _filtered {
-    final q = _mfrSearchCtrl.text.trim().toLowerCase();
-    if (q.isEmpty) return _manufacturers;
-    return _manufacturers.where((m) => m.toLowerCase().contains(q)).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 10),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.outline,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-              child: Row(
-                children: [
-                  Text('فلاتر المستودعات', style: context.text.headlineSmall),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => setState(() {
-                      _source = MedicineSearchSource.all;
-                      _sort = MedicineSearchSort.byDefault;
-                      _pickedMfr = null;
-                      _mfrSearchCtrl.clear();
-                    }),
-                    child: const Text('مسح الكل'),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.page,
-                  AppSpacing.sm,
-                  AppSpacing.page,
-                  MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('الترتيب', style: context.text.titleMedium),
-                    const SizedBox(height: AppSpacing.sm),
-                    for (final s in MedicineSearchSort.values) ...[
-                      _FilterOptionRow(
-                        icon: AppIcons.sliders,
-                        title: s.label,
-                        selected: _sort == s,
-                        onTap: () => setState(() => _sort = s),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                    ],
-
-                    const SizedBox(height: AppSpacing.md),
-                    Text('المصدر', style: context.text.titleMedium),
-                    const SizedBox(height: AppSpacing.sm),
-                    for (final s in MedicineSearchSource.values) ...[
-                      _FilterOptionRow(
-                        icon: AppIcons.tag,
-                        title: s.label,
-                        selected: _source == s,
-                        onTap: () => setState(() => _source = s),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                    ],
-
-                    const SizedBox(height: AppSpacing.md),
-                    Text('الشركة المصنّعة', style: context.text.titleMedium),
-                    const SizedBox(height: AppSpacing.sm),
-                    if (_loadingMfr)
-                      const Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    else ...[
-                      if (_manufacturers.length > 4) ...[
-                        AppTextField(
-                          controller: _mfrSearchCtrl,
-                          hint: 'ابحث في الشركات…',
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                      ],
-                      _FilterOptionRow(
-                        icon: AppIcons.search,
-                        title: 'كل الشركات',
-                        selected: _pickedMfr == null,
-                        onTap: () => setState(() => _pickedMfr = null),
-                      ),
-                      for (final name in _filtered) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        _FilterOptionRow(
-                          icon: AppIcons.package,
-                          title: name,
-                          selected: _pickedMfr == name,
-                          onTap: () => setState(
-                            () => _pickedMfr = _pickedMfr == name ? null : name,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page,
-                AppSpacing.md,
-                AppSpacing.page,
-                AppSpacing.xl,
-              ),
-              child: AppButton(
-                label: 'تطبيق',
-                onPressed: () => Navigator.pop(
-                  context,
-                  _WhFilters(
-                    source: _source,
-                    sort: _sort,
-                    manufacturer: _pickedMfr ?? '',
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ── ورقة تفاصيل الدواء ───────────────────────────────────────────────────
 class _MedicineDetailSheet extends StatelessWidget {
@@ -1303,3 +690,4 @@ class _MedicineDetailSheet extends StatelessWidget {
     );
   }
 }
+

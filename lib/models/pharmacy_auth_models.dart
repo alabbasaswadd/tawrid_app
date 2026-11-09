@@ -9,6 +9,14 @@ class PharmacyMe {
   final String governorate;
   final String city;
   final String address;
+
+  /// عملة أسعار صيدليتي فيما أعرضه أنا (عروض الفائض) — من محافظتي.
+  final String pricingCurrency;
+
+  /// كلمة المرور ما زالت الافتراضية — يحجب الموجِّه كل شيء عدا شاشة
+  /// تغييرها.
+  final bool mustChangePassword;
+
   final AccountStatus accountStatus;
 
   const PharmacyMe({
@@ -19,6 +27,8 @@ class PharmacyMe {
     required this.governorate,
     required this.city,
     required this.address,
+    this.pricingCurrency = 'SYP',
+    this.mustChangePassword = false,
     this.accountStatus = AccountStatus.approved,
   });
 
@@ -33,6 +43,8 @@ class PharmacyMe {
         governorate: j['governorate'] as String? ?? '',
         city: j['city'] as String? ?? '',
         address: j['address'] as String? ?? '',
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        mustChangePassword: j['mustChangePassword'] as bool? ?? false,
         accountStatus: AccountStatus.fromApi(j['accountStatus']),
       );
 }
