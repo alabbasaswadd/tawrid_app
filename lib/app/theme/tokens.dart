@@ -63,8 +63,8 @@ abstract final class AppPalette {
   static const outlineLight = Color(0xFFE3EAE6);
   static const outlineStrongLight = Color(0xFFC9D4CE);
   static const textPrimaryLight = Color(0xFF000000);
-  static const textSecondaryLight = Color(0xFF4A4A4A);
-  static const textHintLight = Color(0xFF767676);
+  static const textSecondaryLight = Color(0xFF000000);
+  static const textHintLight = Color(0xFF000000);
 
   // ── محايدات (داكن) — نفس المنطق: نص محايد بلا صبغة، لا أسود هنا لأن
   //    الخلفية داكنة (الأساسي أبيض قريب، الثانوي/التلميح رمادي فاتح) ────
@@ -74,8 +74,8 @@ abstract final class AppPalette {
   static const outlineDark = Color(0xFF2A3C33);
   static const outlineStrongDark = Color(0xFF3A5045);
   static const textPrimaryDark = Color(0xFFF2F2F2);
-  static const textSecondaryDark = Color(0xFFB5B5B5);
-  static const textHintDark = Color(0xFF8A8A8A);
+  static const textSecondaryDark = Color(0xFFE0E0E0);
+  static const textHintDark = Color(0xFFCCCCCC);
 }
 
 // مدد الحركة الموحّدة.

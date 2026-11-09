@@ -71,7 +71,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
     ),
   ];
 
-  static const light = TawridTokens(
+  static final light = TawridTokens(
     surfaceAlt: AppPalette.surfaceAltLight,
     outlineStrong: AppPalette.outlineStrongLight,
     hint: AppPalette.textHintLight,
@@ -92,7 +92,7 @@ class TawridTokens extends ThemeExtension<TawridTokens> {
     brandSurfaceSubtle: AppPalette.brandSurfaceSubtleLight,
   );
 
-  static const dark = TawridTokens(
+  static final dark = TawridTokens(
     surfaceAlt: AppPalette.surfaceAltDark,
     outlineStrong: AppPalette.outlineStrongDark,
     hint: AppPalette.textHintDark,

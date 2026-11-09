@@ -119,7 +119,8 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\Tawrid.api\\\\Controllers\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\alabbas\\\\Desktop\\\\tawrid\\\\Tawrid.API\\\\\", \"\"\\) } | Sort-Object)",
       "Bash(git fetch *)",
       "Bash(git stash *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(copy *)"
     ]
   }
 }

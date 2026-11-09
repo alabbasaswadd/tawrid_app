@@ -86,7 +86,7 @@ abstract final class AppTypography {
       ),
       bodySmall: _tajawal(
         size: 12,
-        weight: FontWeight.w400,
+        weight: FontWeight.w500,
         lineHeight: 18,
         color: secondary,
       ),
@@ -104,7 +104,7 @@ abstract final class AppTypography {
       ),
       labelSmall: _tajawal(
         size: 11,
-        weight: FontWeight.w400,
+        weight: FontWeight.w500,
         lineHeight: 16,
         color: secondary,
       ),
