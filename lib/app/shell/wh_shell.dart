@@ -53,19 +53,28 @@ class _WhShellState extends State<WhShell>
         if (!didPop && widget.navigationShell.currentIndex != 0) _onTap(0);
       },
       child: Scaffold(
-        body: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (_, child) => FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset(_slideDir, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut)),
-              child: child,
+        body: GestureDetector(
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v.abs() < 300) return;
+            final cur = widget.navigationShell.currentIndex;
+            if (v > 0 && cur > 0) _onTap(cur - 1);
+            if (v < 0 && cur < 4) _onTap(cur + 1);
+          },
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (_, child) => FadeTransition(
+              opacity: _fade,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: Offset(_slideDir, 0),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut)),
+                child: child,
+              ),
             ),
+            child: widget.navigationShell,
           ),
-          child: widget.navigationShell,
         ),
         bottomNavigationBar: AppBottomNav(
           currentIndex: widget.navigationShell.currentIndex,

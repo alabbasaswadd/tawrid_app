@@ -1,18 +1,43 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
+import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/utils/contact_launcher.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
 
 import 'wh_orders_page.dart' show whOrderTone;
+
+// المحطات الكاملة لمسار الطلب — لا تشمل «ملغاة» لأنها خروج من المسار.
+const _orderJourney = <SupplyOrderStatus>[
+  SupplyOrderStatus.pending,
+  SupplyOrderStatus.confirmed,
+  SupplyOrderStatus.processing,
+  SupplyOrderStatus.shipped,
+  SupplyOrderStatus.delivered,
+  SupplyOrderStatus.completed,
+];
+
+String _journeyHint(SupplyOrderStatus s) => switch (s) {
+      SupplyOrderStatus.pending => 'بانتظار قبول المستودع',
+      SupplyOrderStatus.confirmed => 'أُكِّد الطلب',
+      SupplyOrderStatus.processing => 'يجري تجهيز الأصناف',
+      SupplyOrderStatus.shipped => 'الشحنة في الطريق',
+      SupplyOrderStatus.delivered => 'بانتظار تأكيد التسليم',
+      SupplyOrderStatus.completed => 'اكتمل الطلب',
+      SupplyOrderStatus.cancelled => 'أُلغي الطلب',
+    };
 
 // تفاصيل الطلب الوارد عند المستودع (Figma: المستودع / تفاصيل الطلب).
 //
@@ -32,6 +57,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
   List<StatusHistoryItem> _history = const [];
   bool _loading = true;
   bool _busy = false;
+  bool _exporting = false;
   String? _error;
 
   @override
@@ -82,29 +108,49 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
         0, (sum, i) => sum + i.quantity * ((i.bonusPercentage ?? 0) / 100));
   }
 
-  Future<void> _move(SupplyOrderStatus next, {String? confirmText}) async {
-    if (confirmText != null) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(next.label),
-          content: Text(confirmText),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('تراجع')),
-            FilledButton(
-              style: next == SupplyOrderStatus.cancelled
-                  ? FilledButton.styleFrom(backgroundColor: context.colors.error)
-                  : null,
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(next == SupplyOrderStatus.cancelled ? 'رفض' : 'تأكيد'),
-            ),
-          ],
-        ),
-      );
-      if (ok != true) return;
+  DateTime? _reachedAt(SupplyOrderStatus s) {
+    final order = _order;
+    if (order == null) return null;
+    if (s == SupplyOrderStatus.pending) return order.createdOn;
+    for (final h in _history) {
+      if (h.newStatus == s) return h.changedAt;
     }
+    return null;
+  }
+
+  Future<void> _move(SupplyOrderStatus next) async {
+    // تأكيد قبل أي تغيير في الحالة.
+    final confirmMsg = switch (next) {
+      SupplyOrderStatus.cancelled =>
+        'سيُبلَّغ الصيدلية برفض الطلب، ولا يمكن التراجع عنه.',
+      SupplyOrderStatus.confirmed => 'هل تريد قبول هذا الطلب والمضي في تجهيزه؟',
+      SupplyOrderStatus.processing => 'هل تريد بدء تجهيز هذا الطلب؟',
+      SupplyOrderStatus.shipped => 'هل تريد تأكيد شحن الطلب وإبلاغ الصيدلية؟',
+      SupplyOrderStatus.delivered => 'هل تريد تأكيد تسليم الطلب إلى الصيدلية؟',
+      SupplyOrderStatus.completed => 'هل تريد إغلاق هذا الطلب نهائياً؟',
+      _ => 'هل تريد المتابعة؟',
+    };
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(next.label),
+        content: Text(confirmMsg),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('تراجع')),
+          FilledButton(
+            style: next == SupplyOrderStatus.cancelled
+                ? FilledButton.styleFrom(backgroundColor: context.colors.error)
+                : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(next == SupplyOrderStatus.cancelled ? 'رفض' : 'تأكيد'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
 
     setState(() => _busy = true);
     try {
@@ -121,32 +167,88 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     }
   }
 
-  Future<void> _contactPharmacy() async {
-    final phone = _order?.pharmacyPhone;
-    final opened = await openWhatsApp(
-      phone,
-      message: 'مرحباً، بخصوص طلب التوريد رقم ${_order!.orderNumber}',
+  Future<void> _openChat() {
+    final repo = ref.read(supplyOrderRepositoryProvider);
+    return CommentsSheet.show(
+      context,
+      loadComments: () async {
+        final list = await repo.getWarehouseOrderComments(widget.orderId);
+        return list
+            .map((c) => OfferComment(
+                  id: c.id,
+                  parentId: c.parentId,
+                  authorType: c.isWarehouse
+                      ? CommentAuthorType.warehouse
+                      : CommentAuthorType.pharmacy,
+                  authorId: '',
+                  authorName: c.authorName,
+                  authorCity: c.authorCity,
+                  authorGovernorate: c.authorGovernorate,
+                  content: c.content,
+                  createdOn: c.createdOn,
+                ))
+            .toList();
+      },
+      addComment: (text, {String? parentId}) async {
+        await repo.addWarehouseOrderComment(widget.orderId, text, parentId: parentId);
+      },
     );
-    if (!opened && mounted) {
-      AppSnackbar.error(context, 'تعذّر فتح واتساب — تحقّق من رقم الصيدلية');
+  }
+
+  Future<void> _exportCsv() async {
+    final order = _order;
+    if (order == null) return;
+    setState(() => _exporting = true);
+    try {
+      final buf = StringBuffer();
+      buf.writeln('طلب رقم,${order.orderNumber}');
+      buf.writeln('الصيدلية,${order.pharmacyName ?? ''}');
+      buf.writeln('الحالة,${order.status.label}');
+      buf.writeln('التاريخ,${order.createdOn.toLocal().toString().split(' ').first}');
+      buf.writeln('');
+      buf.writeln('الصنف,الكمية,الوحدة,سعر الوحدة,الإجمالي');
+      for (final item in order.items) {
+        final total = (item.agreedUnitPrice ?? 0) * item.quantity;
+        buf.writeln('${item.medicineName},${item.quantity.toStringAsFixed(0)},${item.unit},${item.agreedUnitPrice?.toStringAsFixed(0) ?? ''},${total.toStringAsFixed(0)}');
+      }
+      buf.writeln('');
+      buf.writeln('الإجمالي,${_itemsTotal.toStringAsFixed(0)}');
+
+      final bytes = Uint8List.fromList(utf8.encode('﻿${buf.toString()}'));
+      await Printing.sharePdf(
+          bytes: bytes, filename: 'طلب-${order.orderNumber}.csv');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, 'تعذّر التصدير: $e');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canContact =
-        _order != null && whatsAppNumber(_order!.pharmacyPhone) != null;
-
     return Scaffold(
       appBar: InnerTopBar(
         title: 'تفاصيل الطلب',
-        trailing: canContact
-            ? IconButton(
-                tooltip: 'تواصل مع الصيدلية',
-                icon: const Icon(Icons.chat, size: 20),
-                onPressed: _contactPharmacy,
-              )
-            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_order != null)
+              IconButton(
+                tooltip: 'تصدير إلى إكسل',
+                icon: _exporting
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.table_chart_outlined, size: 20),
+                onPressed: _loading || _exporting ? null : _exportCsv,
+              ),
+            IconButton(
+              tooltip: 'دردشة مع الصيدلية',
+              icon: const Icon(Icons.chat_outlined, size: 20),
+              onPressed: _order == null ? null : _openChat,
+            ),
+          ],
+        ),
       ),
       body: _buildBody(),
       bottomNavigationBar: _order == null ? null : _buildActions(),
@@ -208,6 +310,10 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
             ],
           ),
         ),
+
+        // الخط الزمني لمراحل الطلب.
+        const SizedBox(height: AppSpacing.md),
+        AppCard(child: _Journey(order: o, reachedAt: _reachedAt)),
 
         const SizedBox(height: AppSpacing.lg),
         Text('أصناف الطلب (${o.items.length})', style: context.text.titleLarge),
@@ -296,35 +402,12 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
             ),
           ),
         ],
-
-        if (_history.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('مسار الطلب', style: context.text.titleSmall),
-                const SizedBox(height: AppSpacing.xs),
-                for (final h in _history)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '${h.oldStatus.label} ← ${h.newStatus.label} · '
-                      '${h.changedByName} · ${formatSmartTimestamp(h.changedAt)}',
-                      style: context.text.labelSmall?.copyWith(color: tk.hint),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
 
   // الإجراءات تُبنى من `nextAllowed` — نفس انتقالات الخادم، فلا يظهر زرّ
-  // يُرفض. لا يوجد «تعديل الكميات» في التصميم هنا لأن الخادم لا يتيحه:
-  // يُعدَّل الطلب بالتفاهم مع الصيدلية ثم يُرفض ويُعاد إنشاؤه.
+  // يُرفض. التأكيد إلزامي لكل تغيير في الحالة.
   Widget? _buildActions() {
     final o = _order!;
     final next = o.status.nextAllowed;
@@ -352,9 +435,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
               TextButton(
                 onPressed: _busy
                     ? null
-                    : () => _move(SupplyOrderStatus.cancelled,
-                        confirmText:
-                            'سيُبلَّغ الصيدلية برفض الطلب، ولا يمكن التراجع عنه.'),
+                    : () => _move(SupplyOrderStatus.cancelled),
                 style: TextButton.styleFrom(foregroundColor: cs.error),
                 child: const Text('رفض'),
               ),
@@ -377,6 +458,111 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// الخط الزمني للطلب (مطابق لتصميم الصيدلي).
+class _Journey extends StatelessWidget {
+  const _Journey({required this.order, required this.reachedAt});
+
+  final SupplyOrderDetail order;
+  final DateTime? Function(SupplyOrderStatus) reachedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    if (order.status == SupplyOrderStatus.cancelled) {
+      return Row(
+        children: [
+          Icon(Icons.cancel_outlined, color: cs.error, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text('أُلغي هذا الطلب.',
+                style: context.text.bodyMedium?.copyWith(color: cs.error)),
+          ),
+        ],
+      );
+    }
+
+    final currentIndex = _orderJourney.indexOf(order.status);
+
+    return Column(
+      children: [
+        for (final (i, step) in _orderJourney.indexed)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i <= currentIndex ? cs.primary : cs.surface,
+                        border: Border.all(
+                          color: i <= currentIndex ? cs.primary : cs.outline,
+                        ),
+                      ),
+                      child: Center(
+                        child: i <= currentIndex
+                            ? Icon(
+                                i == currentIndex
+                                    ? Icons.local_shipping_outlined
+                                    : Icons.check,
+                                size: 15,
+                                color: cs.onPrimary,
+                              )
+                            : Text('${i + 1}',
+                                style: context.text.labelSmall
+                                    ?.copyWith(color: tk.hint)),
+                      ),
+                    ),
+                    if (i < _orderJourney.length - 1)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          color: i < currentIndex ? cs.primary : cs.outline,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          step.label,
+                          style: i <= currentIndex
+                              ? context.text.titleSmall?.copyWith(
+                                  color: i == currentIndex ? cs.primary : null)
+                              : context.text.titleSmall
+                                  ?.copyWith(color: tk.hint),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          switch (reachedAt(step)) {
+                            final DateTime t => formatSmartTimestamp(t),
+                            _ => _journeyHint(step),
+                          },
+                          style: context.text.bodySmall
+                              ?.copyWith(color: tk.hint),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

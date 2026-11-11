@@ -113,6 +113,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       NotificationType.newQuotation => wh ? null : TRoutes.phTenders,
       NotificationType.newSalesOffer => wh ? TRoutes.whOffers : TRoutes.phOffers,
       NotificationType.newComment ||
+      NotificationType.warehouseAnnouncement ||
       NotificationType.general ||
       NotificationType.unknown =>
         null,
@@ -229,6 +230,7 @@ class _NotificationTile extends StatelessWidget {
           Icons.request_quote_outlined,
         NotificationType.newSalesOffer => Icons.sell_outlined,
         NotificationType.newComment => Icons.chat_bubble_outline,
+        NotificationType.warehouseAnnouncement => Icons.campaign_outlined,
         NotificationType.general || NotificationType.unknown =>
           Icons.notifications_none,
       };

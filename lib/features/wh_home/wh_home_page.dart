@@ -112,7 +112,8 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   // «يقارب على الانتهاء» = ثلاثة أيام أو أقل، نفس عتبة بطاقة العرض.
   List<SalesOfferSummary> get _expiringOffers => _activeOffers
       .where((o) {
-        final days = o.expiresAt.difference(DateTime.now()).inDays;
+        if (o.expiresAt == null) return false;
+        final days = o.expiresAt!.difference(DateTime.now()).inDays;
         return days >= 0 && days <= 3;
       })
       .toList();
@@ -156,7 +157,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
       children: [
-        // شبكة العدّادات ٢×٢ (Figma) — أرقام تُقرأ لمحةً وتفتح وجهتها.
+        // شبكة العدّادات ١×٢ — طلبات جديدة وعروض سارية.
         Row(
           children: [
             Expanded(
@@ -170,36 +171,23 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: SummaryCounter(
-                value: '$_processing',
-                label: 'قيد التجهيز',
-                icon: AppIcons.clock,
-                onTap: () => context.go(TRoutes.whOrders),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: SummaryCounter(
                 value: '${_activeOffers.length}',
                 label: 'عرضاً سارياً',
                 icon: AppIcons.tag,
                 onTap: () => context.go(TRoutes.whOffers),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: SummaryCounter(
-                value: '${_openRequests.length}',
-                label: 'طلبات تسعير بتغطيتي',
-                icon: AppIcons.fileText,
-                onTap: () => context.push(TRoutes.whTenders),
-              ),
-            ),
           ],
         ),
+
+        // شريط التنبيه: الطلبات قيد التجهيز — مثل شريط سلّة الصيدلي تماماً.
+        if (_processing > 0) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ProcessingAlert(
+            count: _processing,
+            onTap: () => context.go(TRoutes.whOrders),
+          ),
+        ],
 
         // تنبيه العروض المقاربة على الانتهاء — يظهر حين يوجد ما ينتهي فعلاً.
         if (expiring.isNotEmpty) ...[
@@ -211,26 +199,15 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
         ],
 
         const SizedBox(height: AppSpacing.md),
-        // زر الإنشاء: يظهر دائماً بلا عروض، ويظهر «العرض الأول» فقط في البداية
-        if (_activeOffers.isEmpty)
-          AppButton(
-            label: 'إنشاء العرض الأول',
-            icon: Icons.add,
-            onPressed: () async {
-              await context.push(TRoutes.whCreateOffer);
-              if (mounted) await _load(silent: true);
-            },
-          )
-        else
-          AppButton(
-            label: 'إنشاء عرض جديد',
-            variant: AppButtonVariant.outline,
-            icon: Icons.add,
-            onPressed: () async {
-              await context.push(TRoutes.whCreateOffer);
-              if (mounted) await _load(silent: true);
-            },
-          ),
+        AppButton(
+          label: 'إنشاء عرض جديد',
+          variant: _activeOffers.isEmpty ? AppButtonVariant.filled : AppButtonVariant.outline,
+          icon: Icons.add,
+          onPressed: () async {
+            await context.push(TRoutes.whCreateOffer);
+            if (mounted) await _load(silent: true);
+          },
+        ),
 
         // ── طلبات التسعير في المنطقة ────────────────────────────────────────
         if (_visibleTenders.isNotEmpty) ...[
@@ -400,6 +377,70 @@ class _HomeTenderCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// شريط تنبيه: الطلبات قيد التجهيز — نفس تصميم شريط السلّة عند الصيدلي.
+class _ProcessingAlert extends StatelessWidget {
+  const _ProcessingAlert({required this.count, required this.onTap});
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final label = count == 1 ? 'طلب واحد' : '$count طلبات';
+
+    return Material(
+      color: tk.brandSurface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+          ),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                    child: AppIcon(AppIcons.clock, size: 18, color: cs.primary)),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'في معالجتك $label قيد التجهيز',
+                      style: context.text.titleSmall?.copyWith(color: cs.primary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text('اضغط لعرض الطلبات',
+                        style:
+                            context.text.bodySmall?.copyWith(color: cs.primary)),
+                  ],
+                ),
+              ),
+              AppIcon(AppIcons.chevronForwardRtl, size: 16, color: cs.primary),
+            ],
+          ),
+        ),
       ),
     );
   }

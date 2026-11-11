@@ -88,4 +88,43 @@ class PhListingRepository {
   /// الخادم يسمح للمؤلّف وحده بالحذف — نُخفي الزرّ عن غيره أصلاً.
   Future<void> deleteComment(String listingId, String commentId) =>
       _api.delete(ApiEndpoints.phListingCommentById(listingId, commentId));
+
+  // ── الحجوزات ──────────────────────────────────────────────────────────────
+
+  Future<PhListingBooking> createBooking(String listingId, String initialMessage) async {
+    final data = await _api.post(
+      ApiEndpoints.phListingBookings(listingId),
+      data: {'initialMessage': initialMessage},
+    ) as Map<String, dynamic>;
+    return PhListingBooking.fromJson(data);
+  }
+
+  Future<List<PhListingBooking>> getBookings(String listingId) async {
+    final raw = await _api.get(ApiEndpoints.phListingBookings(listingId));
+    return ApiClient.itemsOf(raw)
+        .map((e) => PhListingBooking.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> acceptBooking(String listingId, String bookingId) =>
+      _api.post(ApiEndpoints.phListingBookingAccept(listingId, bookingId));
+
+  Future<void> rejectBooking(String listingId, String bookingId) =>
+      _api.post(ApiEndpoints.phListingBookingReject(listingId, bookingId));
+
+  Future<List<PhListingMessage>> getMessages(String listingId, String bookingId) async {
+    final raw = await _api.get(ApiEndpoints.phListingBookingMessages(listingId, bookingId));
+    return ApiClient.itemsOf(raw)
+        .map((e) => PhListingMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<PhListingMessage> sendMessage(
+      String listingId, String bookingId, String content) async {
+    final data = await _api.post(
+      ApiEndpoints.phListingBookingMessages(listingId, bookingId),
+      data: {'content': content},
+    ) as Map<String, dynamic>;
+    return PhListingMessage.fromJson(data);
+  }
 }

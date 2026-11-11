@@ -12,8 +12,13 @@ class SupplyOrderSummary {
   final String warehousePhone;
 
   final int itemCount;
+  final String currency;
   final DateTime createdOn;
   final DateTime? expectedDeliveryDate;
+
+  /// آخر تحديث لحالة الطلبية — يُستخدم للترتيب حسب آخر نشاط.
+  final DateTime? updatedAt;
+
   final bool invoiceCreated;
   final String? generatedPurchaseId;
 
@@ -40,8 +45,10 @@ class SupplyOrderSummary {
     required this.warehouseCity,
     this.warehousePhone = '',
     required this.itemCount,
+    this.currency = 'SYP',
     required this.createdOn,
     this.expectedDeliveryDate,
+    this.updatedAt,
     required this.invoiceCreated,
     this.generatedPurchaseId,
     this.totalAmount,
@@ -57,9 +64,13 @@ class SupplyOrderSummary {
         warehouseCity: j['warehouseCity'] as String,
         warehousePhone: j['warehousePhone'] as String? ?? '',
         itemCount: j['itemCount'] as int,
+        currency: j['currency'] as String? ?? 'SYP',
         createdOn: DateTime.parse(j['createdOn'] as String),
         expectedDeliveryDate: j['expectedDeliveryDate'] != null
             ? DateTime.parse(j['expectedDeliveryDate'] as String)
+            : null,
+        updatedAt: (j['updatedAt'] ?? j['lastStatusUpdatedAt']) != null
+            ? DateTime.parse((j['updatedAt'] ?? j['lastStatusUpdatedAt']) as String)
             : null,
         invoiceCreated: j['invoiceCreated'] as bool,
         generatedPurchaseId: j['generatedPurchaseId'] as String?,
@@ -78,6 +89,7 @@ class SupplyOrderItem {
   final String unit;
   final double? agreedUnitPrice;
   final double? bonusPercentage;
+  final double freeQuantity;
 
   SupplyOrderItem({
     required this.id,
@@ -88,6 +100,7 @@ class SupplyOrderItem {
     required this.unit,
     this.agreedUnitPrice,
     this.bonusPercentage,
+    this.freeQuantity = 0,
   });
 
   factory SupplyOrderItem.fromJson(Map<String, dynamic> j) => SupplyOrderItem(
@@ -99,6 +112,7 @@ class SupplyOrderItem {
         unit: j['unit'] as String,
         agreedUnitPrice: (j['agreedUnitPrice'] as num?)?.toDouble(),
         bonusPercentage: (j['bonusPercentage'] as num?)?.toDouble(),
+        freeQuantity: (j['freeQuantity'] as num?)?.toDouble() ?? 0,
       );
 
   Map<String, dynamic> toCreateJson() => {
@@ -108,6 +122,7 @@ class SupplyOrderItem {
         'unit': unit,
         'agreedUnitPrice': agreedUnitPrice,
         'bonusPercentage': bonusPercentage,
+        'freeQuantity': freeQuantity,
       };
 }
 
@@ -211,6 +226,39 @@ class StatusHistoryItem {
         comment: j['comment'] as String?,
         changedByName: j['changedByName'] as String,
         changedAt: DateTime.parse(j['changedAt'] as String),
+      );
+}
+
+class OrderComment {
+  final String id;
+  final String? parentId;
+  final String authorName;
+  final String authorCity;
+  final String authorGovernorate;
+  final String content;
+  final DateTime createdOn;
+  final bool isWarehouse;
+
+  OrderComment({
+    required this.id,
+    this.parentId,
+    required this.authorName,
+    this.authorCity = '',
+    this.authorGovernorate = '',
+    required this.content,
+    required this.createdOn,
+    required this.isWarehouse,
+  });
+
+  factory OrderComment.fromJson(Map<String, dynamic> j) => OrderComment(
+        id: j['id'] as String,
+        parentId: j['parentId'] as String?,
+        authorName: j['authorName'] as String? ?? '',
+        authorCity: j['authorCity'] as String? ?? '',
+        authorGovernorate: j['authorGovernorate'] as String? ?? '',
+        content: j['content'] as String,
+        createdOn: DateTime.parse(j['createdOn'] as String),
+        isWarehouse: (j['authorType'] as int?) == 2,
       );
 }
 

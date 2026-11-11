@@ -27,6 +27,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
   List<WarehouseUser>? _users;
   bool _loading = true;
   String? _error;
+  int? _errorCode;
   final Set<String> _busy = {};
 
   /// معرّف المستخدم الحالي — لتمييز «أنت» ولمنع إيقاف النفس قبل الرحلة.
@@ -45,6 +46,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _errorCode = null;
     });
     try {
       final list = await ref.read(warehouseUserRepositoryProvider).getUsers();
@@ -55,8 +57,10 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
       });
     } catch (e) {
       if (!mounted) return;
+      final ex = ApiException.from(e);
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ex.message;
+        _errorCode = ex.statusCode;
         _loading = false;
       });
     }
@@ -237,7 +241,37 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) {
+      // 403 من الخادم: الموظّف لا يملك صلاحية إدارة الحسابات.
+      if (_errorCode == 403) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: context.tokens.warningSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.lock_outline, color: context.tokens.warning, size: 44),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text('لا تملك صلاحية',
+                    style: context.text.titleLarge, textAlign: TextAlign.center),
+                const SizedBox(height: AppSpacing.xs),
+                Text('هذه الصفحة مخصصة للمدير فقط.',
+                    style: context.text.bodyMedium?.copyWith(color: context.tokens.hint),
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        );
+      }
+      return ErrorState(message: _error!, onRetry: _load);
+    }
 
     final users = _users ?? const <WarehouseUser>[];
     if (users.isEmpty) {

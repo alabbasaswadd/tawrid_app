@@ -22,4 +22,14 @@ class WarehouseProfileRepository {
     final data = await _api.get(ApiEndpoints.whMe) as Map<String, dynamic>;
     return WarehouseMe.fromJson(data);
   }
+
+  /// [currentPassword] اختياري: يُسقَط عند mustChangePassword == true.
+  Future<void> changePassword({
+    String? currentPassword,
+    required String newPassword,
+  }) =>
+      _api.post(ApiEndpoints.whChangePassword, data: {
+        'currentPassword': ?currentPassword,
+        'newPassword': newPassword,
+      });
 }

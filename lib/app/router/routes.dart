@@ -122,6 +122,9 @@ abstract final class TRoutes {
   // معرض نظام التصميم (للتطوير)
   static const String devGallery = '/dev/gallery';
 
+  // إعلانات المستودع للصيدليات في منطقة التغطية
+  static const String whAnnouncements = '/wh/announcements';
+
   // Warehouse shell tabs
   static const String whHome = '/wh/home';
   static const String whOrders = '/wh/orders';

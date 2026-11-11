@@ -63,6 +63,25 @@ enum MedicineResultType {
       );
 }
 
+class MedicineSearchBonusTier {
+  final double buyQuantity;
+  final double freeQuantity;
+  final String label;
+
+  const MedicineSearchBonusTier({
+    required this.buyQuantity,
+    required this.freeQuantity,
+    required this.label,
+  });
+
+  factory MedicineSearchBonusTier.fromJson(Map<String, dynamic> j) =>
+      MedicineSearchBonusTier(
+        buyQuantity: (j['buyQuantity'] as num).toDouble(),
+        freeQuantity: (j['freeQuantity'] as num).toDouble(),
+        label: j['label'] as String,
+      );
+}
+
 class MedicineSearchResult {
   final MedicineResultType resultType;
   final MedicineMatchKind matchKind;
@@ -75,6 +94,7 @@ class MedicineSearchResult {
   final double? discountPercentage;
   final double? bonusPercentage;
   final double? availableQuantity;
+  final List<MedicineSearchBonusTier> bonusTiers;
 
   // ── التسعير المباشر فقط ────────────────────────────────────────────
   final String? warehouseMedicineId;
@@ -103,6 +123,10 @@ class MedicineSearchResult {
   /// السعر مشتقٌّ تلقائياً (٧٤٪ من سعر المستهلك) لأن المستودع لم يُدخله
   /// يدوياً. سعرٌ فعلي يُشترى به، لكن تمييزه يهمّ الصيدلي.
   final bool isDerivedPrice;
+
+  /// true حين لا يوجد سعر **لأن** المستودع يسعّر بعملة أجنبية — يختلف عن
+  /// isUnpriced الذي يعني «لم يُدخَل السعر». تُعرَض رسالة مختلفة في الواجهة.
+  final bool priceBlockedByCurrency;
   final String currency;
   final String unit;
 
@@ -126,6 +150,7 @@ class MedicineSearchResult {
     this.discountPercentage,
     this.bonusPercentage,
     this.availableQuantity,
+    this.bonusTiers = const [],
     this.warehouseMedicineId,
     required this.supplyWarehouseId,
     required this.warehouseName,
@@ -137,6 +162,7 @@ class MedicineSearchResult {
     this.netUnitPrice,
     this.hasPrice = true,
     this.isDerivedPrice = false,
+    this.priceBlockedByCurrency = false,
     required this.currency,
     required this.unit,
     required this.medicineName,
@@ -163,6 +189,9 @@ class MedicineSearchResult {
       discountPercentage: d('discountPercentage'),
       bonusPercentage: d('bonusPercentage'),
       availableQuantity: d('availableQuantity'),
+      bonusTiers: ((j['bonusTiers'] as List?) ?? [])
+          .map((e) => MedicineSearchBonusTier.fromJson(e as Map<String, dynamic>))
+          .toList(),
       warehouseMedicineId: j['warehouseMedicineId'] as String?,
       supplyWarehouseId: j['supplyWarehouseId'] as String,
       warehouseName: j['warehouseName'] as String? ?? '',
@@ -176,6 +205,7 @@ class MedicineSearchResult {
       // خادم أقدم لا يرسل العلَم: وجود سعر هو الدليل.
       hasPrice: j['hasPrice'] as bool? ?? (j['netUnitPrice'] ?? j['unitPrice']) != null,
       isDerivedPrice: j['isDerivedPrice'] as bool? ?? false,
+      priceBlockedByCurrency: j['priceBlockedByCurrency'] as bool? ?? false,
       currency: j['currency'] as String? ?? 'SYP',
       unit: j['unit'] as String? ?? 'عبوة',
       medicineName: j['medicineName'] as String? ?? '',

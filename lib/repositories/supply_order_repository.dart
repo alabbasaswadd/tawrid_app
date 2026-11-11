@@ -64,6 +64,19 @@ class SupplyOrderRepository {
     return SupplyOrderDetail.fromJson(data);
   }
 
+  Future<List<OrderComment>> getPharmacyOrderComments(String id) async {
+    final raw = await _api.get(ApiEndpoints.phOrderComments(id));
+    final data = ApiClient.itemsOf(raw);
+    return data.map((e) => OrderComment.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> addPharmacyOrderComment(String id, String content, {String? parentId}) {
+    return _api.post(ApiEndpoints.phOrderComments(id), data: {
+      'content': content,
+      'parentId': ?parentId,
+    });
+  }
+
   Future<GenerateInvoiceResult> generateInvoice(String id) async {
     final data = await _api.post(ApiEndpoints.phOrderGenerateInvoice(id)) as Map<String, dynamic>;
     return GenerateInvoiceResult.fromJson(data);
@@ -101,6 +114,19 @@ class SupplyOrderRepository {
     return _api.put(ApiEndpoints.whOrderStatus(id), data: {
       'newStatus': newStatus.code,
       'comment': comment,
+    });
+  }
+
+  Future<List<OrderComment>> getWarehouseOrderComments(String id) async {
+    final raw = await _api.get(ApiEndpoints.whOrderComments(id));
+    final data = ApiClient.itemsOf(raw);
+    return data.map((e) => OrderComment.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> addWarehouseOrderComment(String id, String content, {String? parentId}) {
+    return _api.post(ApiEndpoints.whOrderComments(id), data: {
+      'content': content,
+      'parentId': ?parentId,
     });
   }
 }

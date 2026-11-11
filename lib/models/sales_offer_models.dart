@@ -1,5 +1,23 @@
 import 'enums.dart';
 
+class SalesOfferBonusTier {
+  final double buyQuantity;
+  final double freeQuantity;
+  final String label;
+
+  const SalesOfferBonusTier({
+    required this.buyQuantity,
+    required this.freeQuantity,
+    required this.label,
+  });
+
+  factory SalesOfferBonusTier.fromJson(Map<String, dynamic> j) => SalesOfferBonusTier(
+        buyQuantity: (j['buyQuantity'] as num).toDouble(),
+        freeQuantity: (j['freeQuantity'] as num).toDouble(),
+        label: j['label'] as String,
+      );
+}
+
 // منطقة مستهدفة (محافظة، مع مدينة اختيارية = كل مدن المحافظة) — عرض واحد
 // قد يستهدف أكثر من محافظة وأكثر من مدينة.
 class TargetRegion {
@@ -30,7 +48,7 @@ class SalesOfferSummary {
   final int itemCount;
   final List<String> itemNames;
   final DateTime startsAt;
-  final DateTime expiresAt;
+  final DateTime? expiresAt;
   final DateTime createdOn;
 
   // البونص على مستويين: على أصناف بعينها، وعلى العرض كاملاً (دواء يُهدى مع
@@ -39,8 +57,10 @@ class SalesOfferSummary {
   final bool hasItemBonus;
   final bool hasOfferBonus;
   final String? offerBonusMedicineName;
+  final SalesOfferKind kind;
 
   bool get hasAnyBonus => hasItemBonus || hasOfferBonus;
+  bool get isStanding => kind == SalesOfferKind.standing;
 
   SalesOfferSummary({
     required this.id,
@@ -52,11 +72,12 @@ class SalesOfferSummary {
     required this.itemCount,
     required this.itemNames,
     required this.startsAt,
-    required this.expiresAt,
+    this.expiresAt,
     required this.createdOn,
     this.hasItemBonus = false,
     this.hasOfferBonus = false,
     this.offerBonusMedicineName,
+    this.kind = SalesOfferKind.timeLimited,
   });
 
   factory SalesOfferSummary.fromJson(Map<String, dynamic> j) => SalesOfferSummary(
@@ -71,11 +92,14 @@ class SalesOfferSummary {
         itemCount: j['itemCount'] as int,
         itemNames: ((j['itemNames'] as List?) ?? []).map((e) => e as String).toList(),
         startsAt: DateTime.parse(j['startsAt'] as String),
-        expiresAt: DateTime.parse(j['expiresAt'] as String),
+        expiresAt: j['expiresAt'] != null
+            ? DateTime.parse(j['expiresAt'] as String)
+            : null,
         createdOn: DateTime.parse(j['createdOn'] as String),
         hasItemBonus: j['hasItemBonus'] as bool? ?? false,
         hasOfferBonus: j['hasOfferBonus'] as bool? ?? false,
         offerBonusMedicineName: j['offerBonusMedicineName'] as String?,
+        kind: SalesOfferKind.fromCode(j['kind'] as int? ?? 2),
       );
 }
 
@@ -88,6 +112,7 @@ class SalesOfferItem {
   final double unitPrice;
   final double? discountPercentage;
   final double? bonusPercentage;
+  final List<SalesOfferBonusTier> bonusTiers;
 
   SalesOfferItem({
     required this.id,
@@ -98,6 +123,7 @@ class SalesOfferItem {
     required this.unitPrice,
     this.discountPercentage,
     this.bonusPercentage,
+    this.bonusTiers = const [],
   });
 
   factory SalesOfferItem.fromJson(Map<String, dynamic> j) => SalesOfferItem(
@@ -109,6 +135,9 @@ class SalesOfferItem {
         unitPrice: (j['unitPrice'] as num).toDouble(),
         discountPercentage: (j['discountPercentage'] as num?)?.toDouble(),
         bonusPercentage: (j['bonusPercentage'] as num?)?.toDouble(),
+        bonusTiers: ((j['bonusTiers'] as List?) ?? [])
+            .map((e) => SalesOfferBonusTier.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 
   Map<String, dynamic> toCreateJson() => {
@@ -136,26 +165,35 @@ class SalesOfferTarget {
 
 class OfferComment {
   final String id;
+  final String? parentId;
   final CommentAuthorType authorType;
   final String authorId;
   final String authorName;
+  final String authorCity;
+  final String authorGovernorate;
   final String content;
   final DateTime createdOn;
 
   OfferComment({
     required this.id,
+    this.parentId,
     required this.authorType,
     required this.authorId,
     required this.authorName,
+    this.authorCity = '',
+    this.authorGovernorate = '',
     required this.content,
     required this.createdOn,
   });
 
   factory OfferComment.fromJson(Map<String, dynamic> j) => OfferComment(
         id: j['id'] as String,
+        parentId: j['parentId'] as String?,
         authorType: CommentAuthorType.fromCode(j['authorType'] as int),
         authorId: j['authorId'] as String,
-        authorName: j['authorName'] as String,
+        authorName: j['authorName'] as String? ?? '',
+        authorCity: j['authorCity'] as String? ?? '',
+        authorGovernorate: j['authorGovernorate'] as String? ?? '',
         content: j['content'] as String,
         createdOn: DateTime.parse(j['createdOn'] as String),
       );
@@ -170,7 +208,8 @@ class SalesOfferDetail {
   final String? description;
   final SalesOfferStatus status;
   final DateTime startsAt;
-  final DateTime expiresAt;
+  final DateTime? expiresAt;
+  final SalesOfferKind kind;
   final String currency;
   final List<TargetRegion> targetRegions;
   final bool isPublicInRegion;
@@ -178,11 +217,14 @@ class SalesOfferDetail {
   final int? paymentPeriodDays;
   final String? consignmentTerms;
   final String? bonusMedicineName;
+  final String? bonusMedicineCatalogItemId;
   final double? bonusMedicineQuantity;
   final String? bonusMedicineUnit;
   final DateTime createdOn;
   final List<SalesOfferItem> items;
   final List<SalesOfferTarget>? targets;
+
+  bool get isStanding => kind == SalesOfferKind.standing;
 
   SalesOfferDetail({
     required this.id,
@@ -193,7 +235,8 @@ class SalesOfferDetail {
     this.description,
     required this.status,
     required this.startsAt,
-    required this.expiresAt,
+    this.expiresAt,
+    this.kind = SalesOfferKind.timeLimited,
     required this.currency,
     required this.targetRegions,
     required this.isPublicInRegion,
@@ -201,6 +244,7 @@ class SalesOfferDetail {
     this.paymentPeriodDays,
     this.consignmentTerms,
     this.bonusMedicineName,
+    this.bonusMedicineCatalogItemId,
     this.bonusMedicineQuantity,
     this.bonusMedicineUnit,
     required this.createdOn,
@@ -217,7 +261,10 @@ class SalesOfferDetail {
         description: j['description'] as String?,
         status: SalesOfferStatus.fromCode(j['status'] as int),
         startsAt: DateTime.parse(j['startsAt'] as String),
-        expiresAt: DateTime.parse(j['expiresAt'] as String),
+        expiresAt: j['expiresAt'] != null
+            ? DateTime.parse(j['expiresAt'] as String)
+            : null,
+        kind: SalesOfferKind.fromCode(j['kind'] as int? ?? 2),
         currency: j['currency'] as String? ?? 'SYP',
         targetRegions: ((j['targetRegions'] as List?) ?? [])
             .map((e) => TargetRegion.fromJson(e as Map<String, dynamic>))
@@ -227,6 +274,7 @@ class SalesOfferDetail {
         paymentPeriodDays: j['paymentPeriodDays'] as int?,
         consignmentTerms: j['consignmentTerms'] as String?,
         bonusMedicineName: j['bonusMedicineName'] as String?,
+        bonusMedicineCatalogItemId: j['bonusMedicineCatalogItemId'] as String?,
         bonusMedicineQuantity: (j['bonusMedicineQuantity'] as num?)?.toDouble(),
         bonusMedicineUnit: j['bonusMedicineUnit'] as String?,
         createdOn: DateTime.parse(j['createdOn'] as String),

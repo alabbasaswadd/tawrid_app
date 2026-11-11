@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tawrid_app/app/global_keys.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 
@@ -135,10 +136,13 @@ class EmptyState extends StatelessWidget {
 }
 
 class AppSnackbar {
+  // يستخدم المفتاح الجذري ليظهر الـ snackbar فوق أي BottomSheet مفتوح.
+  static ScaffoldMessengerState _messenger(BuildContext context) =>
+      rootMessengerKey.currentState ?? ScaffoldMessenger.of(context);
+
   static void show(BuildContext context, String message, {bool isError = false}) {
-    final messenger = ScaffoldMessenger.of(context);
     final bg = isError ? context.colors.error : context.tokens.success;
-    messenger.showSnackBar(SnackBar(
+    _messenger(context).showSnackBar(SnackBar(
       content: Row(children: [
         Icon(isError ? Icons.error_outline : Icons.check_circle_outline,
             color: Colors.white, size: 20),
@@ -155,4 +159,19 @@ class AppSnackbar {
 
   static void success(BuildContext context, String message) => show(context, message);
   static void error(BuildContext context, String message) => show(context, message, isError: true);
+
+  static void info(BuildContext context, String message) {
+    _messenger(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        const Icon(Icons.info_outline, color: Colors.white, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(message, style: context.text.bodyMedium?.copyWith(color: Colors.white)),
+        ),
+      ]),
+      backgroundColor: const Color(0xFF1565C0),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 4),
+    ));
+  }
 }

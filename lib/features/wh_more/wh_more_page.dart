@@ -31,28 +31,10 @@ class WhMorePage extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
         children: [
-          _IdentityCard(me: me),
-
-          const SizedBox(height: AppSpacing.lg),
-          _GroupLabel('بيانات الحساب'),
-          _Group(children: [
-            _Row(
-              icon: Icons.warehouse_outlined,
-              label: 'بيانات المستودع',
-              onTap: () => context.push(TRoutes.whProfile),
-            ),
-            _Row(
-              icon: Icons.person_outline,
-              label: 'المسؤول وبيانات التواصل',
-              onTap: () => context.push(TRoutes.whProfile),
-            ),
-            _Row(
-              icon: Icons.description_outlined,
-              label: 'مناطق التغطية',
-              // الملف الشخصي هو محرّر المناطق نفسه — لا شاشة ثالثة.
-              onTap: () => context.push(TRoutes.whProfile),
-            ),
-          ]),
+          _IdentityCard(
+            me: me,
+            onTap: () => context.push(TRoutes.whProfile),
+          ),
 
           const SizedBox(height: AppSpacing.lg),
           _GroupLabel('التفضيلات'),
@@ -79,8 +61,8 @@ class WhMorePage extends ConsumerWidget {
               ),
             _Row(
               icon: Icons.campaign_outlined,
-              label: 'إعلاناتي وأخباري',
-              onTap: () => context.push(TRoutes.whListings),
+              label: 'إعلاناتي',
+              onTap: () => context.push(TRoutes.whAnnouncements),
             ),
           ]),
 
@@ -137,8 +119,9 @@ class WhMorePage extends ConsumerWidget {
 
 // بطاقة الهوية: اسم المستودع، المدينة والهاتف، وشارة التوثيق.
 class _IdentityCard extends StatelessWidget {
-  const _IdentityCard({required this.me});
+  const _IdentityCard({required this.me, this.onTap});
   final WarehouseMe? me;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +129,7 @@ class _IdentityCard extends StatelessWidget {
     final tk = context.tokens;
 
     return AppCard(
+      onTap: onTap,
       child: Row(
         children: [
           Expanded(

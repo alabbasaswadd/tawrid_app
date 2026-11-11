@@ -16,12 +16,16 @@ enum PhListingReason {
   final String code;
   final String label;
 
-  static PhListingReason fromCode(String? code) => switch (code) {
-        'slow_moving' => PhListingReason.slowMoving,
-        'near_expiry' => PhListingReason.nearExpiry,
-        'overstocked' => PhListingReason.overstocked,
-        _ => PhListingReason.other,
-      };
+  // الباك إند يُرسل PascalCase (SlowMoving) أو snake_case (slow_moving)
+  static PhListingReason fromCode(String? code) {
+    final normalized = code?.toLowerCase().replaceAll('_', '') ?? '';
+    return switch (normalized) {
+      'slowmoving' => PhListingReason.slowMoving,
+      'nearexpiry' => PhListingReason.nearExpiry,
+      'overstocked' => PhListingReason.overstocked,
+      _ => PhListingReason.other,
+    };
+  }
 }
 
 enum PhListingStatus {
@@ -33,7 +37,8 @@ enum PhListingStatus {
   final String code;
   final String label;
 
-  static PhListingStatus fromCode(String? code) => switch (code) {
+  // الباك إند يُرسل PascalCase (Available, Booked) أو lowercase
+  static PhListingStatus fromCode(String? code) => switch (code?.toLowerCase()) {
         'available' => PhListingStatus.available,
         'booked' => PhListingStatus.booked,
         _ => PhListingStatus.closed,
@@ -162,6 +167,82 @@ class PhListingComment {
       createdOn: DateTime.parse(j['createdOn'] as String),
     );
   }
+}
+
+enum PhListingBookingStatus {
+  pending('pending', 'قيد الانتظار'),
+  accepted('accepted', 'مقبول'),
+  rejected('rejected', 'مرفوض');
+
+  const PhListingBookingStatus(this.code, this.label);
+  final String code;
+  final String label;
+
+  static PhListingBookingStatus fromCode(String? code) => switch (code?.toLowerCase()) {
+        'accepted' => PhListingBookingStatus.accepted,
+        'rejected' => PhListingBookingStatus.rejected,
+        _ => PhListingBookingStatus.pending,
+      };
+}
+
+class PhListingBooking {
+  final String id;
+  final String listingId;
+  final String bookerPharmacyId;
+  final String bookerPharmacyName;
+  final String bookerPhone;
+  final String initialMessage;
+  final PhListingBookingStatus status;
+  final DateTime createdOn;
+  final int unreadMessages;
+
+  const PhListingBooking({
+    required this.id,
+    required this.listingId,
+    required this.bookerPharmacyId,
+    required this.bookerPharmacyName,
+    required this.bookerPhone,
+    required this.initialMessage,
+    required this.status,
+    required this.createdOn,
+    this.unreadMessages = 0,
+  });
+
+  factory PhListingBooking.fromJson(Map<String, dynamic> j) => PhListingBooking(
+        id: j['id'] as String,
+        listingId: j['listingId'] as String,
+        bookerPharmacyId: j['bookerPharmacyId'] as String,
+        bookerPharmacyName: j['bookerPharmacyName'] as String? ?? '',
+        bookerPhone: j['bookerPhone'] as String? ?? '',
+        initialMessage: j['initialMessage'] as String? ?? '',
+        status: PhListingBookingStatus.fromCode(j['status'] as String?),
+        createdOn: DateTime.parse(j['createdOn'] as String),
+        unreadMessages: j['unreadMessages'] as int? ?? 0,
+      );
+}
+
+class PhListingMessage {
+  final String id;
+  final String senderId;
+  final String senderName;
+  final String content;
+  final DateTime sentAt;
+
+  const PhListingMessage({
+    required this.id,
+    required this.senderId,
+    required this.senderName,
+    required this.content,
+    required this.sentAt,
+  });
+
+  factory PhListingMessage.fromJson(Map<String, dynamic> j) => PhListingMessage(
+        id: j['id'] as String,
+        senderId: j['senderId'] as String,
+        senderName: j['senderName'] as String? ?? '',
+        content: j['content'] as String,
+        sentAt: DateTime.parse(j['sentAt'] as String),
+      );
 }
 
 class CreatePhListingRequest {

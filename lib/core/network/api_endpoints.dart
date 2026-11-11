@@ -3,16 +3,18 @@ abstract final class ApiEndpoints {
   static const String _wh = '/tawrid-api/warehouse';
 
   // ── Pharmacy Auth ──────────────────────────────────────────────────────────
-  static const String phLogin         = '$_ph/auth/login';
-  static const String phRegister      = '$_ph/auth/register';
-  static const String phMe            = '$_ph/auth/me';
-  static const String phUpdateProfile = '$_ph/auth/me';
+  static const String phLogin          = '$_ph/auth/login';
+  static const String phRegister       = '$_ph/auth/register';
+  static const String phMe             = '$_ph/auth/me';
+  static const String phUpdateProfile  = '$_ph/auth/me';
+  static const String phChangePassword = '$_ph/auth/change-password';
 
   // ── Warehouse Auth ─────────────────────────────────────────────────────────
-  static const String whLogin         = '$_wh/auth/login';
-  static const String whRegister      = '$_wh/auth/register';
-  static const String whMe            = '$_wh/auth/me';
-  static const String whUpdateProfile = '$_wh/auth/me';
+  static const String whLogin          = '$_wh/auth/login';
+  static const String whRegister       = '$_wh/auth/register';
+  static const String whMe             = '$_wh/auth/me';
+  static const String whUpdateProfile  = '$_wh/auth/me';
+  static const String whChangePassword = '$_wh/auth/change-password';
 
   // ── Supply Warehouses (pharmacy side) ──────────────────────────────────────
   // القائمة = المستودعات النشطة للاختيار؛ والتفاصيل = ملف المستودع العام
@@ -77,6 +79,7 @@ abstract final class ApiEndpoints {
   static String phOrderItems(String id)       => '$_ph/supply-orders/$id/items';
   static String phOrderHistory(String id)     => '$_ph/supply-orders/$id/history';
   static String phOrderGenerateInvoice(String id) => '$_ph/supply-orders/$id/generate-invoice';
+  static String phOrderComments(String id)        => '$_ph/supply-orders/$id/comments';
 
   // ── Pharmacy: Quotation Requests (طلبات التسعير — كانت tenders) ───────────
   // أُعيدت التسمية في الباك إند إلى quotation-requests. أسماء الثوابت هنا
@@ -103,12 +106,20 @@ abstract final class ApiEndpoints {
   static String phListingCancel(String id)     => '$_ph/listings/$id/cancel';
   static String phListingComments(String id)   => '$_ph/listings/$id/comments';
   static String phListingCommentById(String id, String commentId) => '$_ph/listings/$id/comments/$commentId';
+  static String phListingBookings(String id)   => '$_ph/listings/$id/bookings';
+  static String phListingBookingAccept(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId/accept';
+  static String phListingBookingReject(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId/reject';
+  static String phListingBookingMessages(String id, String bookingId) =>
+      '$_ph/listings/$id/bookings/$bookingId/messages';
 
   // ── Warehouse: Orders ─────────────────────────────────────────────────────
   static const String whOrders = '$_wh/orders';
-  static String whOrderById(String id)     => '$_wh/orders/$id';
-  static String whOrderStatus(String id)   => '$_wh/orders/$id/status';
-  static String whOrderHistory(String id)  => '$_wh/orders/$id/history';
+  static String whOrderById(String id)       => '$_wh/orders/$id';
+  static String whOrderStatus(String id)     => '$_wh/orders/$id/status';
+  static String whOrderHistory(String id)    => '$_wh/orders/$id/history';
+  static String whOrderComments(String id)   => '$_wh/orders/$id/comments';
 
   // ── Warehouse: Quotation Requests (طلبات التسعير) ─────────────────────────
   static const String whTendersOpen = '$_wh/quotation-requests/open';
@@ -124,6 +135,13 @@ abstract final class ApiEndpoints {
   static String whSalesOfferTargets(String id)   => '$_wh/offers/$id/targets';
   static String whSalesOfferComments(String id)  => '$_wh/offers/$id/comments';
   static String whSalesOfferCommentById(String id, String commentId) => '$_wh/offers/$id/comments/$commentId';
+
+  // ── Warehouse: Announcements ──────────────────────────────────────────────
+  static const String whAnnouncements = '$_wh/announcements';
+
+  // ── Pharmacy: active announcement from a warehouse ────────────────────────
+  static String phWarehouseAnnouncement(String warehouseId) =>
+      '$_ph/supply-warehouses/$warehouseId/announcement';
 
   // ── Warehouse: Listings (browse pharmacy listings) ────────────────────────
   static const String whListings = '$_wh/listings';

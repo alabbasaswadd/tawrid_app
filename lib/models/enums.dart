@@ -85,6 +85,23 @@ enum SalesOfferStatus {
 // حُذف SalesOfferType: الباك إند لم يعد يخزّن نوعاً للعرض — المناطق
 // المستهدَفة ومدن خدمة المستودع هي ما يحدّد من يرى العرض.
 
+// نوع العرض: ثابت لا ينتهي، أو لفترة محدّدة (SalesOfferKindEnum في الخادم).
+enum SalesOfferKind {
+  standing(1),
+  timeLimited(2);
+
+  const SalesOfferKind(this.code);
+  final int code;
+
+  static SalesOfferKind fromCode(int code) => SalesOfferKind.values
+      .firstWhere((e) => e.code == code, orElse: () => SalesOfferKind.timeLimited);
+
+  String get label => switch (this) {
+        SalesOfferKind.standing => 'ثابت',
+        SalesOfferKind.timeLimited => 'لفترة محدّدة',
+      };
+}
+
 enum TenderOfferType {
   priceBased(1),
   bonusBased(2),
@@ -128,7 +145,8 @@ enum PharmacyListingStatus {
   active(1),
   sold(2),
   expired(3),
-  cancelled(4);
+  cancelled(4),
+  booked(5);
 
   const PharmacyListingStatus(this.code);
   final int code;
@@ -141,6 +159,7 @@ enum PharmacyListingStatus {
         PharmacyListingStatus.sold => 'مباع',
         PharmacyListingStatus.expired => 'منتهي',
         PharmacyListingStatus.cancelled => 'ملغى',
+        PharmacyListingStatus.booked => 'محجوز',
       };
 }
 

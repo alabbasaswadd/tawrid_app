@@ -26,7 +26,7 @@ class WhCreateOfferPage extends ConsumerStatefulWidget {
 class _OfferItemDraft {
   _OfferItemDraft(this.medicine, {double? defaultPrice})
       : unit = TextEditingController(text: 'علبة'),
-        quantity = TextEditingController(text: '100'),
+        quantity = TextEditingController(text: ''),
         unitPrice = TextEditingController(
           text: defaultPrice != null && defaultPrice > 0
               ? defaultPrice.toStringAsFixed(0)
@@ -41,6 +41,7 @@ class _OfferItemDraft {
   final TextEditingController unitPrice;
   final TextEditingController discount;
   final TextEditingController bonus;
+  bool openQuantity = false;
 
   void dispose() {
     unit.dispose();
@@ -165,7 +166,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                 id: '',
                 medicineName: d.medicine.displayName,
                 catalogItemId: d.medicine.catalogItemId,
-                quantity: double.tryParse(d.quantity.text.trim()) ?? 1,
+                quantity: d.openQuantity ? 0 : (double.tryParse(d.quantity.text.trim()) ?? 1),
                 unit: d.unit.text.trim(),
                 unitPrice: double.tryParse(d.unitPrice.text) ?? 0,
                 discountPercentage:
@@ -203,9 +204,10 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
           );
 
       if (mounted) {
-        // الخادم يُنشئ العرض بحالة «مسودة» لا «منشور»، فقول «تم الإنشاء»
-        // وحده يترك المستودع ينتظر طلبيات على عرض لا تراه أي صيدلية.
-        AppSnackbar.success(
+        // الخادم يُنشئ العرض بحالة «مسودة» لا «منشور»، فنُبيِّن ذلك بلون
+        // تنبيهي (أزرق) لا بلون النجاح الأخضر حتى لا يظنّ المستودع أن
+        // العرض وصل الصيدليات فعلاً.
+        AppSnackbar.info(
             context, 'حُفظ العرض كمسودة — اضغط «نشر» ليصل الصيدليات');
         context.pop();
       }
@@ -446,13 +448,19 @@ class _DatePickerField extends StatelessWidget {
   }
 }
 
-class _OfferItemCard extends StatelessWidget {
+class _OfferItemCard extends StatefulWidget {
   const _OfferItemCard({required this.draft, required this.onRemove});
   final _OfferItemDraft draft;
   final VoidCallback onRemove;
 
   @override
+  State<_OfferItemCard> createState() => _OfferItemCardState();
+}
+
+class _OfferItemCardState extends State<_OfferItemCard> {
+  @override
   Widget build(BuildContext context) {
+    final draft = widget.draft;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Padding(
@@ -468,11 +476,23 @@ class _OfferItemCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.error),
-                  onPressed: onRemove,
+                  onPressed: widget.onRemove,
                 ),
               ],
             ),
             Row(
+              children: [
+                Checkbox(
+                  value: draft.openQuantity,
+                  visualDensity: VisualDensity.compact,
+                  onChanged: (v) => setState(() => draft.openQuantity = v ?? false),
+                ),
+                Text('كمية مفتوحة (غير محددة)',
+                    style: context.text.bodySmall),
+              ],
+            ),
+            if (!draft.openQuantity)
+              Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
@@ -482,9 +502,8 @@ class _OfferItemCard extends StatelessWidget {
                     decoration: const InputDecoration(
                         labelText: 'الكمية المتاحة', isDense: true),
                     validator: (v) {
+                      if (draft.openQuantity) return null;
                       final q = double.tryParse((v ?? '').trim());
-                      // الخادم يشترط Quantity > 0، فنمنع الرفض هنا بدل
-                      // ترك المستخدم يصطدم بـ400 بعد ملء النموذج كاملاً.
                       if (q == null || q <= 0) return 'كمية غير صالحة';
                       return null;
                     },
@@ -501,7 +520,16 @@ class _OfferItemCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: TextFormField(
+                  controller: draft.unit,
+                  decoration: const InputDecoration(labelText: 'الوحدة', isDense: true),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                ),
+              ),
             const SizedBox(height: AppSpacing.xs),
             Row(
               children: [

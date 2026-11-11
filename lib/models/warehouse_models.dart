@@ -14,6 +14,13 @@ class WarehousePicker {
   /// بلا التزام صريح بمدينة الصيدلية، وهذا فرق يهمّ الصيدلي.
   final bool servesAllAreas;
 
+  final double? minimumOrderAmount;
+  final String pricingCurrency;
+
+  /// null = لا بيانات بعد (مستودع جديد)
+  final double? avgAcceptanceDays;
+  final double? avgDeliveryDays;
+
   WarehousePicker({
     required this.id,
     required this.name,
@@ -23,6 +30,10 @@ class WarehousePicker {
     this.phone = '',
     this.serviceAreaCount = 0,
     this.servesAllAreas = false,
+    this.minimumOrderAmount,
+    this.pricingCurrency = 'SYP',
+    this.avgAcceptanceDays,
+    this.avgDeliveryDays,
   });
 
   factory WarehousePicker.fromJson(Map<String, dynamic> j) => WarehousePicker(
@@ -31,11 +42,13 @@ class WarehousePicker {
         code: j['code'] as String,
         city: j['city'] as String,
         governorate: j['governorate'] as String,
-        // تُقرأ متساهلةً: خادم لم يُحدَّث بعد لا يرسلها فيختفي سطرها بدل
-        // أن تنكسر القائمة.
         phone: j['phone'] as String? ?? '',
         serviceAreaCount: j['serviceAreaCount'] as int? ?? 0,
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
+        minimumOrderAmount: (j['minimumOrderAmount'] as num?)?.toDouble(),
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
+        avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
       );
 }
 
@@ -58,6 +71,10 @@ class WarehouseProfile {
   final bool servesAllAreas;
 
   final int activeOffersCount;
+  final double? minimumOrderAmount;
+  final String pricingCurrency;
+  final double? avgAcceptanceDays;
+  final double? avgDeliveryDays;
 
   const WarehouseProfile({
     required this.id,
@@ -71,6 +88,10 @@ class WarehouseProfile {
     required this.serviceAreas,
     required this.servesAllAreas,
     required this.activeOffersCount,
+    this.minimumOrderAmount,
+    this.pricingCurrency = 'SYP',
+    this.avgAcceptanceDays,
+    this.avgDeliveryDays,
   });
 
   factory WarehouseProfile.fromJson(Map<String, dynamic> j) => WarehouseProfile(
@@ -86,5 +107,43 @@ class WarehouseProfile {
             ((j['serviceAreas'] as List?) ?? const []).cast<String>(),
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
         activeOffersCount: j['activeOffersCount'] as int? ?? 0,
+        minimumOrderAmount: (j['minimumOrderAmount'] as num?)?.toDouble(),
+        pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
+        avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
+      );
+}
+
+class WarehouseAnnouncement {
+  final String id;
+  final String title;
+  final String? body;
+  final int discountType; // 1 = InvoicePercentage
+  final double discountValue;
+  final DateTime validUntil;
+  final bool isActive;
+  final DateTime createdOn;
+
+  const WarehouseAnnouncement({
+    required this.id,
+    required this.title,
+    this.body,
+    required this.discountType,
+    required this.discountValue,
+    required this.validUntil,
+    required this.isActive,
+    required this.createdOn,
+  });
+
+  factory WarehouseAnnouncement.fromJson(Map<String, dynamic> j) =>
+      WarehouseAnnouncement(
+        id: j['id'] as String,
+        title: j['title'] as String,
+        body: j['body'] as String?,
+        discountType: j['discountType'] as int? ?? 1,
+        discountValue: (j['discountValue'] as num).toDouble(),
+        validUntil: DateTime.parse(j['validUntil'] as String),
+        isActive: j['isActive'] as bool? ?? true,
+        createdOn: DateTime.parse(j['createdOn'] as String),
       );
 }

@@ -48,11 +48,11 @@ class SalesOfferRepository {
     return SalesOfferDetail.fromJson(data);
   }
 
-  Future<OfferComment> addPharmacyComment(String id, String content) async {
-    final data = await _api.post(ApiEndpoints.phOfferComments(id), data: {'content': content})
-        as Map<String, dynamic>;
-    return OfferComment.fromJson(data);
-  }
+  Future<void> addPharmacyComment(String id, String content, {String? parentId}) =>
+      _api.post(ApiEndpoints.phOfferComments(id), data: {
+        'content': content,
+        'parentId': ?parentId,
+      });
 
   Future<List<OfferComment>> getPharmacyComments(String id) async {
     final raw = await _api.get(ApiEndpoints.phOfferComments(id));
@@ -129,11 +129,11 @@ class SalesOfferRepository {
   Future<void> addTargets(String id, List<String> tenantIds) =>
       _api.post(ApiEndpoints.whSalesOfferTargets(id), data: {'tenantIds': tenantIds});
 
-  Future<OfferComment> addWarehouseComment(String id, String content) async {
-    final data = await _api.post(ApiEndpoints.whSalesOfferComments(id), data: {'content': content})
-        as Map<String, dynamic>;
-    return OfferComment.fromJson(data);
-  }
+  Future<void> addWarehouseComment(String id, String content, {String? parentId}) =>
+      _api.post(ApiEndpoints.whSalesOfferComments(id), data: {
+        'content': content,
+        'parentId': ?parentId,
+      });
 
   Future<List<OfferComment>> getWarehouseComments(String id) async {
     final raw = await _api.get(ApiEndpoints.whSalesOfferComments(id));

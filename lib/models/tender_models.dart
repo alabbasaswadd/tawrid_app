@@ -118,6 +118,7 @@ class TenderOffer {
   final TenderOfferStatus status;
   final String? notes;
   final bool isSelectedByPharmacy;
+  final String currency;
   final DateTime createdOn;
   final List<TenderOfferItem> items;
 
@@ -129,6 +130,7 @@ class TenderOffer {
     required this.status,
     this.notes,
     required this.isSelectedByPharmacy,
+    this.currency = 'SYP',
     required this.createdOn,
     required this.items,
   });
@@ -141,6 +143,7 @@ class TenderOffer {
         status: TenderOfferStatus.fromCode(j['status'] as int),
         notes: j['notes'] as String?,
         isSelectedByPharmacy: j['isSelectedByPharmacy'] as bool,
+        currency: j['currency'] as String? ?? 'SYP',
         createdOn: DateTime.parse(j['createdOn'] as String),
         items: ((j['items'] as List?) ?? [])
             .map((e) => TenderOfferItem.fromJson(e as Map<String, dynamic>))

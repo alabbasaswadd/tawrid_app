@@ -35,6 +35,8 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
   bool _busy = false;
   String? _error;
   final _reply = TextEditingController();
+  String? _replyToId;
+  String? _replyToName;
 
   @override
   void initState() {
@@ -46,6 +48,20 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
   void dispose() {
     _reply.dispose();
     super.dispose();
+  }
+
+  void _setReplyTo(OfferComment c) {
+    setState(() {
+      _replyToId = c.id;
+      _replyToName = c.authorName.isNotEmpty ? c.authorName : 'تعليق';
+    });
+  }
+
+  void _clearReply() {
+    setState(() {
+      _replyToId = null;
+      _replyToName = null;
+    });
   }
 
   Future<void> _load() async {
@@ -129,13 +145,15 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
   Future<void> _sendReply() async {
     final text = _reply.text.trim();
     if (text.isEmpty) return;
+    final parentId = _replyToId;
 
     setState(() => _busy = true);
     try {
       await ref
           .read(salesOfferRepositoryProvider)
-          .addWarehouseComment(widget.offerId, text);
+          .addWarehouseComment(widget.offerId, text, parentId: parentId);
       _reply.clear();
+      _clearReply();
       if (!mounted) return;
       await _load();
     } catch (e) {
@@ -191,8 +209,9 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
               const SizedBox(height: 10),
               _Line(
                 icon: Icons.event_outlined,
-                text: 'ساري من ${formatSmartTimestamp(o.startsAt)} '
-                    'إلى ${formatSmartTimestamp(o.expiresAt)}',
+                text: o.expiresAt != null
+                    ? 'ساري من ${formatSmartTimestamp(o.startsAt)} إلى ${formatSmartTimestamp(o.expiresAt!)}'
+                    : 'ساري من ${formatSmartTimestamp(o.startsAt)} (ثابت)',
               ),
               const SizedBox(height: 6),
               _Line(
@@ -303,8 +322,10 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
                   Row(
                     children: [
                       Text(
-                        'الكمية في العرض: '
-                        '${item.quantity.toStringAsFixed(0)} ${item.unit}',
+                        item.quantity <= 0
+                            ? 'الكمية في العرض: كمية مفتوحة'
+                            : 'الكمية في العرض: '
+                                '${item.quantity.toStringAsFixed(0)} ${item.unit}',
                         style:
                             context.text.labelSmall?.copyWith(color: tk.hint),
                       ),
@@ -366,20 +387,19 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
         if (_comments.isEmpty)
           Text('لا تعليقات على هذا العرض بعد.',
               style: context.text.bodySmall?.copyWith(color: tk.hint))
-        else
-          for (final c in _comments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _CommentBubble(comment: c),
-            ),
+        else ..._buildThreadedComments(),
 
         const SizedBox(height: AppSpacing.sm),
+        if (_replyToName != null)
+          _InlineReplyIndicator(name: _replyToName!, onDismiss: _clearReply),
         Row(
           children: [
             Expanded(
               child: AppTextField(
                 controller: _reply,
-                hint: 'اكتب رداً على الصيدليات…',
+                hint: _replyToName != null
+                    ? 'الرد على $_replyToName…'
+                    : 'اكتب رداً على الصيدليات…',
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -392,6 +412,43 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
         ),
       ],
     );
+  }
+
+  List<Widget> _buildThreadedComments() {
+    final roots = _comments.where((c) => c.parentId == null).toList();
+    final repliesByParent = <String, List<OfferComment>>{};
+    for (final c in _comments) {
+      if (c.parentId != null) {
+        repliesByParent.putIfAbsent(c.parentId!, () => []).add(c);
+      }
+    }
+
+    final rootIds = roots.map((c) => c.id).toSet();
+    final orphaned = _comments
+        .where((c) => c.parentId != null && !rootIds.contains(c.parentId))
+        .toList();
+
+    final tiles = <Widget>[];
+    for (final root in roots) {
+      tiles.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: _CommentBubble(comment: root, onReply: _setReplyTo),
+      ));
+      for (final reply in repliesByParent[root.id] ?? []) {
+        tiles.add(Padding(
+          padding: const EdgeInsetsDirectional.only(start: 20, bottom: AppSpacing.xs),
+          child: _CommentBubble(comment: reply, onReply: _setReplyTo),
+        ));
+      }
+      tiles.add(const SizedBox(height: AppSpacing.xs));
+    }
+    for (final c in orphaned) {
+      tiles.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: _CommentBubble(comment: c, onReply: _setReplyTo),
+      ));
+    }
+    return tiles;
   }
 
   // الإجراءات تتبع الحالة: المسودة تُنشر، والمنشور يُوقَف، وما انتهى أو
@@ -445,34 +502,87 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
   }
 }
 
+class _InlineReplyIndicator extends StatelessWidget {
+  const _InlineReplyIndicator({required this.name, required this.onDismiss});
+  final String name;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final cs = context.colors;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: tk.brandSurface,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.reply, size: 14, color: cs.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'الرد على: $name',
+              style: context.text.labelSmall?.copyWith(color: cs.primary),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          GestureDetector(
+            onTap: onDismiss,
+            child: AppIcon(AppIcons.x, size: 16, color: tk.hint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CommentBubble extends StatelessWidget {
-  const _CommentBubble({required this.comment});
+  const _CommentBubble({required this.comment, this.onReply});
   final OfferComment comment;
+  final void Function(OfferComment)? onReply;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
     final mine = comment.authorType == CommentAuthorType.warehouse;
+    final isPharmacy = comment.authorType == CommentAuthorType.pharmacy;
 
     return AppCard(
       color: mine ? tk.brandSurface : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
               Icon(
                 mine ? Icons.warehouse_outlined : Icons.local_pharmacy_outlined,
                 size: 15,
-                color: cs.primary,
+                color: isPharmacy ? tk.success : cs.primary,
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(comment.authorName,
-                    style: context.text.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                child: Text(
+                  isPharmacy
+                      ? (comment.authorName.isNotEmpty
+                          ? 'صيدلية: ${comment.authorName}'
+                          : 'الصيدلية')
+                      : (comment.authorName.isNotEmpty
+                          ? comment.authorName
+                          : 'المستودع'),
+                  style: context.text.titleSmall?.copyWith(
+                    color: isPharmacy ? tk.success : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Text(formatSmartTimestamp(comment.createdOn),
                   style: context.text.labelSmall?.copyWith(color: tk.hint)),
@@ -480,6 +590,21 @@ class _CommentBubble extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(comment.content, style: context.text.bodySmall),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton(
+              onPressed: onReply != null ? () => onReply!(comment) : null,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'رد',
+                style: context.text.labelSmall?.copyWith(color: cs.primary),
+              ),
+            ),
+          ),
         ],
       ),
     );

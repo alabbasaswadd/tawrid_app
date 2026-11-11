@@ -161,7 +161,10 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
                 children: [
                   _chip(context, Icons.sell_outlined, '${offer.items.length} صنف'),
                   _chip(context, Icons.payments_outlined, offer.currency),
-                  _chip(context, Icons.timer_outlined, 'ينتهي ${formatSmartTimestamp(offer.expiresAt)}'),
+                  if (offer.expiresAt != null)
+                    _chip(context, Icons.timer_outlined, 'ينتهي ${formatSmartTimestamp(offer.expiresAt!)}')
+                  else
+                    _chip(context, Icons.timer_outlined, 'ثابت'),
                 ],
               ),
               if (offer.targetRegions.isNotEmpty) ...[
@@ -292,6 +295,13 @@ class _ItemCard extends StatelessWidget {
               if ((item.bonusPercentage ?? 0) > 0)
                 _pill(context, 'بونص ${_fmt(item.bonusPercentage!)}%', context.tokens.success),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.quantity <= 0
+                ? 'الكمية: كمية مفتوحة'
+                : 'الكمية: ${_fmt(item.quantity)} ${item.unit}',
+            style: context.text.bodySmall?.copyWith(color: context.tokens.hint),
           ),
         ],
       ),

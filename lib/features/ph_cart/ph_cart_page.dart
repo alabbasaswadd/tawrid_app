@@ -87,14 +87,12 @@ class _PhCartPageState extends ConsumerState<PhCartPage> {
         items: newItems,
       );
     }).toList();
-    final newGrandTotal = newGroups.fold(0.0, (s, g) => s + g.total);
     return Cart(
       groups: newGroups,
       totalLines: cart.totalLines,
       totalQuantity: cart.totalQuantity,
       totalWarehouses: cart.totalWarehouses,
-      grandTotal: newGrandTotal,
-      currency: cart.currency,
+      totals: cart.totals,
     );
   }
 

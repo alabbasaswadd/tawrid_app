@@ -15,6 +15,7 @@ enum NotificationType {
   newQuotation(6),
   newQuotationRequest(7),
   newComment(8),
+  warehouseAnnouncement(9),
   general(99),
   unknown(-1);
 

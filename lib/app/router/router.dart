@@ -42,6 +42,7 @@ import 'package:tawrid_app/features/wh_auth/wh_service_areas_page.dart';
 import 'package:tawrid_app/features/wh_home/wh_home_page.dart';
 import 'package:tawrid_app/features/wh_medicines/wh_medicine_catalog_page.dart';
 import 'package:tawrid_app/features/wh_medicines/wh_medicines_page.dart';
+import 'package:tawrid_app/features/wh_announcements/wh_announcements_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_more_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_order_settings_page.dart';
 import 'package:tawrid_app/features/wh_more/wh_profile_page.dart';
@@ -162,6 +163,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whOffers,
         TRoutes.whMore,
         TRoutes.whListings,
+        TRoutes.whAnnouncements,
         TRoutes.whServiceAreas,
         TRoutes.whMedicines,
         TRoutes.whMedicineCatalog,
@@ -265,11 +267,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
+      // إعلانات المستودع للصيدليات في نطاق التغطية
+      GoRoute(
+        path: TRoutes.whAnnouncements,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhAnnouncementsPage(),
+      ),
+
       // Warehouse listings — top-level, pushes over the shell (no nav bar)
       GoRoute(
         path: TRoutes.whListings,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const _PlaceholderPage(title: 'إعلانات المستودع'),
+        builder: (_, _) => const _PlaceholderPage(title: 'السوق بين الصيدليات'),
       ),
 
       // أدوية المستودع (بلا ربط مخزون) + اختيار من الكاتالوج العام

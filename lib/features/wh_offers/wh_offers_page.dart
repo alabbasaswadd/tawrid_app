@@ -84,7 +84,8 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
       .toList();
 
   List<SalesOfferSummary> get _expiringSoon => _active.where((o) {
-        final days = o.expiresAt.difference(DateTime.now()).inDays;
+        if (o.expiresAt == null) return false;
+        final days = o.expiresAt!.difference(DateTime.now()).inDays;
         return days >= 0 && days <= 3;
       }).toList();
 
@@ -141,7 +142,8 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     return CommentsSheet.show(
       context,
       loadComments: () => repo.getWarehouseComments(offer.id),
-      addComment: (text) => repo.addWarehouseComment(offer.id, text),
+      addComment: (text, {String? parentId}) =>
+          repo.addWarehouseComment(offer.id, text, parentId: parentId),
     );
   }
 
@@ -244,7 +246,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
   }
 
   Widget _card(SalesOfferSummary o) {
-    final days = o.expiresAt.difference(DateTime.now()).inDays;
+    final days = o.expiresAt?.difference(DateTime.now()).inDays ?? -1;
     final expiringSoon =
         o.status == SalesOfferStatus.active && days >= 0 && days <= 3;
 
@@ -271,11 +273,13 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
       itemsText: '${o.itemCount} ${o.itemCount == 1 ? 'صنف' : 'أصناف'} · $bonus',
       expiryText: switch (o.status) {
         SalesOfferStatus.draft => 'لم تُنشر بعد',
-        SalesOfferStatus.cancelled =>
-          'أُوقف ${formatSmartTimestamp(o.expiresAt)}',
-        _ when o.expiresAt.isBefore(DateTime.now()) =>
-          'انتهى ${formatSmartTimestamp(o.expiresAt)}',
-        _ => 'ينتهي ${formatSmartTimestamp(o.expiresAt)}',
+        SalesOfferStatus.cancelled when o.expiresAt != null =>
+          'أُوقف ${formatSmartTimestamp(o.expiresAt!)}',
+        SalesOfferStatus.cancelled => 'أُوقف',
+        _ when o.expiresAt == null => 'ثابت',
+        _ when o.expiresAt!.isBefore(DateTime.now()) =>
+          'انتهى ${formatSmartTimestamp(o.expiresAt!)}',
+        _ => 'ينتهي ${formatSmartTimestamp(o.expiresAt!)}',
       },
       statusLabel: label,
       statusTone: tone,

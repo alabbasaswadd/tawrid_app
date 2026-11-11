@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:tawrid_app/features/ph_orders/ph_edit_order_page.dart';
@@ -11,15 +12,18 @@ import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
+import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/utils/contact_launcher.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
 
 import 'ph_orders_page.dart' show orderTone;
+
+enum _ExportMode { excel, pdf }
 
 // المسار الكامل للطلبية بالترتيب الذي يمرّ به فعلاً. «ملغاة» ليست محطة في
 // المسار بل خروج منه، فلا تظهر في الخط الزمني.
@@ -58,6 +62,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
   bool _loading = true;
   bool _busy = false;
   bool _sharing = false;
+  bool _exporting = false;
   String? _error;
 
   @override
@@ -191,22 +196,67 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     }
   }
 
+  Future<void> _exportCsv() async {
+    final order = _order;
+    if (order == null) return;
+    setState(() => _exporting = true);
+    try {
+      final buf = StringBuffer();
+      buf.writeln('رقم الطلبية,الحالة,المستودع,تاريخ الإنشاء');
+      buf.writeln('"${order.orderNumber}","${order.status.label}","${order.warehouseName}","${order.createdOn.toLocal().toString().split(' ').first}"');
+      buf.writeln();
+      buf.writeln('الصنف,الكمية,الوحدة,سعر الوحدة,الإجمالي,البونص');
+      for (final i in order.items) {
+        final lineTotal = (i.agreedUnitPrice ?? 0) * i.quantity;
+        buf.writeln('"${i.medicineName}","${i.quantity.toStringAsFixed(0)}","${i.unit}","${i.agreedUnitPrice ?? ''}","${i.agreedUnitPrice == null ? '' : lineTotal.toStringAsFixed(0)}","${i.bonusPercentage != null ? '${i.bonusPercentage!.toStringAsFixed(0)}%' : ''}"');
+      }
+      buf.writeln();
+      buf.writeln('الإجمالي,${_total.toStringAsFixed(0)}');
+      final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...utf8.encode(buf.toString())]);
+      await Printing.sharePdf(bytes: bytes, filename: 'طلبية-${order.orderNumber}.csv');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final busy = _sharing || _exporting;
     return Scaffold(
       appBar: InnerTopBar(
         title: 'تفاصيل الطلب',
-        trailing: IconButton(
-          tooltip: 'مشاركة كملف PDF',
-          onPressed: _loading || _sharing ? null : _sharePdf,
-          icon: _sharing
-              ? const SizedBox(
-                  width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.ios_share, size: 20),
-        ),
+        trailing: busy
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            : PopupMenuButton<_ExportMode>(
+                offset: const Offset(0, 44),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: 10),
+                  child: Text('تصدير',
+                      style: context.text.bodyMedium
+                          ?.copyWith(color: context.colors.primary)),
+                ),
+                onSelected: (mode) =>
+                    mode == _ExportMode.excel ? _exportCsv() : _sharePdf(),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                      value: _ExportMode.excel,
+                      child: Text('تصدير إلى Excel')),
+                  PopupMenuItem(
+                      value: _ExportMode.pdf,
+                      child: Text('تصدير إلى PDF')),
+                ],
+              ),
       ),
-      body: _buildBody(),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
       bottomNavigationBar: _order == null ? null : _buildBottomBar(),
     );
   }
@@ -330,13 +380,31 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
 
   Future<void> _contactWarehouse() async {
     final order = _order!;
-    final opened = await openWhatsApp(
-      order.warehousePhone,
-      message: 'مرحباً، بخصوص طلبية التوريد رقم ${order.orderNumber}',
+    final repo = ref.read(supplyOrderRepositoryProvider);
+    await CommentsSheet.show(
+      context,
+      loadComments: () async {
+        final list = await repo.getPharmacyOrderComments(order.id);
+        return list
+            .map((c) => OfferComment(
+                  id: c.id,
+                  parentId: c.parentId,
+                  authorId: '',
+                  authorName: c.authorName,
+                  authorCity: c.authorCity,
+                  authorGovernorate: c.authorGovernorate,
+                  content: c.content,
+                  createdOn: c.createdOn,
+                  authorType: c.isWarehouse
+                      ? CommentAuthorType.warehouse
+                      : CommentAuthorType.pharmacy,
+                ))
+            .toList();
+      },
+      addComment: (text, {String? parentId}) async {
+        await repo.addPharmacyOrderComment(order.id, text, parentId: parentId);
+      },
     );
-    if (!opened && mounted) {
-      AppSnackbar.error(context, 'تعذّر فتح واتساب — تحقّق من رقم المستودع');
-    }
   }
 
   Widget _buildBottomBar() {
@@ -347,7 +415,6 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     final canEdit = order.status == SupplyOrderStatus.pending;
     final canInvoice =
         order.status == SupplyOrderStatus.completed && !order.invoiceCreated;
-    final canContact = whatsAppNumber(order.warehousePhone) != null;
 
     return SafeArea(
       top: false,
@@ -378,7 +445,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                   child: AppButton(
                     label: 'تواصل مع المستودع',
                     icon: Icons.chat,
-                    onPressed: canContact ? _contactWarehouse : null,
+                    onPressed: _contactWarehouse,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),

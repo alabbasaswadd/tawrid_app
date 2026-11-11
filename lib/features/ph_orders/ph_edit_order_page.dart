@@ -197,73 +197,50 @@ class _EditItemCard extends StatefulWidget {
 }
 
 class _EditItemCardState extends State<_EditItemCard> {
-  late final TextEditingController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = TextEditingController(
-        text: widget.item.quantity > 0 ? '${widget.item.quantity}' : '');
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
+    final qty = widget.item.quantity;
 
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.sm, AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text(widget.item.medicineName,
-                    style: context.text.titleSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              SizedBox(
-                width: 88,
-                child: TextField(
-                  controller: _ctrl,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    hintText: 'الكمية',
-                    suffixText: 'عبوة',
-                    suffixStyle:
-                        context.text.labelSmall?.copyWith(color: tk.hint),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 8),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: cs.outline),
-                    ),
-                  ),
-                  onChanged: (v) =>
-                      widget.onQuantity(int.tryParse(v) ?? 0),
+          // ── اسم الصنف ──────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.item.medicineName,
+                  style: context.text.titleSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text('عبوة',
+                    style: context.text.labelSmall?.copyWith(color: tk.hint)),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Divider(height: 1, color: cs.outline),
-          const SizedBox(height: AppSpacing.xs),
-          TextButton.icon(
+          const SizedBox(width: AppSpacing.sm),
+          // ── منتقي الكمية ───────────────────────────────────
+          QuantityStepper(
+            value: '$qty',
+            onDecrement: qty > 1
+                ? () => widget.onQuantity(qty - 1)
+                : null,
+            onIncrement: () => widget.onQuantity(qty + 1),
+            onValueChanged: widget.onQuantity,
+          ),
+          // ── حذف ───────────────────────────────────────────
+          IconButton(
+            icon: Icon(Icons.delete_outline, size: 20, color: cs.error),
             onPressed: widget.onRemove,
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('حذف'),
-            style: TextButton.styleFrom(foregroundColor: cs.error),
+            tooltip: 'حذف',
           ),
         ],
       ),

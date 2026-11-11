@@ -212,7 +212,8 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     CommentsSheet.show(
       context,
       loadComments: () => repo.getPharmacyComments(widget.offerId),
-      addComment: (text) => repo.addPharmacyComment(widget.offerId, text),
+      addComment: (text, {String? parentId}) =>
+          repo.addPharmacyComment(widget.offerId, text, parentId: parentId),
     );
   }
 

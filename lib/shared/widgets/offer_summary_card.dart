@@ -6,7 +6,8 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 ///
 /// الصياغة تتدرّج مع قرب الموعد لأن «ينتهي ٢٠٢٦/١١/٠٢» لا يعني شيئاً
 /// لصيدلي يقرأ القائمة بسرعة، بينما «ينتهي خلال ٣ أيام» يعني قراراً.
-String offerExpiryText(DateTime expiresAt) {
+String offerExpiryText(DateTime? expiresAt) {
+  if (expiresAt == null) return 'ثابت';
   final days = expiresAt.difference(DateTime.now()).inDays;
   if (days < 0) return 'انتهى';
   if (days == 0) return 'ينتهي اليوم';
@@ -17,7 +18,8 @@ String offerExpiryText(DateTime expiresAt) {
 
 /// عرضٌ يُعدّ «قريب الانتهاء» خلال ثلاثة أيام — العتبة نفسها التي تُلوّن
 /// سطر المهلة وتضع شارة «ينتهي قريباً» في التصميم.
-bool isOfferExpiringSoon(DateTime expiresAt) {
+bool isOfferExpiringSoon(DateTime? expiresAt) {
+  if (expiresAt == null) return false;
   final days = expiresAt.difference(DateTime.now()).inDays;
   return days >= 0 && days <= 3;
 }

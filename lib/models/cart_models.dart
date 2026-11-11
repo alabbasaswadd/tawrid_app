@@ -4,6 +4,42 @@
 // لا تجميع محلّي هنا: كل مسار من مسارات السلّة يُعيد هذا الشكل كاملاً بعد
 // التعديل، فتُرسَم الشاشة من الاستجابة مباشرة ولا تفترق عمّا في الخادم.
 
+class CartBonusTier {
+  final double buyQuantity;
+  final double freeQuantity;
+  final String label;
+
+  const CartBonusTier({
+    required this.buyQuantity,
+    required this.freeQuantity,
+    required this.label,
+  });
+
+  factory CartBonusTier.fromJson(Map<String, dynamic> j) => CartBonusTier(
+        buyQuantity: (j['buyQuantity'] as num).toDouble(),
+        freeQuantity: (j['freeQuantity'] as num).toDouble(),
+        label: j['label'] as String,
+      );
+}
+
+class CartCurrencyTotal {
+  final String currency;
+  final double total;
+  final int warehouseCount;
+
+  const CartCurrencyTotal({
+    required this.currency,
+    required this.total,
+    required this.warehouseCount,
+  });
+
+  factory CartCurrencyTotal.fromJson(Map<String, dynamic> j) => CartCurrencyTotal(
+        currency: j['currency'] as String,
+        total: (j['total'] as num).toDouble(),
+        warehouseCount: j['warehouseCount'] as int? ?? 1,
+      );
+}
+
 enum CartItemSource {
   offer(1),
   warehouseListing(2);
@@ -35,7 +71,10 @@ class CartItem {
   final double unitPrice;
   final double lineTotal;
   final double? bonusPercentage;
+  final double freeQuantity;
+  final List<CartBonusTier> bonusTiers;
   final String currency;
+  final DateTime? createdOn;
 
   const CartItem({
     required this.id,
@@ -51,7 +90,10 @@ class CartItem {
     required this.unitPrice,
     required this.lineTotal,
     this.bonusPercentage,
+    this.freeQuantity = 0,
+    this.bonusTiers = const [],
     this.currency = 'SYP',
+    this.createdOn,
   });
 
   factory CartItem.fromJson(Map<String, dynamic> j) {
@@ -71,7 +113,14 @@ class CartItem {
       unitPrice: price,
       lineTotal: (j['lineTotal'] as num?)?.toDouble() ?? price * qty,
       bonusPercentage: (j['bonusPercentage'] as num?)?.toDouble(),
+      freeQuantity: (j['freeQuantity'] as num?)?.toDouble() ?? 0,
+      bonusTiers: ((j['bonusTiers'] as List?) ?? [])
+          .map((e) => CartBonusTier.fromJson(e as Map<String, dynamic>))
+          .toList(),
       currency: j['currency'] as String? ?? 'SYP',
+      createdOn: j['createdOn'] != null
+          ? DateTime.parse(j['createdOn'] as String)
+          : null,
     );
   }
 
@@ -95,6 +144,7 @@ class CartWarehouseGroup {
   final double missingAmount;
 
   final String currency;
+  final double totalFreeQuantity;
   final List<CartItem> items;
 
   const CartWarehouseGroup({
@@ -107,6 +157,7 @@ class CartWarehouseGroup {
     required this.meetsMinimum,
     this.missingAmount = 0,
     this.currency = 'SYP',
+    this.totalFreeQuantity = 0,
     required this.items,
   });
 
@@ -124,6 +175,7 @@ class CartWarehouseGroup {
       meetsMinimum: j['meetsMinimum'] as bool? ?? true,
       missingAmount: (j['missingAmount'] as num?)?.toDouble() ?? 0,
       currency: j['currency'] as String? ?? 'SYP',
+      totalFreeQuantity: (j['totalFreeQuantity'] as num?)?.toDouble() ?? 0,
       items: items,
     );
   }
@@ -145,16 +197,16 @@ class Cart {
   final int totalLines;
   final double totalQuantity;
   final int totalWarehouses;
-  final double grandTotal;
-  final String currency;
+
+  /// إجماليات مفصولة بالعملة — الباك إند لا يجمع عملات مختلفة في رقم واحد.
+  final List<CartCurrencyTotal> totals;
 
   const Cart({
     this.groups = const [],
     this.totalLines = 0,
     this.totalQuantity = 0,
     this.totalWarehouses = 0,
-    this.grandTotal = 0,
-    this.currency = 'SYP',
+    this.totals = const [],
   });
 
   static const empty = Cart();
@@ -166,11 +218,19 @@ class Cart {
     totalLines: j['totalLines'] as int? ?? 0,
     totalQuantity: (j['totalQuantity'] as num?)?.toDouble() ?? 0,
     totalWarehouses: j['totalWarehouses'] as int? ?? 0,
-    grandTotal: (j['grandTotal'] as num?)?.toDouble() ?? 0,
-    currency: j['currency'] as String? ?? 'SYP',
+    totals: ((j['totals'] as List?) ?? const [])
+        .map((e) => CartCurrencyTotal.fromJson(e as Map<String, dynamic>))
+        .toList(),
   );
 
   bool get isEmpty => groups.isEmpty;
+
+  /// الإجمالي الكلي — صحيح فقط إذا كانت السلّة بعملة واحدة.
+  double get grandTotal => totals.fold(0, (sum, t) => sum + t.total);
+
+  /// عملة السلّة إذا كانت بعملة واحدة، وإلا 'MIXED'.
+  String get currency =>
+      totals.length == 1 ? totals.first.currency : (totals.isEmpty ? 'SYP' : 'MIXED');
 
   /// العدد على شارة زر السلّة — أسطر لا كميات، فالشارة تقول «كم صنفاً».
   int get badgeCount => totalLines;

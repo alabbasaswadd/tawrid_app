@@ -8,6 +8,7 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_models.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
+import 'package:tawrid_app/repositories/warehouse_announcement_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
@@ -31,6 +32,7 @@ class PhWarehouseProfilePage extends ConsumerStatefulWidget {
 class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage> {
   WarehouseProfile? _profile;
   List<SalesOfferSummary> _offers = const [];
+  WarehouseAnnouncement? _announcement;
   bool _loading = true;
   String? _error;
 
@@ -46,15 +48,21 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
       _error = null;
     });
     try {
-      final profile =
-          await ref.read(warehouseRepositoryProvider).getProfile(widget.warehouseId);
-      final offers = await ref
+      final profileFuture =
+          ref.read(warehouseRepositoryProvider).getProfile(widget.warehouseId);
+      final offersFuture = ref
           .read(salesOfferRepositoryProvider)
           .getAvailableOffers(warehouseId: widget.warehouseId, limit: 30);
+      final announcementFuture = ref
+          .read(warehouseAnnouncementRepositoryProvider)
+          .getActiveAnnouncement(widget.warehouseId);
+
+      final results = await Future.wait([profileFuture, offersFuture, announcementFuture]);
       if (!mounted) return;
       setState(() {
-        _profile = profile;
-        _offers = offers;
+        _profile = results[0] as WarehouseProfile;
+        _offers = results[1] as List<SalesOfferSummary>;
+        _announcement = results[2] as WarehouseAnnouncement?;
         _loading = false;
       });
     } catch (e) {
@@ -89,6 +97,9 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.x3l),
       children: [
+        if (_announcement != null)
+          _AnnouncementBanner(_announcement!),
+        if (_announcement != null) const SizedBox(height: AppSpacing.md),
         // بطاقة الهوية (Figma: ملف المستودع) — صورة دائرية، الاسم، سطر
         // المدينة وسنة الانضمام، وشارة الاعتماد في الطرف المقابل.
         AppCard(
@@ -156,6 +167,18 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                 text: '${p.activeOffersCount} '
                     '${p.activeOffersCount == 1 ? 'عرض ساري' : 'عروض سارية'}',
               ),
+              if (p.avgAcceptanceDays != null)
+                _Line(
+                  icon: Icons.check_circle_outline,
+                  text: 'متوسط وقت القبول: '
+                      '${p.avgAcceptanceDays!.toStringAsFixed(1)} يوم',
+                ),
+              if (p.avgDeliveryDays != null)
+                _Line(
+                  icon: Icons.local_shipping_outlined,
+                  text: 'متوسط وقت التسليم: '
+                      '${p.avgDeliveryDays!.toStringAsFixed(1)} يوم',
+                ),
 
               const SizedBox(height: AppSpacing.md),
               // عروضه السارية أدناه لا تُظهر إلا ما جمّعه في عروض. البحث
@@ -239,6 +262,59 @@ class _Line extends StatelessWidget {
                 style: context.text.bodySmall?.copyWith(color: tk.hint),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnnouncementBanner extends StatelessWidget {
+  const _AnnouncementBanner(this.announcement);
+  final WarehouseAnnouncement announcement;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final valueLabel =
+        announcement.discountValue == announcement.discountValue.roundToDouble()
+            ? announcement.discountValue.toInt().toString()
+            : announcement.discountValue.toStringAsFixed(1);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: tk.goldSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(color: tk.gold.withValues(alpha: 0.4)),
+      ),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      child: Row(
+        children: [
+          Icon(Icons.campaign_outlined, size: 20, color: tk.goldStrong),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'حسم $valueLabel% على إجمالي الفاتورة',
+                  style:
+                      context.text.titleSmall?.copyWith(color: tk.goldStrong),
+                ),
+                if (announcement.body != null &&
+                    announcement.body!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    announcement.body!,
+                    style: context.text.bodySmall
+                        ?.copyWith(color: tk.goldStrong.withValues(alpha: 0.8)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),

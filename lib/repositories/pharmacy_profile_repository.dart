@@ -21,4 +21,14 @@ class PharmacyProfileRepository {
     final data = await _api.get(ApiEndpoints.phMe) as Map<String, dynamic>;
     return PharmacyMe.fromJson(data);
   }
+
+  /// [currentPassword] اختياري: يُسقَط عند mustChangePassword == true.
+  Future<void> changePassword({
+    String? currentPassword,
+    required String newPassword,
+  }) =>
+      _api.post(ApiEndpoints.phChangePassword, data: {
+        'currentPassword': ?currentPassword,
+        'newPassword': newPassword,
+      });
 }

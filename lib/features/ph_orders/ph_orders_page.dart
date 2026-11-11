@@ -27,6 +27,14 @@ StatusTone orderTone(SupplyOrderStatus s) => switch (s) {
 // تبويبات الصيدلي الثلاثة: «الجارية» تجمع كل ما لم يُغلق بعد، والمكتملة
 // والملغاة حالتان نهائيتان. الخادم يفلتر بحالة واحدة فقط (`?status=`)،
 // فالتجميع يتم هنا بعد الجلب بدل ثلاث رحلات شبكة.
+enum _SortMode {
+  createdAt('تاريخ الإنشاء'),
+  updatedAt('آخر تحديث للحالة');
+
+  const _SortMode(this.label);
+  final String label;
+}
+
 enum _OrdersTab {
   active('الجارية'),
   completed('المكتملة'),
@@ -62,6 +70,7 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
   bool _loading = true;
   String? _error;
   _OrdersTab _tab = _OrdersTab.active;
+  _SortMode _sort = _SortMode.createdAt;
 
   @override
   void initState() {
@@ -106,6 +115,28 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
       appBar: AppBar(
         title: const Text('طلبات التوريد'),
         actions: [
+          PopupMenuButton<_SortMode>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'الترتيب',
+            initialValue: _sort,
+            onSelected: (m) => setState(() => _sort = m),
+            itemBuilder: (_) => [
+              for (final m in _SortMode.values)
+                PopupMenuItem(
+                  value: m,
+                  child: Row(
+                    children: [
+                      if (_sort == m)
+                        const Icon(Icons.check, size: 16)
+                      else
+                        const SizedBox(width: 16),
+                      const SizedBox(width: 8),
+                      Text(m.label),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'تحديث',
@@ -114,12 +145,6 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'ph_orders_fab',
-        onPressed: () => context.push(TRoutes.phCreateOrder),
-        icon: const Icon(Icons.add),
-        label: const Text('طلبية جديدة'),
-      ),
     );
   }
 
@@ -128,7 +153,16 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final all = _orders ?? const <SupplyOrderSummary>[];
-    final shown = all.where((o) => _tab.matches(o.status)).toList();
+    final shown = all.where((o) => _tab.matches(o.status)).toList()
+      ..sort((a, b) {
+        final ta = _sort == _SortMode.updatedAt
+            ? (a.updatedAt ?? a.createdOn)
+            : a.createdOn;
+        final tb = _sort == _SortMode.updatedAt
+            ? (b.updatedAt ?? b.createdOn)
+            : b.createdOn;
+        return tb.compareTo(ta);
+      });
     final tk = context.tokens;
 
     return Column(

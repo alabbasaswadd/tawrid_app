@@ -8,6 +8,8 @@ class WarehouseAuthResponse {
   final String warehouseName;
   final String userName;
   final WarehouseUserRole role;
+  final AccountStatus accountStatus;
+  final bool mustChangePassword;
 
   WarehouseAuthResponse({
     required this.token,
@@ -16,6 +18,8 @@ class WarehouseAuthResponse {
     required this.warehouseName,
     required this.userName,
     required this.role,
+    this.accountStatus = AccountStatus.approved,
+    this.mustChangePassword = false,
   });
 
   factory WarehouseAuthResponse.fromJson(Map<String, dynamic> j) => WarehouseAuthResponse(
@@ -25,6 +29,8 @@ class WarehouseAuthResponse {
         warehouseName: j['warehouseName'] as String,
         userName: j['userName'] as String,
         role: WarehouseUserRole.fromCode(j['role'] as int),
+        accountStatus: AccountStatus.fromApi(j['accountStatus']),
+        mustChangePassword: j['mustChangePassword'] as bool? ?? false,
       );
 }
 
