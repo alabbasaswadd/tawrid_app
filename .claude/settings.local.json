@@ -122,7 +122,13 @@
       "Bash(git pull *)",
       "Bash(copy *)",
       "PowerShell(dotnet build *)",
-      "Bash(Write-Output \"deleted\")"
+      "Bash(Write-Output \"deleted\")",
+      "PowerShell($files = git status --porcelain | Where-Object { $_ -match \"^AA \" } | ForEach-Object { $_.Substring\\(3\\).Trim\\(\\) }; foreach \\($f in $files\\) { git checkout --ours -- $f }; Write-Output \"Resolved $\\($files.Count\\) both-added files with ours\")",
+      "PowerShell($files = git status --porcelain | Where-Object { $_ -match \"^UA \" } | ForEach-Object { $_.Substring\\(3\\).Trim\\(\\) }; foreach \\($f in $files\\) { git checkout --theirs -- $f }; Write-Output \"Accepted $\\($files.Count\\) added-by-them files\")",
+      "PowerShell(git add *)",
+      "Bash(echo \"\")",
+      "Bash(echo \"# Claude Code agent worktrees \\(temporary isolated repo copies\\)\")",
+      "Bash(echo \".claude/worktrees/\")"
     ]
   }
 }
