@@ -95,6 +95,20 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
     );
   }
 
+  Future<void> clearMustChangePassword() async {
+    final current = state.value;
+    if (current is! WarehouseSessionAuthenticated) return;
+    state = AsyncData(
+      WarehouseSessionAuthenticated(
+        token: current.token,
+        warehouseUserId: current.warehouseUserId,
+        warehouseId: current.warehouseId,
+        accountStatus: current.accountStatus,
+        mustChangePassword: false,
+      ),
+    );
+  }
+
   Future<void> clear() async {
     // إلغاء تسجيل الجهاز قبل محو التوكن — بعده يصبح الطلب بلا مصادقة.
     await ref.read(pushServiceProvider).unregisterForSession(isWarehouse: true);

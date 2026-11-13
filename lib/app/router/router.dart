@@ -8,6 +8,7 @@ import 'package:tawrid_app/core/session/pharmacy_session.dart';
 import 'package:tawrid_app/core/session/session_state.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/features/auth/account_status_page.dart';
+import 'package:tawrid_app/features/auth/force_password_change_page.dart';
 import 'package:tawrid_app/features/auth/login_page.dart';
 import 'package:tawrid_app/features/dev_gallery/design_gallery_page.dart';
 import 'package:tawrid_app/features/ph_cart/ph_cart_page.dart';
@@ -96,6 +97,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       // حساب غير مقبول بعد (قيد المراجعة/مرفوض) → شاشة حالة الحساب تحجب كل شيء.
       final phState = phAsync.value;
       final whState = whAsync.value;
+
+      // كلمة مرور إجبارية → شاشة التغيير تحجب كل شيء.
+      final phMustChange =
+          phState is SessionAuthenticated && phState.mustChangePassword;
+      final whMustChange =
+          whState is WarehouseSessionAuthenticated &&
+          whState.mustChangePassword;
+      if (phMustChange || whMustChange) {
+        return loc == TRoutes.forcePasswordChange
+            ? null
+            : TRoutes.forcePasswordChange;
+      }
+      if (loc == TRoutes.forcePasswordChange) return TRoutes.phLogin;
+
       final phBlocked =
           phState is SessionAuthenticated &&
           phState.accountStatus != AccountStatus.approved;
@@ -217,6 +232,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.accountStatus,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const AccountStatusPage(),
+      ),
+
+      // إعادة تعيين كلمة المرور الإجبارية (الراوتر يوجّه إليها تلقائياً).
+      GoRoute(
+        path: TRoutes.forcePasswordChange,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const ForcePasswordChangePage(),
       ),
 
       // الإشعارات — نفس الشاشة للجهتين، و`isWarehouse` يحدّد الصندوق

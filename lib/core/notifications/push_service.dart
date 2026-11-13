@@ -101,6 +101,7 @@ class PushService {
         return;
       }
 
+      // ignore: deprecated_member_use
       final token = await messaging.getToken();
       if (token == null || token.isEmpty) {
         _log.w('[Push] لا رمز FCM متاح.');
@@ -165,6 +166,7 @@ class PushService {
   // وبلا إعادة تسجيل تتوقّف الإشعارات صامتةً.
   void _listenForTokenRefresh() {
     _refreshSub?.cancel();
+    // ignore: deprecated_member_use
     _refreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
       const store = appSecureStorage;
       final owner = await store.read(key: StorageKeys.fcmTokenOwner);

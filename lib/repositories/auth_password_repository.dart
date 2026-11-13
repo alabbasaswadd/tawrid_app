@@ -15,7 +15,7 @@ class AuthPasswordRepository {
   final ApiClient _api;
 
   /// [currentPassword] اختيارية: الخادم يُسقِط اشتراطها في حالة إعادة
-  /// التعيين الإجبارية وحدها (<c>MustChangePassword</c>) — التوكن هناك صادرٌ
+  /// التعيين الإجبارية وحدها (`MustChangePassword`) — التوكن هناك صادرٌ
   /// عن دخولٍ بالكلمة نفسها قبل لحظات. أما التغيير الاختياري لاحقاً فيشترطها.
   Future<void> changePassword({
     required bool isWarehouse,
@@ -27,6 +27,7 @@ class AuthPasswordRepository {
           ? ApiEndpoints.whChangePassword
           : ApiEndpoints.phChangePassword,
       data: {
+        // ignore: use_null_aware_elements
         if (currentPassword != null) 'currentPassword': currentPassword,
         'newPassword': newPassword,
       },

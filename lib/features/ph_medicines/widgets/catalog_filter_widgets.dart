@@ -9,7 +9,7 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 
 // ── زر الفلاتر الدائري ────────────────────────────────────────────────────
 class FiltersBtn extends StatelessWidget {
-  const FiltersBtn({required this.count, required this.onTap});
+  const FiltersBtn({required this.count, required this.onTap, super.key});
   final int count;
   final VoidCallback onTap;
 
@@ -63,7 +63,7 @@ class FiltersBtn extends StatelessWidget {
   }
 }
 class FilterChipCloseable extends StatelessWidget {
-  const FilterChipCloseable({required this.label, required this.onRemove});
+  const FilterChipCloseable({required this.label, required this.onRemove, super.key});
   final String label;
   final VoidCallback onRemove;
 
@@ -107,6 +107,7 @@ class FilterOptionRow extends StatelessWidget {
     required this.title,
     required this.selected,
     required this.onTap,
+    super.key,
   });
 
   final AppIcons icon;

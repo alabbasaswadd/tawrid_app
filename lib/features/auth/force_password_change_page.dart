@@ -16,7 +16,7 @@ import 'package:tawrid_app/shared/widgets/app_states.dart';
 /// مبذورة من سجلّ النقابة، كلماتُها مشتقّة جزئياً من أرقام سجلّ علنية.
 ///
 /// الحجب ليس هنا: الخادم يرفض كل مسار عدا هذا ما دام العلَم مرفوعاً
-/// (<c>PasswordChangedRequirement</c>). هذه الشاشة تُظهر السبب وتفتح
+/// (`PasswordChangedRequirement`). هذه الشاشة تُظهر السبب وتفتح
 /// المخرج، ولا تُؤتمَن وحدها على المنع.
 class ForcePasswordChangePage extends ConsumerStatefulWidget {
   const ForcePasswordChangePage({super.key});

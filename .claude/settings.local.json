@@ -128,7 +128,8 @@
       "PowerShell(git add *)",
       "Bash(echo \"\")",
       "Bash(echo \"# Claude Code agent worktrees \\(temporary isolated repo copies\\)\")",
-      "Bash(echo \".claude/worktrees/\")"
+      "Bash(echo \".claude/worktrees/\")",
+      "PowerShell(cd \"E:\\\\tawrid\\\\tawrid_app\"; \\(git status --porcelain | Where-Object { $_ -match \"^U|^AA|^UA|^AU|^DD\" }\\).Count; Write-Output \"conflicts remaining\")"
     ]
   }
 }

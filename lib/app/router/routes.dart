@@ -9,6 +9,9 @@ abstract final class TRoutes {
   // حالة الحساب (قيد المراجعة/مرفوض) — تحجب التطبيق لغير المقبول
   static const String accountStatus = '/account-status';
 
+  // إعادة تعيين كلمة المرور الإجبارية — تحجب التطبيق حتى تكتمل
+  static const String forcePasswordChange = '/force-password-change';
+
   // Warehouse auth
   static const String whLogin = '/wh/login';
   static const String whRegister = '/wh/register';

@@ -906,7 +906,7 @@ class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
 }
 // عنوان قسم داخل ورقة الفلاتر.
 class SheetLabel extends StatelessWidget {
-  const SheetLabel(this.text);
+  const SheetLabel(this.text, {super.key});
   final String text;
 
   @override
@@ -923,6 +923,7 @@ class PickerRow extends StatelessWidget {
     required this.value,
     required this.onTap,
     this.onClear,
+    super.key,
   });
 
   final AppIcons icon;

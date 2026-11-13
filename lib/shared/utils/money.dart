@@ -18,9 +18,19 @@ String formatMoney(num value) {
   return negative ? '-$buf' : buf.toString();
 }
 
-/// «530,000 ل.س» — المبلغ مع رمز العملة.
-String formatMoneyWith(num value, String currency) =>
-    '${formatMoney(value)} ${currencySymbol(currency)}';
+/// «530,000 ل.س» / «2.25 $» — المبلغ مع رمز العملة.
+/// الليرة بلا كسور؛ العملات الأجنبية بمنزلتين عشريتين.
+String formatMoneyWith(num value, String currency) {
+  final sym = currencySymbol(currency);
+  if (currency.toUpperCase() == 'SYP') return '${formatMoney(value)} $sym';
+  return '${value.toStringAsFixed(2)} $sym';
+}
+
+/// «12» / «2.5» / «10» — كمية بلا أصفار لاحقة.
+String formatQuantity(num value) {
+  if (value == value.roundToDouble()) return value.round().toString();
+  return value.toString();
+}
 
 /// رمز العملة بالعربية؛ ما لا يُعرف يُعرض كما جاء من الخادم.
 String currencySymbol(String code) => switch (code.toUpperCase()) {

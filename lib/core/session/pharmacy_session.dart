@@ -92,6 +92,20 @@ class PharmacySessionNotifier extends AsyncNotifier<SessionState> {
     );
   }
 
+  Future<void> clearMustChangePassword() async {
+    final current = state.value;
+    if (current is! SessionAuthenticated) return;
+    state = AsyncData(
+      SessionAuthenticated(
+        token: current.token,
+        userId: current.userId,
+        tenantId: current.tenantId,
+        accountStatus: current.accountStatus,
+        mustChangePassword: false,
+      ),
+    );
+  }
+
   Future<void> clear() async {
     // إلغاء تسجيل الجهاز قبل محو التوكن — بعده يصبح الطلب بلا مصادقة.
     // بلا هذا تواصل إشعارات الحساب السابق الوصول إلى الجهاز بعد خروجه.

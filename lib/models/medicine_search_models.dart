@@ -1,3 +1,4 @@
+import 'bonus_tier.dart';
 import 'enums.dart';
 
 // نتائج البحث المقارن عن دواء (`GET /tawrid-api/medicines/search`).
@@ -63,24 +64,9 @@ enum MedicineResultType {
       );
 }
 
-class MedicineSearchBonusTier {
-  final double buyQuantity;
-  final double freeQuantity;
-  final String label;
-
-  const MedicineSearchBonusTier({
-    required this.buyQuantity,
-    required this.freeQuantity,
-    required this.label,
-  });
-
-  factory MedicineSearchBonusTier.fromJson(Map<String, dynamic> j) =>
-      MedicineSearchBonusTier(
-        buyQuantity: (j['buyQuantity'] as num).toDouble(),
-        freeQuantity: (j['freeQuantity'] as num).toDouble(),
-        label: j['label'] as String,
-      );
-}
+// MedicineSearchBonusTier kept as a typedef alias so any existing external
+// references continue to compile without changes.
+typedef MedicineSearchBonusTier = BonusTier;
 
 class MedicineSearchResult {
   final MedicineResultType resultType;
@@ -94,7 +80,7 @@ class MedicineSearchResult {
   final double? discountPercentage;
   final double? bonusPercentage;
   final double? availableQuantity;
-  final List<MedicineSearchBonusTier> bonusTiers;
+  final List<BonusTier> bonusTiers;
 
   // ── التسعير المباشر فقط ────────────────────────────────────────────
   final String? warehouseMedicineId;
@@ -150,7 +136,7 @@ class MedicineSearchResult {
     this.discountPercentage,
     this.bonusPercentage,
     this.availableQuantity,
-    this.bonusTiers = const [],
+    this.bonusTiers = const <BonusTier>[],
     this.warehouseMedicineId,
     required this.supplyWarehouseId,
     required this.warehouseName,
@@ -189,9 +175,7 @@ class MedicineSearchResult {
       discountPercentage: d('discountPercentage'),
       bonusPercentage: d('bonusPercentage'),
       availableQuantity: d('availableQuantity'),
-      bonusTiers: ((j['bonusTiers'] as List?) ?? [])
-          .map((e) => MedicineSearchBonusTier.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      bonusTiers: BonusTier.listFromJson(j['bonusTiers']),
       warehouseMedicineId: j['warehouseMedicineId'] as String?,
       supplyWarehouseId: j['supplyWarehouseId'] as String,
       warehouseName: j['warehouseName'] as String? ?? '',
@@ -228,6 +212,24 @@ class MedicineSearchResult {
 
   /// صنف يتعامل به المستودع بلا سعر معلن — يُعرَض ولا يُضاف إلى السلّة.
   bool get isUnpriced => !hasPrice || netUnitPrice == null;
+
+  /// هل للصنف بونص كمّي (شرائح أو نسبة) يُعرَض بشارة؟
+  bool get hasBonus =>
+      bonusTiers.isNotEmpty ||
+      (bonusPercentage != null && bonusPercentage! > 0);
+
+  /// نصّ شارة البونص الجاهزة للعرض — `null` إن لا بونص.
+  String? get bonusLabel {
+    if (bonusTiers.isNotEmpty) return bonusTiers.first.label;
+    if (bonusPercentage != null && bonusPercentage! > 0) {
+      return '${bonusPercentage!.toStringAsFixed(0)}٪ بونص';
+    }
+    return null;
+  }
+
+  /// سبب غياب السعر — نصّ جاهز للعرض في مكان السعر.
+  String get unpricedReason =>
+      priceBlockedByCurrency ? 'تسعير بعملة أجنبية' : 'بلا سعر';
 
   /// «أموكسيسيلين · كبسولات ٥٠٠» — السطر الثانوي تحت اسم الدواء.
   String get specLine => [

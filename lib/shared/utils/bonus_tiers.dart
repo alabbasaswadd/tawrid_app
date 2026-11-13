@@ -10,7 +10,7 @@
 /// 2×(10+5) + 1×(5+2) = 12 مجاناً، لا 10 فقط.
 library;
 
-import 'package:tawrid_app/models/cart_models.dart';
+import 'package:tawrid_app/models/bonus_tier.dart';
 
 const int _maxTiers = 10;
 const double _exactSolverLimit = 100000;

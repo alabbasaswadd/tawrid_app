@@ -32,11 +32,13 @@ class SessionAuthenticated extends SessionState {
     this.userId,
     this.tenantId,
     this.accountStatus = AccountStatus.approved,
+    this.mustChangePassword = false,
   });
   final String token;
   final String? userId;
   final String? tenantId;
   final AccountStatus accountStatus;
+  final bool mustChangePassword;
 }
 
 class SessionUnauthenticated extends SessionState {
@@ -57,11 +59,13 @@ class WarehouseSessionAuthenticated extends WarehouseSessionState {
     this.warehouseUserId,
     this.warehouseId,
     this.accountStatus = AccountStatus.approved,
+    this.mustChangePassword = false,
   });
   final String token;
   final String? warehouseUserId;
   final String? warehouseId;
   final AccountStatus accountStatus;
+  final bool mustChangePassword;
 }
 
 class WarehouseSessionUnauthenticated extends WarehouseSessionState {
