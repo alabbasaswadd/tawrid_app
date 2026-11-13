@@ -94,10 +94,7 @@ class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('المستودعات'),
-      ),
+      appBar: const InnerTopBar(title: 'المستودعات', showBack: false),
       body: Column(
         children: [
           Padding(
@@ -170,14 +167,14 @@ class _SortChips extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           _Chip(
             label: 'الأسرع قبولاً',
-            icon: Icons.check_circle_outline,
+            appIcon: AppIcons.check,
             selected: current == _WhSort.acceptance,
             onTap: () => onChanged(_WhSort.acceptance),
           ),
           const SizedBox(width: AppSpacing.xs),
           _Chip(
             label: 'الأسرع تسليماً',
-            icon: Icons.local_shipping_outlined,
+            appIcon: AppIcons.truck,
             selected: current == _WhSort.delivery,
             onTap: () => onChanged(_WhSort.delivery),
           ),
@@ -192,12 +189,12 @@ class _Chip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.icon,
+    this.appIcon,
   });
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final IconData? icon;
+  final AppIcons? appIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -215,8 +212,8 @@ class _Chip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 13,
+            if (appIcon != null) ...[
+              AppIcon(appIcon!, size: 13,
                   color: selected ? cs.onPrimary : cs.onSurfaceVariant),
               const SizedBox(width: 4),
             ],
@@ -295,7 +292,7 @@ class _WarehouseCard extends StatelessWidget {
             Row(
               children: [
                 if (w.avgAcceptanceDays != null) ...[
-                  Icon(Icons.check_circle_outline, size: 12, color: tk.hint),
+                  AppIcon(AppIcons.check, size: 12, color: tk.hint),
                   const SizedBox(width: 3),
                   Text(
                     'قبول ${w.avgAcceptanceDays!.toStringAsFixed(1)} ي',
@@ -306,7 +303,7 @@ class _WarehouseCard extends StatelessWidget {
                   Text('  ·  ',
                       style: context.text.labelSmall?.copyWith(color: tk.hint)),
                 if (w.avgDeliveryDays != null) ...[
-                  Icon(Icons.local_shipping_outlined, size: 12, color: tk.hint),
+                  AppIcon(AppIcons.truck, size: 12, color: tk.hint),
                   const SizedBox(width: 3),
                   Text(
                     'تسليم ${w.avgDeliveryDays!.toStringAsFixed(1)} ي',

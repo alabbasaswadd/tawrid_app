@@ -129,7 +129,25 @@
       "Bash(echo \"\")",
       "Bash(echo \"# Claude Code agent worktrees \\(temporary isolated repo copies\\)\")",
       "Bash(echo \".claude/worktrees/\")",
-      "PowerShell(cd \"E:\\\\tawrid\\\\tawrid_app\"; \\(git status --porcelain | Where-Object { $_ -match \"^U|^AA|^UA|^AU|^DD\" }\\).Count; Write-Output \"conflicts remaining\")"
+      "PowerShell(cd \"E:\\\\tawrid\\\\tawrid_app\"; \\(git status --porcelain | Where-Object { $_ -match \"^U|^AA|^UA|^AU|^DD\" }\\).Count; Write-Output \"conflicts remaining\")",
+      "Bash(flutter clean *)",
+      "Bash(./gradlew --stop)",
+      "PowerShell(Test-NetConnection *)",
+      "Bash(flutter sdk-path *)",
+      "Read(//c/Users/alabbas/.gradle/wrapper/dists/**)",
+      "Read(//c/Users/alabbas/.gradle/caches/**)",
+      "Read(//c/Users/alabbas/.m2/repository/com/android/tools/**)",
+      "Read(//c/Users/alabbas/.gradle/**)",
+      "Bash(curl -sI \"https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/9.1.0/com.android.application.gradle.plugin-9.1.0.pom\")",
+      "Bash(curl -sI \"https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/8.7.3/com.android.application.gradle.plugin-8.7.3.pom\")",
+      "Bash(curl -sI \"https://dl.google.com/\")",
+      "Bash(nslookup dl.google.com)",
+      "Bash(curl -sI \"https://maven.google.com/com/android/tools/build/gradle/maven-metadata.xml\")",
+      "Bash(curl -sI \"https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/8.7.3/gradle-8.7.3.pom\")",
+      "Bash(curl -sL \"https://maven.google.com/com/android/tools/build/gradle/maven-metadata.xml\")",
+      "Bash(curl -sI \"https://repo1.maven.org/maven2/com/android/application/com.android.application.gradle.plugin/9.1.0/com.android.application.gradle.plugin-9.1.0.pom\")",
+      "Bash(curl -sI \"https://jitpack.io/com/android/application/com.android.application.gradle.plugin/9.1.0/com.android.application.gradle.plugin-9.1.0.pom\")",
+      "Bash(curl -sI -o /dev/null -w '%{http_code}' https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/__TRACKED_VAR__/com.android.application.gradle.plugin-__TRACKED_VAR__.pom)"
     ]
   }
 }

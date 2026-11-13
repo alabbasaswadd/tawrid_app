@@ -208,7 +208,10 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            SizedBox(width: 40, height: 40, child: trailing),
+            if (trailing != null)
+              SizedBox(height: 40, child: trailing)
+            else
+              const SizedBox(width: 40, height: 40),
           ],
         ),
       ),

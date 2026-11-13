@@ -12,14 +12,13 @@ import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
-import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
+import 'package:tawrid_app/shared/widgets/order_chat_sheet.dart';
 
 import 'ph_orders_page.dart' show orderTone;
 
@@ -381,29 +380,11 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
   Future<void> _contactWarehouse() async {
     final order = _order!;
     final repo = ref.read(supplyOrderRepositoryProvider);
-    await CommentsSheet.show(
+    await OrderChatSheet.show(
       context,
-      loadComments: () async {
-        final list = await repo.getPharmacyOrderComments(order.id);
-        return list
-            .map((c) => OfferComment(
-                  id: c.id,
-                  parentId: c.parentId,
-                  authorId: '',
-                  authorName: c.authorName,
-                  authorCity: c.authorCity,
-                  authorGovernorate: c.authorGovernorate,
-                  content: c.content,
-                  createdOn: c.createdOn,
-                  authorType: c.isWarehouse
-                      ? CommentAuthorType.warehouse
-                      : CommentAuthorType.pharmacy,
-                ))
-            .toList();
-      },
-      addComment: (text, {String? parentId}) async {
-        await repo.addPharmacyOrderComment(order.id, text, parentId: parentId);
-      },
+      warehouseName: order.warehouseName,
+      loadMessages: () => repo.getPharmacyOrderComments(order.id),
+      sendMessage: (text) => repo.addPharmacyOrderComment(order.id, text),
     );
   }
 

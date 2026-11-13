@@ -269,7 +269,8 @@ abstract final class AppTheme {
   }
 }
 
-// انتقال الصفحات: fade + انزلاق خفيف من اليمين (٢٨٠ms / easeOut).
+// انتقال الصفحات: fade + انزلاق خفيف (٢٨٠ms / easeOut).
+// RTL: الصفحة الجديدة تدخل من اليسار (اتجاه التقدّم في العربية).
 // يُطبَّق تلقائياً على كل صفحات GoRouter عبر PageTransitionsTheme.
 class _TawridPageTransition extends PageTransitionsBuilder {
   const _TawridPageTransition();
@@ -287,11 +288,13 @@ class _TawridPageTransition extends PageTransitionsBuilder {
       parent: animation,
       curve: const Interval(0.0, 0.60, curve: Curves.easeOut),
     );
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final beginOffset = isRtl ? const Offset(-0.06, 0) : const Offset(0.06, 0);
     return FadeTransition(
       opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim),
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0.06, 0),
+          begin: beginOffset,
           end: Offset.zero,
         ).animate(curvedAnim),
         child: child,

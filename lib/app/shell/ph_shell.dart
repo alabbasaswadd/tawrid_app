@@ -59,8 +59,8 @@ class _PhShellState extends State<PhShell>
             final v = details.primaryVelocity ?? 0;
             if (v.abs() < 300) return;
             final cur = widget.navigationShell.currentIndex;
-            if (v > 0 && cur > 0) _onTap(cur - 1);
-            if (v < 0 && cur < 4) _onTap(cur + 1);
+            if (v > 0 && cur < 4) _onTap(cur + 1);
+            if (v < 0 && cur > 0) _onTap(cur - 1);
           },
           child: AnimatedBuilder(
             animation: _ctrl,

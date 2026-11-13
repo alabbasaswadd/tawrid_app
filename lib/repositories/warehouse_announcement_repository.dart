@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
@@ -37,8 +38,13 @@ class WarehouseAnnouncementRepository {
   }
 
   Future<WarehouseAnnouncement?> getActiveAnnouncement(String warehouseId) async {
-    final data = await _api.get(ApiEndpoints.phWarehouseAnnouncement(warehouseId));
-    if (data == null) return null;
-    return WarehouseAnnouncement.fromJson(data as Map<String, dynamic>);
+    try {
+      final data = await _api.get(ApiEndpoints.phWarehouseAnnouncement(warehouseId));
+      if (data == null) return null;
+      return WarehouseAnnouncement.fromJson(data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
   }
 }
