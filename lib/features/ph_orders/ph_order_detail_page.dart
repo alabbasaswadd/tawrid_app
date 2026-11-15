@@ -382,7 +382,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     final repo = ref.read(supplyOrderRepositoryProvider);
     await OrderChatSheet.show(
       context,
-      warehouseName: order.warehouseName,
+      counterpartyName: order.warehouseName,
       loadMessages: () => repo.getPharmacyOrderComments(order.id),
       sendMessage: (text) => repo.addPharmacyOrderComment(order.id, text),
     );

@@ -94,6 +94,7 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
     final tk = context.tokens;
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.x3l),
       children: [

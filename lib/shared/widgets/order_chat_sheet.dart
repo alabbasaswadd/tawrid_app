@@ -7,34 +7,43 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-// ورقة دردشة مباشرة بين الصيدلية والمستودع على طلبية بعينها.
-// الرسائل تُعرض كفقاعات: الصيدلية على اليمين (بداية القراءة)،
-// المستودع على اليسار. لا ردود متسلسلة — الواجهة بسيطة ومباشرة.
+// ورقة محادثة مباشرة على طلبية بعينها — تعمل من منظور الصيدلية والمستودع.
+//
+// عند isWarehouseView = true  : رسائل المستودع على اليسار (أنا)، الصيدلية على اليمين.
+// عند isWarehouseView = false : رسائل الصيدلية على اليمين (أنا)، المستودع على اليسار.
 class OrderChatSheet extends StatefulWidget {
   const OrderChatSheet({
-    required this.warehouseName,
+    required this.counterpartyName,
     required this.loadMessages,
     required this.sendMessage,
+    this.isWarehouseView = false,
     super.key,
   });
 
-  final String warehouseName;
+  /// اسم الطرف الآخر في المحادثة (اسم الصيدلية من منظور المستودع، أو اسم المستودع من منظور الصيدلية).
+  final String counterpartyName;
+
+  /// true عند فتح الورقة من جانب المستودع.
+  final bool isWarehouseView;
+
   final Future<List<OrderComment>> Function() loadMessages;
   final Future<void> Function(String content) sendMessage;
 
   static Future<void> show(
     BuildContext context, {
-    required String warehouseName,
+    required String counterpartyName,
     required Future<List<OrderComment>> Function() loadMessages,
     required Future<void> Function(String content) sendMessage,
+    bool isWarehouseView = false,
   }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => OrderChatSheet(
-        warehouseName: warehouseName,
+        counterpartyName: counterpartyName,
         loadMessages: loadMessages,
         sendMessage: sendMessage,
+        isWarehouseView: isWarehouseView,
       ),
     );
   }
@@ -148,11 +157,17 @@ class _OrderChatSheetState extends State<OrderChatSheet> {
                       const SizedBox(height: AppSpacing.sm),
                       Row(
                         children: [
-                          AppIcon(AppIcons.warehouse, size: 18, color: cs.primary),
+                          AppIcon(
+                            widget.isWarehouseView ? AppIcons.user : AppIcons.warehouse,
+                            size: 18,
+                            color: cs.primary,
+                          ),
                           const SizedBox(width: AppSpacing.xs),
                           Expanded(
                             child: Text(
-                              widget.warehouseName,
+                              widget.counterpartyName.isNotEmpty
+                                  ? widget.counterpartyName
+                                  : (widget.isWarehouseView ? 'الصيدلية' : 'المستودع'),
                               style: context.text.titleSmall
                                   ?.copyWith(color: cs.primary),
                               maxLines: 1,
@@ -233,8 +248,10 @@ class _OrderChatSheetState extends State<OrderChatSheet> {
 
     final msgs = _messages ?? [];
     if (msgs.isEmpty) {
-      return const EmptyState(
-        message: 'ابدأ المحادثة مع المستودع',
+      return EmptyState(
+        message: widget.isWarehouseView
+            ? 'ابدأ المحادثة مع الصيدلية'
+            : 'ابدأ المحادثة مع المستودع',
         icon: Icons.chat_bubble_outline,
       );
     }
@@ -246,56 +263,83 @@ class _OrderChatSheetState extends State<OrderChatSheet> {
         vertical: AppSpacing.sm,
       ),
       itemCount: msgs.length,
-      itemBuilder: (_, i) => _ChatBubble(comment: msgs[i]),
+      itemBuilder: (_, i) => _ChatBubble(
+        comment: msgs[i],
+        isWarehouseView: widget.isWarehouseView,
+      ),
     );
   }
 }
 
 class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.comment});
+  const _ChatBubble({required this.comment, required this.isWarehouseView});
+
   final OrderComment comment;
+
+  /// true = نحن المستودع: رسائل المستودع على اليسار، الصيدلية على اليمين.
+  final bool isWarehouseView;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
-    final isMe = !comment.isWarehouse; // الصيدلية هي المستخدم الحالي
+
+    // isMe = true عندما تكون الرسالة من الطرف الذي يشاهد الشاشة.
+    final isMe = isWarehouseView ? comment.isWarehouse : !comment.isWarehouse;
+    final showName = !isMe && comment.authorName.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            isMe ? MainAxisAlignment.start : MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isMe) ...[
+          if (isMe) ...[
             CircleAvatar(
               radius: 14,
               backgroundColor: cs.primary.withValues(alpha: 0.12),
-              child: AppIcon(AppIcons.warehouse, size: 14, color: cs.primary),
+              child: AppIcon(
+                isWarehouseView ? AppIcons.warehouse : AppIcons.user,
+                size: 14,
+                color: cs.primary,
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
           ],
           Flexible(
             child: Column(
               crossAxisAlignment: isMe
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.end,
               children: [
+                if (showName)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      comment.authorName,
+                      style: context.text.labelSmall?.copyWith(
+                        color: context.tokens.hint,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.sm,
                   ),
                   decoration: BoxDecoration(
-                    color: isMe ? cs.primary : tk.brandSurface,
+                    color: isMe ? tk.brandSurface : cs.primary,
                     borderRadius: BorderRadius.only(
                       topRight: const Radius.circular(AppRadius.lg),
                       topLeft: const Radius.circular(AppRadius.lg),
-                      bottomRight: isMe
+                      bottomLeft: isMe
                           ? const Radius.circular(4.0)
                           : const Radius.circular(AppRadius.lg),
-                      bottomLeft: isMe
+                      bottomRight: isMe
                           ? const Radius.circular(AppRadius.lg)
                           : const Radius.circular(4.0),
                     ),
@@ -303,7 +347,7 @@ class _ChatBubble extends StatelessWidget {
                   child: Text(
                     comment.content,
                     style: context.text.bodySmall?.copyWith(
-                      color: isMe ? cs.onPrimary : cs.onSurface,
+                      color: isMe ? cs.onSurface : cs.onPrimary,
                     ),
                   ),
                 ),
@@ -318,12 +362,16 @@ class _ChatBubble extends StatelessWidget {
               ],
             ),
           ),
-          if (isMe) ...[
+          if (!isMe) ...[
             const SizedBox(width: AppSpacing.xs),
             CircleAvatar(
               radius: 14,
               backgroundColor: cs.primary.withValues(alpha: 0.12),
-              child: AppIcon(AppIcons.user, size: 14, color: cs.primary),
+              child: AppIcon(
+                isWarehouseView ? AppIcons.user : AppIcons.warehouse,
+                size: 14,
+                color: cs.primary,
+              ),
             ),
           ],
         ],

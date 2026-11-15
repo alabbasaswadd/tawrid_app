@@ -147,7 +147,13 @@
       "Bash(curl -sL \"https://maven.google.com/com/android/tools/build/gradle/maven-metadata.xml\")",
       "Bash(curl -sI \"https://repo1.maven.org/maven2/com/android/application/com.android.application.gradle.plugin/9.1.0/com.android.application.gradle.plugin-9.1.0.pom\")",
       "Bash(curl -sI \"https://jitpack.io/com/android/application/com.android.application.gradle.plugin/9.1.0/com.android.application.gradle.plugin-9.1.0.pom\")",
-      "Bash(curl -sI -o /dev/null -w '%{http_code}' https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/__TRACKED_VAR__/com.android.application.gradle.plugin-__TRACKED_VAR__.pom)"
+      "Bash(curl -sI -o /dev/null -w '%{http_code}' https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/__TRACKED_VAR__/com.android.application.gradle.plugin-__TRACKED_VAR__.pom)",
+      "Bash(New-Item -ItemType Directory -Force \"E:\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Application\\\\Features\\\\Supply\\\\OrderMessages\\\\Dtos\")",
+      "Bash(New-Item -ItemType Directory -Force \"E:\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Application\\\\Features\\\\Supply\\\\OrderMessages\\\\Commands\\\\AddOrderMessage\")",
+      "Bash(New-Item -ItemType Directory -Force \"E:\\\\tawrid\\\\Tawrid.API\\\\Tawrid.Application\\\\Features\\\\Supply\\\\OrderMessages\\\\Queries\\\\GetOrderMessages\")",
+      "Bash(Write-Output \"Directories created\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\alabbas\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--tawrid-tawrid-app\\\\13de53b1-0df8-453e-8965-b73fef9bdb0c\\\\tasks\\\\b8fl1ccq4.output\" -Wait)",
+      "PowerShell(Copy-Item *)"
     ]
   }
 }

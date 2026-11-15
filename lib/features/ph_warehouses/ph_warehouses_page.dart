@@ -250,69 +250,70 @@ class _WarehouseCard extends StatelessWidget {
       onTap: () => context.push(TRoutes.phWarehouseProfile(w.id)),
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   w.name,
                   style: context.text.titleMedium,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              AppIcon(AppIcons.chevronForwardRtl, size: 14, color: tk.hint),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            w.city.isEmpty ? w.governorate : '${w.city}، ${w.governorate}',
-            style: context.text.bodySmall?.copyWith(color: tk.hint),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              if (w.code.isNotEmpty) ...[
-                Text(w.code,
-                    style: context.text.labelSmall?.copyWith(color: tk.hint)),
-                Text(' · ',
-                    style: context.text.labelSmall?.copyWith(color: tk.hint)),
-              ],
-              Text(coverageText,
-                  style: context.text.labelSmall?.copyWith(color: cs.primary)),
-            ],
-          ),
-          if (w.avgAcceptanceDays != null || w.avgDeliveryDays != null) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                if (w.avgAcceptanceDays != null) ...[
-                  AppIcon(AppIcons.check, size: 12, color: tk.hint),
-                  const SizedBox(width: 3),
-                  Text(
-                    'قبول ${w.avgAcceptanceDays!.toStringAsFixed(1)} ي',
-                    style: context.text.labelSmall?.copyWith(color: tk.hint),
-                  ),
-                ],
-                if (w.avgAcceptanceDays != null && w.avgDeliveryDays != null)
-                  Text('  ·  ',
-                      style: context.text.labelSmall?.copyWith(color: tk.hint)),
-                if (w.avgDeliveryDays != null) ...[
-                  AppIcon(AppIcons.truck, size: 12, color: tk.hint),
-                  const SizedBox(width: 3),
-                  Text(
-                    'تسليم ${w.avgDeliveryDays!.toStringAsFixed(1)} ي',
-                    style: context.text.labelSmall?.copyWith(color: tk.hint),
+                const SizedBox(height: 4),
+                Text(
+                  w.city.isEmpty ? w.governorate : '${w.city}، ${w.governorate}',
+                  style: context.text.bodySmall?.copyWith(color: tk.hint),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if (w.code.isNotEmpty) ...[
+                      Text(w.code,
+                          style: context.text.labelSmall?.copyWith(color: tk.hint)),
+                      Text(' · ',
+                          style: context.text.labelSmall?.copyWith(color: tk.hint)),
+                    ],
+                    Text(coverageText,
+                        style: context.text.labelSmall?.copyWith(color: cs.primary)),
+                  ],
+                ),
+                if (w.avgAcceptanceDays != null || w.avgDeliveryDays != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (w.avgAcceptanceDays != null) ...[
+                        AppIcon(AppIcons.check, size: 12, color: tk.hint),
+                        const SizedBox(width: 3),
+                        Text(
+                          'قبول ${w.avgAcceptanceDays!.toStringAsFixed(1)} ي',
+                          style: context.text.labelSmall?.copyWith(color: tk.hint),
+                        ),
+                      ],
+                      if (w.avgAcceptanceDays != null && w.avgDeliveryDays != null)
+                        Text('  ·  ',
+                            style: context.text.labelSmall?.copyWith(color: tk.hint)),
+                      if (w.avgDeliveryDays != null) ...[
+                        AppIcon(AppIcons.truck, size: 12, color: tk.hint),
+                        const SizedBox(width: 3),
+                        Text(
+                          'تسليم ${w.avgDeliveryDays!.toStringAsFixed(1)} ي',
+                          style: context.text.labelSmall?.copyWith(color: tk.hint),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ],
             ),
-          ],
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          AppIcon(AppIcons.chevronForwardRtl, size: 14, color: tk.hint),
         ],
       ),
     );

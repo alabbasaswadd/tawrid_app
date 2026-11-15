@@ -58,7 +58,7 @@ class _SplashPageState extends State<SplashPage>
     final cs = context.colors;
 
     return Scaffold(
-      backgroundColor: cs.primary,
+      backgroundColor: cs.surface,
       body: SafeArea(
         child: SizedBox.expand(
           child: Stack(
@@ -70,49 +70,30 @@ class _SplashPageState extends State<SplashPage>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // اللوغو + حلقة التوهّج
+                    // اللوغو
                     FadeTransition(
                       opacity: _logoFade,
                       child: ScaleTransition(
                         scale: _logoScale,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(26),
-                          child: Image.asset(
-                            'assets/images/logo.jpg',
-                            width: 108,
-                            height: 108,
-                            fit: BoxFit.cover,
-                          ),
+                        child: Image.asset(
+                          'assets/images/logo.jpg',
+                          width: 260,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: AppSpacing.x2l),
+                    const SizedBox(height: AppSpacing.lg),
 
-                    // الاسم والوصف
+                    // الوصف فقط — الاسم موجود داخل الشعار
                     FadeTransition(
                       opacity: _textFade,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            'توريد',
-                            textAlign: TextAlign.center,
-                            style: context.text.displayLarge?.copyWith(
-                              color: cs.onPrimary,
-                              letterSpacing: 2.0,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'المنصة الذكية للتوريد الدوائي',
-                            textAlign: TextAlign.center,
-                            style: context.text.bodySmall?.copyWith(
-                              color: cs.onPrimary.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'المنصة الذكية للتوريد الدوائي',
+                        textAlign: TextAlign.center,
+                        style: context.text.bodySmall?.copyWith(
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                        ),
                       ),
                     ),
                   ],
@@ -130,7 +111,7 @@ class _SplashPageState extends State<SplashPage>
                       width: 26,
                       height: 26,
                       child: CircularProgressIndicator(
-                        color: cs.onPrimary,
+                        color: cs.primary,
                         strokeWidth: 2.5,
                       ),
                     ),

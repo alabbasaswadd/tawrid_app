@@ -80,6 +80,7 @@ abstract final class ApiEndpoints {
   static String phOrderHistory(String id)     => '$_ph/supply-orders/$id/history';
   static String phOrderGenerateInvoice(String id) => '$_ph/supply-orders/$id/generate-invoice';
   static String phOrderComments(String id)        => '$_ph/supply-orders/$id/comments';
+  static String phOrderMessages(String id)        => '$_ph/supply-orders/$id/messages';
 
   // ── Pharmacy: Quotation Requests (طلبات التسعير — كانت tenders) ───────────
   // أُعيدت التسمية في الباك إند إلى quotation-requests. أسماء الثوابت هنا
@@ -120,6 +121,7 @@ abstract final class ApiEndpoints {
   static String whOrderStatus(String id)     => '$_wh/orders/$id/status';
   static String whOrderHistory(String id)    => '$_wh/orders/$id/history';
   static String whOrderComments(String id)   => '$_wh/orders/$id/comments';
+  static String whOrderMessages(String id)   => '$_wh/orders/$id/messages';
 
   // ── Warehouse: Quotation Requests (طلبات التسعير) ─────────────────────────
   static const String whTendersOpen = '$_wh/quotation-requests/open';

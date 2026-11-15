@@ -62,8 +62,8 @@ abstract final class AppPalette {
   static const surfaceAltLight = Color(0xFFF1F5F3);
   static const outlineLight = Color(0xFFE3EAE6);
   static const outlineStrongLight = Color(0xFFC9D4CE);
-  static const textPrimaryLight = Color(0xFF000000);
-  static const textSecondaryLight = Color(0xFF000000);
+  static const textPrimaryLight = Color(0xFF0D1613);
+  static const textSecondaryLight = Color(0xFF52605C);
   static const textHintLight = Color(0xFF9EA5A1);
 
   // ── محايدات (داكن) — نفس المنطق: نص محايد بلا صبغة، لا أسود هنا لأن

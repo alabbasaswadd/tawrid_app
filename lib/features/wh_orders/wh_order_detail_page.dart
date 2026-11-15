@@ -8,14 +8,13 @@ import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
-import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
+import 'package:tawrid_app/shared/widgets/order_chat_sheet.dart';
 
 import 'wh_orders_page.dart' show whOrderTone;
 
@@ -169,29 +168,13 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
 
   Future<void> _openChat() {
     final repo = ref.read(supplyOrderRepositoryProvider);
-    return CommentsSheet.show(
+    final pharmacyName = _order?.pharmacyName ?? '';
+    return OrderChatSheet.show(
       context,
-      loadComments: () async {
-        final list = await repo.getWarehouseOrderComments(widget.orderId);
-        return list
-            .map((c) => OfferComment(
-                  id: c.id,
-                  parentId: c.parentId,
-                  authorType: c.isWarehouse
-                      ? CommentAuthorType.warehouse
-                      : CommentAuthorType.pharmacy,
-                  authorId: '',
-                  authorName: c.authorName,
-                  authorCity: c.authorCity,
-                  authorGovernorate: c.authorGovernorate,
-                  content: c.content,
-                  createdOn: c.createdOn,
-                ))
-            .toList();
-      },
-      addComment: (text, {String? parentId}) async {
-        await repo.addWarehouseOrderComment(widget.orderId, text, parentId: parentId);
-      },
+      counterpartyName: pharmacyName,
+      isWarehouseView: true,
+      loadMessages: () => repo.getWarehouseOrderComments(widget.orderId),
+      sendMessage: (text) => repo.addWarehouseOrderComment(widget.orderId, text),
     );
   }
 

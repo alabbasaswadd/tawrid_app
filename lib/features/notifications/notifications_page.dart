@@ -112,6 +112,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         wh ? TRoutes.whTenders : null,
       NotificationType.newQuotation => wh ? null : TRoutes.phTenders,
       NotificationType.newSalesOffer => wh ? TRoutes.whOffers : TRoutes.phOffers,
+      NotificationType.newOrderMessage =>
+        wh ? TRoutes.whOrderDetail(ref0) : null,
       NotificationType.newComment ||
       NotificationType.warehouseAnnouncement ||
       NotificationType.general ||
@@ -229,7 +231,9 @@ class _NotificationTile extends StatelessWidget {
         NotificationType.newQuotationRequest =>
           Icons.request_quote_outlined,
         NotificationType.newSalesOffer => Icons.sell_outlined,
-        NotificationType.newComment => Icons.chat_bubble_outline,
+        NotificationType.newComment ||
+        NotificationType.newOrderMessage =>
+          Icons.chat_bubble_outline,
         NotificationType.warehouseAnnouncement => Icons.campaign_outlined,
         NotificationType.general || NotificationType.unknown =>
           Icons.notifications_none,

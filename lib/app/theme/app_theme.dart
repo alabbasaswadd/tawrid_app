@@ -32,6 +32,9 @@ abstract final class AppTheme {
     final textSecondary = isDark
         ? AppPalette.textSecondaryDark
         : AppPalette.textSecondaryLight;
+    final textHint = isDark
+        ? AppPalette.textHintDark
+        : AppPalette.textHintLight;
     final error = isDark ? AppPalette.errorDark : AppPalette.errorLight;
     final tokens = isDark ? TawridTokens.dark : TawridTokens.light;
 
@@ -134,7 +137,7 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.md),
           borderSide: BorderSide(color: outline),
         ),
-        hintStyle: textTheme.bodyMedium?.copyWith(color: textSecondary),
+        hintStyle: textTheme.bodyMedium?.copyWith(color: textHint),
         labelStyle: textTheme.bodySmall?.copyWith(color: textPrimary),
         helperStyle: textTheme.labelSmall?.copyWith(color: textSecondary),
         errorStyle: textTheme.labelSmall?.copyWith(color: error),
