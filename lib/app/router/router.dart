@@ -545,15 +545,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           // ترتيب الفروع يحدّد ترتيب التبويبات، فيطابق شريط التنقل:
-          // الرئيسية، العروض، الطلبات، أدويتي، حسابي.
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: TRoutes.whOffers,
-                builder: (_, _) => const WhOffersPage(),
-              ),
-            ],
-          ),
+          // الرئيسية، الطلبات، أدويتي، العروض، حسابي.
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -567,6 +559,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: TRoutes.whMedicines,
                 builder: (_, _) => const WhMedicinesPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: TRoutes.whOffers,
+                builder: (_, _) => const WhOffersPage(),
               ),
             ],
           ),

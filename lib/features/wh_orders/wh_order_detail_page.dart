@@ -235,16 +235,22 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
             if (_order != null)
               IconButton(
                 tooltip: 'تصدير إلى إكسل',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                iconSize: 20,
                 icon: _exporting
                     ? const SizedBox(
                         width: 18, height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.table_chart_outlined, size: 20),
+                    : const Icon(Icons.table_chart_outlined),
                 onPressed: _loading || _exporting ? null : _exportCsv,
               ),
             IconButton(
               tooltip: 'دردشة مع الصيدلية',
-              icon: const Icon(Icons.chat_outlined, size: 20),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              iconSize: 20,
+              icon: const Icon(Icons.chat_outlined),
               onPressed: _order == null ? null : _openChat,
             ),
           ],

@@ -81,9 +81,9 @@ class _WhShellState extends State<WhShell>
           onTap: _onTap,
           items: const [
             AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
-            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
             AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبات'),
             AppBottomNavItem(icon: AppIcons.package, label: 'أدويتي'),
+            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
             AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
           ],
         ),
