@@ -155,7 +155,12 @@
       "Bash(Get-Content \"C:\\\\Users\\\\alabbas\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--tawrid-tawrid-app\\\\13de53b1-0df8-453e-8965-b73fef9bdb0c\\\\tasks\\\\b8fl1ccq4.output\" -Wait)",
       "PowerShell(Copy-Item *)",
       "Bash(git reset *)",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "Bash(curl *)",
+      "Bash(./gradlew assembleRelease --refresh-dependencies)",
+      "Bash(./gradlew assembleRelease --info)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Stop-Process *)"
     ]
   }
 }
