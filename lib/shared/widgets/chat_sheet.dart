@@ -138,103 +138,97 @@ class _ChatSheetState extends State<ChatSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
+    final screenH = MediaQuery.of(context).size.height;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (ctx, _) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: Column(
-            children: [
-              // ─── Header ───────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.page, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(widget.title,
-                          style: context.text.titleMedium,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
+    return SizedBox(
+      height: screenH * 0.75 + bottomInset,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                border: Border(bottom: BorderSide(color: cs.outlineVariant)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              // ─── Message list ──────────────────────────────────────
-              Expanded(child: _buildBody()),
-              // ─── Input bar ─────────────────────────────────────────
-              Container(
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  border: Border(top: BorderSide(color: cs.outlineVariant)),
-                ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(),
-                        decoration: InputDecoration(
-                          hintText: 'اكتب رسالة...',
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(color: cs.outlineVariant),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(color: cs.outlineVariant),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(color: cs.primary, width: 1.5),
-                          ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(widget.title,
+                        style: context.text.titleMedium,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: _buildBody()),
+            Container(
+              decoration: BoxDecoration(
+                color: cs.surface,
+                border: Border(top: BorderSide(color: cs.outlineVariant)),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                      decoration: InputDecoration(
+                        hintText: 'اكتب رسالة...',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: cs.outlineVariant),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: cs.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide:
+                              BorderSide(color: cs.primary, width: 1.5),
                         ),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    _sending
-                        ? const SizedBox(
-                            width: 36,
-                            height: 36,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : IconButton.filled(
-                            icon: const Icon(Icons.send, size: 18),
-                            onPressed: _send,
-                            style: IconButton.styleFrom(
-                              backgroundColor: cs.primary,
-                              foregroundColor: cs.onPrimary,
-                              minimumSize: const Size(36, 36),
-                            ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  _sending
+                      ? const SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton.filled(
+                          icon: const Icon(Icons.send, size: 18),
+                          onPressed: _send,
+                          style: IconButton.styleFrom(
+                            backgroundColor: cs.primary,
+                            foregroundColor: cs.onPrimary,
+                            minimumSize: const Size(36, 36),
                           ),
-                  ],
-                ),
+                        ),
+                ],
               ),
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
