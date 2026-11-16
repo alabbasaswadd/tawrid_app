@@ -17,6 +17,8 @@ class _WhShellState extends State<WhShell>
   late final Animation<double> _fade;
   double _slideDir = 0.0;
 
+  static const int _tabCount = 5;
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +47,17 @@ class _WhShellState extends State<WhShell>
     );
   }
 
+  // RTL swipe: سحب يمين (velocity > 0) = تبويب تالٍ، سحب يسار = تبويب سابق
+  void _onSwipe(DragEndDetails details) {
+    final v = details.primaryVelocity ?? 0;
+    final cur = widget.navigationShell.currentIndex;
+    if (v > 300 && cur < _tabCount - 1) {
+      _onTap(cur + 1);
+    } else if (v < -300 && cur > 0) {
+      _onTap(cur - 1);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -53,28 +66,33 @@ class _WhShellState extends State<WhShell>
         if (!didPop && widget.navigationShell.currentIndex != 0) _onTap(0);
       },
       child: Scaffold(
-        body: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (_, child) => FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset(_slideDir, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut)),
-              child: child,
+        body: GestureDetector(
+          onHorizontalDragEnd: _onSwipe,
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (_, child) => FadeTransition(
+              opacity: _fade,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: Offset(_slideDir, 0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+                ),
+                child: child,
+              ),
             ),
+            child: widget.navigationShell,
           ),
-          child: widget.navigationShell,
         ),
         bottomNavigationBar: AppBottomNav(
           currentIndex: widget.navigationShell.currentIndex,
           onTap: _onTap,
           items: const [
             AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
-            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
             AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبات'),
             AppBottomNavItem(icon: AppIcons.package, label: 'أدويتي'),
+            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
             AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
           ],
         ),

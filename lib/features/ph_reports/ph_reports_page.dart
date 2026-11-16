@@ -98,14 +98,26 @@ class _PhReportsPageState extends ConsumerState<PhReportsPage> {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: SummaryCounter(
-                // عملة واحدة ⇒ رقمٌ ووسمٌ كما كان. أكثر من عملة ⇒ تُسرَد
-                // مفصولةً بدل جمعها في رقم لا معنى له.
+                value: '${s.completedCount}',
+                label: 'الطلبيات المكتملة',
+                icon: AppIcons.check,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: SummaryCounter(
+                // الإنفاق يُحسَب من الطلبيات المكتملة والمستلَمة فقط
                 value: s.totalSpent.isEmpty
                     ? '0'
                     : s.totalSpent.entries
                           .map((e) => formatMoneyWith(e.value, e.key))
                           .join(' · '),
-                label: 'الإنفاق الكلي',
+                label: 'إنفاق الطلبيات المكتملة',
                 icon: AppIcons.tag,
               ),
             ),
@@ -279,8 +291,9 @@ class _WarehouseStat {
 
 class _ReportStats {
   final int total;
+  final int completedCount;
 
-  /// الإنفاق الكلي لكل عملة — مفتاحه رمز العملة.
+  /// الإنفاق الكلي للطلبيات المكتملة/المستلَمة فقط، لكل عملة.
   final Map<String, double> totalSpent;
 
   final Map<SupplyOrderStatus, int> byStatus;
@@ -288,6 +301,7 @@ class _ReportStats {
 
   const _ReportStats({
     required this.total,
+    required this.completedCount,
     required this.totalSpent,
     required this.byStatus,
     required this.topWarehouses,
@@ -318,8 +332,15 @@ class _ReportStats {
     final top = whCount.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    final completedCount = orders
+        .where((o) =>
+            o.status == SupplyOrderStatus.completed ||
+            o.status == SupplyOrderStatus.delivered)
+        .length;
+
     return _ReportStats(
       total: orders.length,
+      completedCount: completedCount,
       totalSpent: totalSpent,
       byStatus: byStatus,
       topWarehouses: top.take(5).map((e) {

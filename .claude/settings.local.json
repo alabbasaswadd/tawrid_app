@@ -160,7 +160,11 @@
       "Bash(./gradlew assembleRelease --refresh-dependencies)",
       "Bash(./gradlew assembleRelease --info)",
       "PowerShell(Get-Command *)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(Select-String -Pattern \"error\")",
+      "Bash(Select-Object -First 20)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -m 'feat: implement pharmacist and warehouse UI enhancements *)"
     ]
   }
 }

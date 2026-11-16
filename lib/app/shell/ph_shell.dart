@@ -18,6 +18,8 @@ class _PhShellState extends State<PhShell>
   // اتجاه الانزلاق: سالب = من اليسار، موجب = من اليمين (RTL: فهرس أعلى = يسار)
   double _slideDir = 0.0;
 
+  static const int _tabCount = 5;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +48,17 @@ class _PhShellState extends State<PhShell>
     );
   }
 
+  // RTL swipe: سحب يمين (velocity > 0) = تبويب تالٍ، سحب يسار = تبويب سابق
+  void _onSwipe(DragEndDetails details) {
+    final v = details.primaryVelocity ?? 0;
+    final cur = widget.navigationShell.currentIndex;
+    if (v > 300 && cur < _tabCount - 1) {
+      _onTap(cur + 1);
+    } else if (v < -300 && cur > 0) {
+      _onTap(cur - 1);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -54,19 +67,24 @@ class _PhShellState extends State<PhShell>
         if (!didPop && widget.navigationShell.currentIndex != 0) _onTap(0);
       },
       child: Scaffold(
-        body: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (_, child) => FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset(_slideDir, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut)),
-              child: child,
+        body: GestureDetector(
+          onHorizontalDragEnd: _onSwipe,
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (_, child) => FadeTransition(
+              opacity: _fade,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: Offset(_slideDir, 0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+                ),
+                child: child,
+              ),
             ),
+            child: widget.navigationShell,
           ),
-          child: widget.navigationShell,
         ),
         bottomNavigationBar: AppBottomNav(
           currentIndex: widget.navigationShell.currentIndex,

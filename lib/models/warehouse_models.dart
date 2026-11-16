@@ -18,6 +18,12 @@ class WarehousePicker {
   /// مستودع إدلبي يَرِد بالدولار ولو كانت الصيدلية بالليرة.
   final String pricingCurrency;
 
+  /// متوسط أيام القبول — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgAcceptanceDays;
+
+  /// متوسط أيام التسليم — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgDeliveryDays;
+
   WarehousePicker({
     required this.id,
     required this.name,
@@ -28,6 +34,8 @@ class WarehousePicker {
     this.serviceAreaCount = 0,
     this.servesAllAreas = false,
     this.pricingCurrency = 'SYP',
+    this.avgAcceptanceDays,
+    this.avgDeliveryDays,
   });
 
   factory WarehousePicker.fromJson(Map<String, dynamic> j) => WarehousePicker(
@@ -42,6 +50,8 @@ class WarehousePicker {
         serviceAreaCount: j['serviceAreaCount'] as int? ?? 0,
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
         pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
+        avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
       );
 }
 
@@ -69,6 +79,12 @@ class WarehouseProfile {
   /// مستودع إدلبي يَرِد بالدولار ولو كانت الصيدلية بالليرة.
   final String pricingCurrency;
 
+  /// متوسط أيام القبول — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgAcceptanceDays;
+
+  /// متوسط أيام التسليم — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgDeliveryDays;
+
   const WarehouseProfile({
     required this.id,
     required this.name,
@@ -82,6 +98,8 @@ class WarehouseProfile {
     required this.servesAllAreas,
     required this.activeOffersCount,
     this.pricingCurrency = 'SYP',
+    this.avgAcceptanceDays,
+    this.avgDeliveryDays,
   });
 
   factory WarehouseProfile.fromJson(Map<String, dynamic> j) => WarehouseProfile(
@@ -98,5 +116,7 @@ class WarehouseProfile {
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
         activeOffersCount: j['activeOffersCount'] as int? ?? 0,
         pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
+        avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
       );
 }

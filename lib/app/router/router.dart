@@ -51,6 +51,7 @@ import 'package:tawrid_app/features/wh_offers/wh_offer_detail_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_order_detail_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_orders_page.dart';
+import 'package:tawrid_app/features/wh_announcements/wh_announcements_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_submit_tender_offer_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_tenders_page.dart';
 import 'package:tawrid_app/features/wh_users/wh_users_page.dart';
@@ -366,6 +367,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const WhUsersPage(),
       ),
 
+      // إعلانات الخصم — يُنشئها المستودع ويراها الصيدليون في ملفه
+      GoRoute(
+        path: TRoutes.whAnnouncements,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhAnnouncementsPage(),
+      ),
+
       // البحث عن دواء (الصيدلي) — يُفتح من الرئيسية
       GoRoute(
         path: TRoutes.phMedicineSearch,
@@ -544,15 +552,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           // ترتيب الفروع يحدّد ترتيب التبويبات، فيطابق شريط التنقل:
-          // الرئيسية، العروض، الطلبات، أدويتي، حسابي.
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: TRoutes.whOffers,
-                builder: (_, _) => const WhOffersPage(),
-              ),
-            ],
-          ),
+          // الرئيسية، الطلبات، أدويتي، العروض، حسابي.
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -566,6 +566,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: TRoutes.whMedicines,
                 builder: (_, _) => const WhMedicinesPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: TRoutes.whOffers,
+                builder: (_, _) => const WhOffersPage(),
               ),
             ],
           ),

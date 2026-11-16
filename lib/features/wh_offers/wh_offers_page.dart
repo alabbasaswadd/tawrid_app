@@ -12,7 +12,7 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
+import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
 
 // شرائح عروض المستودع (Figma): الكل، منشور، مسودة، متوقف، منتهٍ.
 enum _OffersTab {
@@ -115,8 +115,21 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     try {
       await ref.read(salesOfferRepositoryProvider).publishOffer(offer.id);
       if (!mounted) return;
-      AppSnackbar.success(context, 'نُشر العرض');
       await _load(silent: true);
+      if (!mounted) return;
+      final updated = (_offers ?? []).where((o) => o.id == offer.id).firstOrNull;
+      if (updated?.status == SalesOfferStatus.draft) {
+        final tk = context.tokens;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('تم حفظ العرض كمسودة وليس منشوراً بعد',
+              style: TextStyle(color: Colors.white)),
+          backgroundColor: tk.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ));
+      } else {
+        AppSnackbar.success(context, 'نُشر العرض');
+      }
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
@@ -160,10 +173,12 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
 
   Future<void> _openComments(SalesOfferSummary offer) {
     final repo = ref.read(salesOfferRepositoryProvider);
-    return CommentsSheet.show(
+    return ChatSheet.show(
       context,
-      loadComments: () => repo.getWarehouseComments(offer.id),
-      addComment: (text) => repo.addWarehouseComment(offer.id, text),
+      title: 'دردشة مع الصيدليات',
+      currentUserType: 'warehouse',
+      loadMessages: () => repo.getWarehouseComments(offer.id),
+      sendMessage: (text) => repo.addWarehouseComment(offer.id, text),
     );
   }
 

@@ -14,10 +14,10 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/utils/contact_launcher.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
 
 import 'ph_orders_page.dart' show orderTone;
 
@@ -195,29 +195,85 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     }
   }
 
+  void _showExportSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('تصدير الطلب', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.lg),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('تصدير إلى Excel', style: context.text.bodyMedium),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('جاري تطوير التصدير إلى Excel')),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('تصدير إلى PDF', style: context.text.bodyMedium),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _sharePdf();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: InnerTopBar(
-        title: 'تفاصيل الطلب',
-        trailing: IconButton(
-          tooltip: 'مشاركة كملف PDF',
-          onPressed: _loading || _sharing ? null : _sharePdf,
-          icon: _sharing
-              ? const SizedBox(
-                  width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.ios_share, size: 20),
-        ),
+      appBar: AppBar(
+        title: const Text('تفاصيل الطلب'),
+        actions: [
+          if (_sharing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Center(
+                child: SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _loading ? null : _showExportSheet,
+              child: const Text('تصدير'),
+            ),
+        ],
       ),
-      body: _buildBody(),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
       bottomNavigationBar: _order == null ? null : _buildBottomBar(),
     );
   }
 
   Widget _buildBody() {
-    if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_loading) {
+      return ListView(
+        children: const [AppDetailSkeleton()],
+      );
+    }
+    if (_error != null) {
+      return ListView(
+        children: [ErrorState(message: _error!, onRetry: _load)],
+      );
+    }
 
     final order = _order!;
     final tk = context.tokens;
@@ -366,15 +422,15 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     );
   }
 
-  Future<void> _contactWarehouse() async {
-    final order = _order!;
-    final opened = await openWhatsApp(
-      order.warehousePhone,
-      message: 'مرحباً، بخصوص طلبية التوريد رقم ${order.orderNumber}',
+  void _contactWarehouse() {
+    final repo = ref.read(supplyOrderRepositoryProvider);
+    ChatSheet.show(
+      context,
+      title: 'مراسلة ${_order!.warehouseName}',
+      currentUserType: 'pharmacy',
+      loadMessages: () => repo.getPharmacyOrderMessages(widget.orderId),
+      sendMessage: (text) => repo.addPharmacyOrderMessage(widget.orderId, text),
     );
-    if (!opened && mounted) {
-      AppSnackbar.error(context, 'تعذّر فتح واتساب — تحقّق من رقم المستودع');
-    }
   }
 
   Widget _buildBottomBar() {
@@ -385,7 +441,6 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     final canEdit = order.status == SupplyOrderStatus.pending;
     final canInvoice =
         order.status == SupplyOrderStatus.completed && !order.invoiceCreated;
-    final canContact = whatsAppNumber(order.warehousePhone) != null;
 
     return SafeArea(
       top: false,
@@ -416,7 +471,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                   child: AppButton(
                     label: 'تواصل مع المستودع',
                     icon: Icons.chat,
-                    onPressed: canContact ? _contactWarehouse : null,
+                    onPressed: _contactWarehouse,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -706,6 +761,13 @@ Future<Uint8List> _buildOrderPdf(
       theme: pw.ThemeData.withFont(base: base, bold: bold),
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+      footer: (ctx) => pw.Align(
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          'صفحة ${ctx.pageNumber} من ${ctx.pagesCount}',
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        ),
+      ),
       build: (ctx) => [
         // ── رأس الفاتورة ──────────────────────────────────────────────────
         pw.Row(
@@ -969,6 +1031,28 @@ Future<Uint8List> _buildOrderPdf(
         ),
 
         pw.SizedBox(height: 20),
+
+        // ── سجل حالات الطلبية ─────────────────────────────────────────────
+        if (history.isNotEmpty) ...[
+          pw.Text('سجل حالات الطلبية',
+              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brand)),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: ['الحالة السابقة', 'الحالة الجديدة', 'بواسطة', 'التاريخ'],
+            data: history.map((h) => [
+              h.oldStatus.label,
+              h.newStatus.label,
+              h.changedByName,
+              h.changedAt.toLocal().toString().substring(0, 16),
+            ]).toList(),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
+            headerDecoration: const pw.BoxDecoration(color: brand),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignment: pw.Alignment.center,
+            border: pw.TableBorder.all(color: brandLight, width: 0.5),
+          ),
+          pw.SizedBox(height: 20),
+        ],
 
         // ── تذييل ─────────────────────────────────────────────────────────
         pw.Container(

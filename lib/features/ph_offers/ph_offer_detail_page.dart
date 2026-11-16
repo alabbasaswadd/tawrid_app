@@ -12,7 +12,7 @@ import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
+import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 
 /// سعر الوحدة بعد الحسم.
@@ -185,10 +185,12 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
 
   void _openComments() {
     final repo = ref.read(salesOfferRepositoryProvider);
-    CommentsSheet.show(
+    ChatSheet.show(
       context,
-      loadComments: () => repo.getPharmacyComments(widget.offerId),
-      addComment: (text) => repo.addPharmacyComment(widget.offerId, text),
+      title: 'دردشة مع المستودع',
+      currentUserType: 'pharmacy',
+      loadMessages: () => repo.getPharmacyComments(widget.offerId),
+      sendMessage: (text) => repo.addPharmacyComment(widget.offerId, text),
     );
   }
 
@@ -234,14 +236,17 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
           OfferItemRow(
             name: item.medicineName,
             form: [
-              '${item.unit} · الكمية ${item.quantity.toStringAsFixed(0)}',
+              item.quantity <= 0
+                  ? item.unit
+                  : '${item.unit} · الكمية ${item.quantity.toStringAsFixed(0)}',
               if (item.discountPercentage != null)
                 'حسم ${item.discountPercentage!.toStringAsFixed(0)}٪',
             ].join(' · '),
             unitPrice: formatMoneyWith(_netUnitPrice(item), offer.currency),
             bonusLabel: item.bonusLabel,
-            availableText:
-                'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
+            availableText: item.quantity <= 0
+                ? 'كمية مفتوحة'
+                : 'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
             mode: OfferItemRowMode.select,
             selected: _selected.containsKey(item.id),
             onSelectedChanged: (v) => _toggle(item, v),

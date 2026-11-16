@@ -136,4 +136,6 @@ abstract final class TRoutes {
   static const String whOffers = '/wh/offers';
   static const String whListings = '/wh/listings';
   static const String whMore = '/wh/more';
+
+  static const String whAnnouncements = '/wh/announcements';
 }

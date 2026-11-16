@@ -5,8 +5,10 @@ import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/models/announcement_models.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_models.dart';
+import 'package:tawrid_app/repositories/announcement_repository.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -32,6 +34,7 @@ class PhWarehouseProfilePage extends ConsumerStatefulWidget {
 class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage> {
   WarehouseProfile? _profile;
   List<SalesOfferSummary> _offers = const [];
+  WarehouseAnnouncement? _announcement;
   bool _loading = true;
   String? _error;
 
@@ -57,10 +60,14 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
       final offers = await ref
           .read(salesOfferRepositoryProvider)
           .getAvailableOffers(warehouseId: widget.warehouseId, limit: 30);
+      final announcement = await ref
+          .read(announcementRepositoryProvider)
+          .getActiveAnnouncement(widget.warehouseId);
       if (!mounted) return;
       setState(() {
         _profile = profile;
         _offers = offers;
+        _announcement = announcement;
         _loading = false;
       });
     } catch (e) {
@@ -95,6 +102,41 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.x3l),
       children: [
+        if (_announcement != null && _announcement!.isActive) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: context.colors.primaryContainer,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Row(
+              children: [
+                AppIcon(AppIcons.tag, size: 20, color: context.colors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_announcement!.title, style: context.text.titleSmall),
+                      Text(
+                        _announcement!.discountLabel,
+                        style: context.text.bodySmall
+                            ?.copyWith(color: context.colors.primary),
+                      ),
+                      if (_announcement!.body != null)
+                        Text(
+                          _announcement!.body!,
+                          style: context.text.bodySmall
+                              ?.copyWith(color: tk.hint),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         // بطاقة الهوية (Figma: ملف المستودع) — صورة دائرية، الاسم، سطر
         // المدينة وسنة الانضمام، وشارة الاعتماد في الطرف المقابل.
         AppCard(
@@ -169,6 +211,36 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                 text: 'يسعّر بـ${currencyName(p.pricingCurrency)}'
                     ' (${currencySymbol(p.pricingCurrency)})',
               ),
+
+              // إحصائيات الأداء — تُظهر فقط إذا أرسلها الخادم
+              if (p.avgAcceptanceDays != null || p.avgDeliveryDays != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.sm),
+                Text('إحصائيات الأداء', style: context.text.labelMedium),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatChip(
+                        label: 'متوسط القبول',
+                        value: p.avgAcceptanceDays != null
+                            ? '${p.avgAcceptanceDays!.toStringAsFixed(1)} يوم'
+                            : 'غير متاح',
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: _StatChip(
+                        label: 'متوسط التسليم',
+                        value: p.avgDeliveryDays != null
+                            ? '${p.avgDeliveryDays!.toStringAsFixed(1)} يوم'
+                            : 'غير متاح',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
 
               const SizedBox(height: AppSpacing.md),
               // عروضه السارية أدناه لا تُظهر إلا ما جمّعه في عروض. البحث
@@ -268,6 +340,38 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
               ),
             ),
       ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style:
+                  context.text.bodySmall?.copyWith(color: tk.hint, fontSize: 11)),
+          const SizedBox(height: 2),
+          Text(value,
+              style: context.text.titleSmall
+                  ?.copyWith(color: cs.onSurface)),
+        ],
+      ),
     );
   }
 }

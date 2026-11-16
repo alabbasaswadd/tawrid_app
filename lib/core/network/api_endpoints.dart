@@ -109,6 +109,14 @@ abstract final class ApiEndpoints {
   static String phListingComments(String id)   => '$_ph/listings/$id/comments';
   static String phListingCommentById(String id, String commentId) => '$_ph/listings/$id/comments/$commentId';
 
+  // ── Order Messages ────────────────────────────────────────────────────────
+  static String phOrderMessages(String id) => '$_ph/supply-orders/$id/messages';
+  static String whOrderMessages(String id) => '$_wh/orders/$id/messages';
+
+  // ── Announcements ─────────────────────────────────────────────────────────
+  static String phWarehouseAnnouncement(String id) => '$_ph/supply-warehouses/$id/announcement';
+  static const String whAnnouncements = '$_wh/announcements';
+
   // ── Warehouse: Orders ─────────────────────────────────────────────────────
   static const String whOrders = '$_wh/orders';
   static String whOrderById(String id)     => '$_wh/orders/$id';

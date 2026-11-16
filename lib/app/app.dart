@@ -5,6 +5,10 @@ import 'package:tawrid_app/app/router/router.dart';
 import 'package:tawrid_app/app/theme/app_theme.dart';
 import 'package:tawrid_app/app/theme/theme_mode_provider.dart';
 
+/// مفتاح عالمي لـ ScaffoldMessenger — يُستخدم لإظهار SnackBar فوق BottomSheet.
+/// الاستخدام: `appScaffoldMessengerKey.currentState?.showSnackBar(...)`
+final appScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 class TawridApp extends ConsumerWidget {
   const TawridApp({super.key});
 
@@ -19,6 +23,7 @@ class TawridApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [

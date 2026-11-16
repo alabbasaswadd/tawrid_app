@@ -8,11 +8,9 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
-import 'package:tawrid_app/models/tender_models.dart';
 import 'package:tawrid_app/repositories/notification_repository.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
-import 'package:tawrid_app/repositories/tender_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
@@ -37,8 +35,6 @@ class WhHomePage extends ConsumerStatefulWidget {
 class _WhHomePageState extends ConsumerState<WhHomePage> {
   List<SupplyOrderSummary> _orders = const [];
   List<SalesOfferSummary> _offers = const [];
-  List<TenderSummary> _openRequests = const [];
-  final Set<String> _ignoredTenderIds = {};
 
   bool _loading = true;
   String? _error;
@@ -68,19 +64,10 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
         offers = const [];
       }
 
-      List<TenderSummary> requests;
-      try {
-        requests =
-            await ref.read(tenderRepositoryProvider).getOpenTenders(limit: 50);
-      } catch (_) {
-        requests = const [];
-      }
-
       if (!mounted) return;
       setState(() {
         _orders = orders;
         _offers = offers;
-        _openRequests = requests;
         _loading = false;
       });
     } catch (e) {
@@ -103,12 +90,6 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
 
   List<SalesOfferSummary> get _activeOffers =>
       _offers.where((o) => o.status == SalesOfferStatus.active).toList();
-
-  List<TenderSummary> get _visibleTenders => _openRequests
-      .where((t) => !_ignoredTenderIds.contains(t.id))
-      .toList();
-
-  void _ignoreTender(String id) => setState(() => _ignoredTenderIds.add(id));
 
   // «يقارب على الانتهاء» = ثلاثة أيام أو أقل، نفس عتبة بطاقة العرض.
   // العرض الثابت لا يُحتسب هنا: لا مهلة له توشك.
@@ -154,7 +135,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
       children: [
-        // شبكة العدّادات ٢×٢ (Figma) — أرقام تُقرأ لمحةً وتفتح وجهتها.
+        // شبكة العدّادات — طلبات جديدة + عروض سارية.
         Row(
           children: [
             Expanded(
@@ -168,36 +149,19 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: SummaryCounter(
-                value: '$_processing',
-                label: 'قيد التجهيز',
-                icon: AppIcons.clock,
-                onTap: () => context.go(TRoutes.whOrders),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: SummaryCounter(
                 value: '${_activeOffers.length}',
                 label: 'عرضاً سارياً',
                 icon: AppIcons.tag,
                 onTap: () => context.go(TRoutes.whOffers),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: SummaryCounter(
-                value: '${_openRequests.length}',
-                label: 'طلبات تسعير بتغطيتي',
-                icon: AppIcons.fileText,
-                onTap: () => context.push(TRoutes.whTenders),
-              ),
-            ),
           ],
         ),
+        // بانر قيد التجهيز — يظهر فقط حين توجد طلبات تُعالَج.
+        if (_processing > 0) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ProcessingChip(count: _processing, onTap: () => context.go(TRoutes.whOrders)),
+        ],
 
         // تنبيه العروض المقاربة على الانتهاء — يظهر حين يوجد ما ينتهي فعلاً.
         if (expiring.isNotEmpty) ...[
@@ -209,45 +173,16 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
         ],
 
         const SizedBox(height: AppSpacing.md),
-        // زر الإنشاء: يظهر دائماً بلا عروض، ويظهر «العرض الأول» فقط في البداية
-        if (_activeOffers.isEmpty)
-          AppButton(
-            label: 'إنشاء العرض الأول',
-            icon: Icons.add,
-            onPressed: () async {
-              await context.push(TRoutes.whCreateOffer);
-              if (mounted) await _load(silent: true);
-            },
-          )
-        else
-          AppButton(
-            label: 'إنشاء عرض جديد',
-            variant: AppButtonVariant.outline,
-            icon: Icons.add,
-            onPressed: () async {
-              await context.push(TRoutes.whCreateOffer);
-              if (mounted) await _load(silent: true);
-            },
-          ),
-
-        // ── طلبات التسعير في المنطقة ────────────────────────────────────────
-        if (_visibleTenders.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(
-            title: 'طلبات تسعير في منطقتك',
-            trailing: _SeeAllLink(onTap: () => context.push(TRoutes.whTenders)),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          for (final t in _visibleTenders.take(5))
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: _HomeTenderCard(
-                tender: t,
-                onTap: () => context.push(TRoutes.whSubmitTenderOffer(t.id)),
-                onIgnore: () => _ignoreTender(t.id),
-              ),
-            ),
-        ],
+        // زر إنشاء عرض — يظهر دائماً.
+        AppButton(
+          label: 'إنشاء عرض جديد',
+          variant: _activeOffers.isEmpty ? AppButtonVariant.filled : AppButtonVariant.outline,
+          icon: Icons.add,
+          onPressed: () async {
+            await context.push(TRoutes.whCreateOffer);
+            if (mounted) await _load(silent: true);
+          },
+        ),
 
         const SizedBox(height: AppSpacing.lg),
         AppSectionHeader(
@@ -325,79 +260,39 @@ class _ExpiryAlert extends StatelessWidget {
   }
 }
 
-// بطاقة طلب تسعير مختصرة في الرئيسية — اسم الطلب + الصيدلية + الموعد + زر تجاهل.
-class _HomeTenderCard extends StatelessWidget {
-  const _HomeTenderCard({
-    required this.tender,
-    required this.onTap,
-    required this.onIgnore,
-  });
-
-  final TenderSummary tender;
+// بانر "قيد التجهيز" — شريط صغير يُعرض بدل عدّاد الشبكة عند وجود طلبات تُعالَج.
+class _ProcessingChip extends StatelessWidget {
+  const _ProcessingChip({required this.count, required this.onTap});
+  final int count;
   final VoidCallback onTap;
-  final VoidCallback onIgnore;
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
-    final daysLeft = tender.expiresAt.difference(DateTime.now()).inDays;
-
-    return AppCard(
-      onTap: onTap,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            margin: const EdgeInsets.only(left: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: tk.brandSurface,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Center(
-              child: AppIcon(AppIcons.fileText, size: 18, color: cs.primary),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tender.title,
-                    style: context.text.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text(
-                  '${tender.itemCount} ${tender.itemCount == 1 ? 'صنف' : 'أصناف'}'
-                  ' · ${daysLeft > 0 ? 'ينتهي خلال $daysLeft يوم' : 'ينتهي اليوم'}',
-                  style: context.text.bodySmall?.copyWith(color: tk.hint),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    return Material(
+      color: tk.brandSurface,
+      borderRadius: BorderRadius.circular(AppRadius.full),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // زر تجاهل — لا يحذف من الخادم، فقط يُخفيه من الرئيسية
-              Tooltip(
-                message: 'إخفاء هذا الطلب',
-                child: InkWell(
-                  onTap: onIgnore,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 16, color: tk.hint),
-                  ),
-                ),
+              AppIcon(AppIcons.clock, size: 16, color: cs.primary),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'في سلتك $count ${count == 1 ? 'طلب' : 'طلبات'} قيد التجهيز',
+                style: context.text.bodySmall?.copyWith(color: cs.primary),
               ),
-              const SizedBox(height: 6),
-              Text('تقديم عرض',
-                  style: context.text.bodySmall?.copyWith(color: cs.primary)),
+              const SizedBox(width: AppSpacing.xs),
+              AppIcon(AppIcons.chevronForwardRtl, size: 14, color: tk.hint),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -11,9 +11,6 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
 // حساب الصيدلية (Figma: الصيدلي / حسابي).
-//
-// بطاقة هوية، ثم مجموعتان مفصولتان: «بيانات الحساب» و«التفضيلات» —
-// وتسجيل الخروج في بطاقة مستقلة حمراء بعيداً عن الضغط العرضي.
 class PhMorePage extends ConsumerWidget {
   const PhMorePage({super.key});
 
@@ -29,58 +26,19 @@ class PhMorePage extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
         children: [
-          _IdentityCard(me: me),
+          // بطاقة الهوية — النقر عليها يعرض بيانات الحساب
+          _IdentityCard(
+            me: me,
+            onTap: () => context.push(TRoutes.phProfile),
+          ),
 
           const SizedBox(height: AppSpacing.lg),
-          const _GroupLabel('بيانات الحساب'),
-          _Group(children: [
-            _Row(
-              icon: Icons.local_pharmacy_outlined,
-              label: 'بيانات الصيدلية',
-              trailingText: me?.pharmacyName,
-              onTap: () => context.push(TRoutes.phProfile),
-            ),
-            _Row(
-              icon: Icons.person_outline,
-              label: 'الصيدلي المسؤول',
-              trailingText: me?.email,
-              onTap: () => context.push(TRoutes.phProfile),
-            ),
-            _Row(
-              icon: Icons.place_outlined,
-              label: 'العنوان',
-              trailingText: me?.areaLabel,
-              onTap: () => context.push(TRoutes.phProfile),
-            ),
-          ]),
-
-          const SizedBox(height: AppSpacing.lg),
-          const _GroupLabel('التفضيلات'),
+          const _GroupLabel('الإعدادات'),
           _Group(children: [
             _Row(
               icon: Icons.notifications_outlined,
               label: 'الإشعارات',
               onTap: () => context.push(TRoutes.phNotificationSettings),
-            ),
-            _Row(
-              icon: Icons.shopping_cart_outlined,
-              label: 'السلة',
-              onTap: () => context.push(TRoutes.phCart),
-            ),
-            _Row(
-              icon: Icons.price_change_outlined,
-              label: 'بحث الأسعار',
-              onTap: () => context.push(TRoutes.phPriceSearch),
-            ),
-            _Row(
-              icon: Icons.storefront_outlined,
-              label: 'المستودعات المتاحة',
-              onTap: () => context.push(TRoutes.phWarehouses),
-            ),
-            _Row(
-              icon: Icons.campaign_outlined,
-              label: 'إعلاناتي',
-              onTap: () => context.push(TRoutes.phListings),
             ),
           ]),
 
@@ -136,8 +94,9 @@ class PhMorePage extends ConsumerWidget {
 }
 
 class _IdentityCard extends StatelessWidget {
-  const _IdentityCard({required this.me});
+  const _IdentityCard({required this.me, this.onTap});
   final PharmacyMe? me;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +104,7 @@ class _IdentityCard extends StatelessWidget {
     final tk = context.tokens;
 
     return AppCard(
+      onTap: onTap,
       child: Row(
         children: [
           Expanded(
@@ -166,12 +126,15 @@ class _IdentityCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  'اضغط لعرض بيانات الحساب',
+                  style: context.text.labelSmall?.copyWith(color: cs.primary),
+                ),
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          // «موثّق» صادقة بحكم الوصول: الحساب غير المقبول يُحجب خلف شاشة
-          // حالة الحساب ولا يبلغ هذه الشاشة أصلاً.
           const StatusBadge(
               label: 'موثّق',
               tone: StatusTone.success,
@@ -205,7 +168,6 @@ class _GroupLabel extends StatelessWidget {
       );
 }
 
-// مجموعة صفوف في بطاقة واحدة بفواصل بينها (Figma) — لا بطاقة لكل صفّ.
 class _Group extends StatelessWidget {
   const _Group({required this.children});
   final List<Widget> children;
@@ -233,15 +195,11 @@ class _Row extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.trailingText,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-
-  /// قيمة مختصرة تظهر قبل السهم — «دمشق — المزة»، «موثّق».
-  final String? trailingText;
 
   @override
   Widget build(BuildContext context) {
@@ -258,16 +216,6 @@ class _Row extends StatelessWidget {
             Icon(icon, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: AppSpacing.md),
             Expanded(child: Text(label, style: context.text.bodyMedium)),
-            if (trailingText != null && trailingText!.isNotEmpty) ...[
-              Flexible(
-                child: Text(trailingText!,
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-            ],
             AppIcon(AppIcons.chevronForwardRtl, size: 16, color: tk.hint),
           ],
         ),

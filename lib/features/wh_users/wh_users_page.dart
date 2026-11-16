@@ -6,6 +6,7 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/core/session/session_state.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/models/enums.dart';
+import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/models/warehouse_user_models.dart';
 import 'package:tawrid_app/repositories/warehouse_user_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -214,6 +215,20 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final me = ref.watch(warehouseMeProvider).value;
+    final isAdmin = me?.role == WarehouseUserRole.admin;
+
+    if (me != null && !isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('موظّفو المستودع')),
+        body: const UiEmpty(
+          message: 'لا تملك صلاحية الوصول لهذه الصفحة',
+          description: 'هذه الصفحة متاحة للمدير فقط',
+          appIcon: AppIcons.alertTriangle,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('موظّفو المستودع'),
