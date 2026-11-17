@@ -383,12 +383,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // ── المحادثات المباشرة ───────────────────────────────────────────────
-      GoRoute(
-        path: TRoutes.phConversations,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) =>
-            const ConversationsPage(isWarehouse: false),
-      ),
+      // phConversations صارت branch في الشيل (index 2) — لا مسار مستقل لها.
       GoRoute(
         path: TRoutes.phConversationDetailPattern,
         parentNavigatorKey: _rootNavigatorKey,
@@ -398,12 +393,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           isWarehouse: false,
         ),
       ),
-      GoRoute(
-        path: TRoutes.whConversations,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) =>
-            const ConversationsPage(isWarehouse: true),
-      ),
+      // whConversations صارت branch في الشيل (index 2) — لا مسار مستقل لها.
       GoRoute(
         path: TRoutes.whConversationDetailPattern,
         parentNavigatorKey: _rootNavigatorKey,
@@ -532,6 +522,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PhTendersPage(),
       ),
 
+      // قائمة المستودعات — أُزيلت من شريط التنقل لكنّها تظل متاحة
+      // من الرئيسية وملفات العروض والمحادثات.
+      GoRoute(
+        path: TRoutes.phWarehouses,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhWarehousesPage(),
+      ),
+
       // Pharmacy shell
       StatefulShellRoute.indexedStack(
         builder: (context, _, shell) => PhShell(navigationShell: shell),
@@ -555,8 +553,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.phWarehouses,
-                builder: (_, _) => const PhWarehousesPage(),
+                path: TRoutes.phConversations,
+                builder: (_, _) => const ConversationsPage(isWarehouse: false),
               ),
             ],
           ),
@@ -579,7 +577,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Warehouse shell
+      // عروض المستودع — أُزيلت من شريط التنقل لكنّها تظل متاحة من الرئيسية.
+      GoRoute(
+        path: TRoutes.whOffers,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhOffersPage(),
+      ),
+
+      // Warehouse shell — الرئيسية، الطلبات، الرسائل، أدويتي، حسابي.
       StatefulShellRoute.indexedStack(
         builder: (context, _, shell) => WhShell(navigationShell: shell),
         branches: [
@@ -591,8 +596,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // ترتيب الفروع يحدّد ترتيب التبويبات، فيطابق شريط التنقل:
-          // الرئيسية، الطلبات، أدويتي، العروض، حسابي.
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -604,16 +607,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.whMedicines,
-                builder: (_, _) => const WhMedicinesPage(),
+                path: TRoutes.whConversations,
+                builder: (_, _) => const ConversationsPage(isWarehouse: true),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.whOffers,
-                builder: (_, _) => const WhOffersPage(),
+                path: TRoutes.whMedicines,
+                builder: (_, _) => const WhMedicinesPage(),
               ),
             ],
           ),

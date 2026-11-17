@@ -5,10 +5,17 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'app_icon.dart';
 
 class AppBottomNavItem {
-  const AppBottomNavItem({required this.icon, required this.label});
+  const AppBottomNavItem({
+    required this.icon,
+    required this.label,
+    this.showBadge = false,
+  });
 
   final AppIcons icon;
   final String label;
+
+  /// نقطة حمراء فوق الأيقونة — للإشعارات غير المقروءة.
+  final bool showBadge;
 }
 
 class AppBottomNav extends StatelessWidget {
@@ -57,8 +64,6 @@ class AppBottomNav extends StatelessWidget {
   }
 }
 
-// كل تبويب يملك AnimationController خاصاً — forward عند التفعيل، reverse عند الإلغاء.
-// هذا يضمن سلاسة الانتقال حتى لو جرى التبديل السريع بين التبويبات.
 class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.item,
@@ -77,9 +82,7 @@ class _NavItem extends StatefulWidget {
 class _NavItemState extends State<_NavItem>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
-  // أنيميشن اللون: 0 = غير نشط، 1 = نشط
   late final Animation<double> _colorT;
-  // أنيميشن الأيقونة: ينتهي بارتداد خفيف (easeOutBack)
   late final Animation<double> _scaleT;
 
   @override
@@ -111,6 +114,7 @@ class _NavItemState extends State<_NavItem>
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
+    final tk = context.tokens;
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
@@ -119,7 +123,6 @@ class _NavItemState extends State<_NavItem>
           cs.onPrimary,
           _colorT.value,
         )!;
-        // الأيقونة تنمو من ٨٥٪ إلى ١٠٠٪ مع ارتداد خفيف
         final iconScale = 0.85 + (_scaleT.value * 0.15);
 
         return InkWell(
@@ -132,7 +135,6 @@ class _NavItemState extends State<_NavItem>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // المؤشر يكبر من المركز للخارج
                 SizedBox(
                   width: 20,
                   height: 3,
@@ -150,7 +152,29 @@ class _NavItemState extends State<_NavItem>
                 const SizedBox(height: 4),
                 Transform.scale(
                   scale: iconScale,
-                  child: AppIcon(widget.item.icon, size: 24, color: color),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      AppIcon(widget.item.icon, size: 24, color: color),
+                      if (widget.item.showBadge)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: tk.danger,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: cs.primary,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(

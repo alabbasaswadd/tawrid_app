@@ -157,7 +157,7 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: AppListSkeleton(variant: SkeletonVariant.card, count: 3),
+        child: AppListSkeleton(variant: SkeletonVariant.card, count: 3, shrinkWrap: true),
       );
     }
     if (_error != null) {

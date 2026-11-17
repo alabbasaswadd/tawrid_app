@@ -152,7 +152,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
                 value: '${_activeOffers.length}',
                 label: 'عرضاً سارياً',
                 icon: AppIcons.tag,
-                onTap: () => context.go(TRoutes.whOffers),
+                onTap: () => context.push(TRoutes.whOffers),
               ),
             ),
           ],
@@ -168,7 +168,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
           const SizedBox(height: AppSpacing.md),
           _ExpiryAlert(
             count: expiring.length,
-            onTap: () => context.go(TRoutes.whOffers),
+            onTap: () => context.push(TRoutes.whOffers),
           ),
         ],
 

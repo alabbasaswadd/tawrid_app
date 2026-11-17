@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +7,6 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
-import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/repositories/notification_repository.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
@@ -92,7 +89,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   Widget build(BuildContext context) {
     final me = ref.watch(pharmacyMeProvider);
     final unread = ref.watch(phUnreadCountProvider).value ?? 0;
-    final unreadConvs = ref.watch(phUnreadConversationsProvider).value ?? 0;
 
     return Scaffold(
       appBar: WelcomeTopBar(
@@ -106,10 +102,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
             onTap: () => context.push(TRoutes.phCart),
           ),
         ],
-        trailingAction: _ConversationsButton(
-          hasUnread: unreadConvs > 0,
-          onTap: () => context.push(TRoutes.phConversations),
-        ),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -237,58 +229,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   }
 }
 
-// ── زر المحادثات في شريط الترحيب ────────────────────────────────────────
-// دائرة صغيرة تعكس نمط زر الإشعارات — أيقونة محادثة ونقطة حمراء إن وُجد
-// غير مقروء. تظهر في أقصى اليسار (نهاية القراءة) كي تبقى مجموعة
-// «التواصل» متجاورة (محادثات ثم جرس).
-class _ConversationsButton extends StatelessWidget {
-  const _ConversationsButton({required this.hasUnread, required this.onTap});
-
-  final bool hasUnread;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-    return Stack(
-      children: [
-        Material(
-          color: cs.surface,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: Center(
-                child: AppIcon(
-                  AppIcons.messageSquare,
-                  size: 20,
-                  color: cs.onSurface,
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (hasUnread)
-          PositionedDirectional(
-            end: 2,
-            top: 2,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: tk.danger,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 // ── شريط التنبيه ─────────────────────────────────────────────────────────
 enum _AlertTone { brand, info }
@@ -476,9 +416,6 @@ class _ActionTile extends StatelessWidget {
 }
 
 // ── بانر الإعلانات ────────────────────────────────────────────────────────
-// إعلانات تُدار من إدارة التطبيق وتُعرض للصيدلي فقط. الكروسيل يتقلّب
-// تلقائياً كلّ ٤ ثوانٍ ويقبل السحب اليدوي. النقاط أسفله تعكس الصفحة الحالية.
-// البيانات الحالية تجريبية — ستُستبدل بمصدر API لاحقاً.
 class _AdsBanner extends StatefulWidget {
   const _AdsBanner();
 
@@ -490,78 +427,69 @@ class _AdsBannerState extends State<_AdsBanner> {
   static const _demos = [
     _AdData(
       title: 'خصم 15% على أدوية القلب والضغط',
-      subtitle: 'مستودع الشفاء — العرض ساري حتى نهاية الشهر',
+      subtitle: 'مستودع الشفاء — ساري حتى نهاية الشهر',
+      icon: AppIcons.tag,
     ),
     _AdData(
       title: 'بونص 1+1 على المضادات الحيوية',
-      subtitle: 'مستودع النور الطبي — اطّلع على الشروط الكاملة',
+      subtitle: 'مستودع النور الطبي — اطّلع على الشروط',
+      icon: AppIcons.gift,
     ),
     _AdData(
       title: 'الكتالوج الجديد متاح الآن',
-      subtitle: 'تحقّق من التحديثات في أسعار الأدوية المزمنة',
+      subtitle: 'تحقّق من تحديثات أسعار الأدوية المزمنة',
+      icon: AppIcons.fileText,
     ),
   ];
 
   late final PageController _pageCtrl;
-  Timer? _timer;
   int _page = 0;
 
   @override
   void initState() {
     super.initState();
     _pageCtrl = PageController();
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted) return;
-      _pageCtrl.animateToPage(
-        (_page + 1) % _demos.length,
-        duration: const Duration(milliseconds: 420),
-        curve: Curves.easeInOut,
-      );
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _pageCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Stack(
       children: [
         SizedBox(
-          height: 140,
+          height: 130,
           child: PageView.builder(
             controller: _pageCtrl,
             itemCount: _demos.length,
             onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (_, i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: _AdCard(data: _demos[i]),
-            ),
+            itemBuilder: (_, i) => _AdCard(data: _demos[i]),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_demos.length, (i) {
-            final active = i == _page;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: active ? 20 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: active
-                    ? context.colors.primary
-                    : context.tokens.hint.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            );
-          }),
+        // نقاط المؤشر داخل البانر في أسفل اليمين
+        PositionedDirectional(
+          bottom: 10,
+          start: AppSpacing.lg,
+          child: Row(
+            children: List.generate(_demos.length, (i) {
+              final active = i == _page;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                margin: const EdgeInsets.only(left: 4),
+                width: active ? 18 : 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white
+                      .withValues(alpha: active ? 0.95 : 0.4),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
@@ -569,10 +497,15 @@ class _AdsBannerState extends State<_AdsBanner> {
 }
 
 class _AdData {
-  const _AdData({required this.title, required this.subtitle});
+  const _AdData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
 
   final String title;
   final String subtitle;
+  final AppIcons icon;
 }
 
 class _AdCard extends StatelessWidget {
@@ -583,51 +516,128 @@ class _AdCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
-    final tk = context.tokens;
+    final darker = Color.lerp(cs.primary, Colors.black, 0.22)!;
 
-    return Material(
-      color: cs.surface,
+    return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {},
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
-            boxShadow: tk.cardShadow,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [cs.primary, darker],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
               children: [
-                Text(
-                  'إعلان',
-                  style: context.text.labelSmall?.copyWith(
-                    color: cs.primary.withValues(alpha: 0.55),
-                    letterSpacing: 0.6,
+                // دائرة زخرفية كبيرة أسفل اليسار
+                PositionedDirectional(
+                  bottom: -28,
+                  end: -18,
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.07),
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  data.title,
-                  style: context.text.titleMedium?.copyWith(color: cs.primary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data.subtitle,
-                  style: context.text.labelSmall?.copyWith(
-                    color: tk.hint,
+                // دائرة زخرفية صغيرة أعلى اليمين
+                PositionedDirectional(
+                  top: -22,
+                  start: 50,
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                ),
+                // المحتوى
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // أيقونة في دائرة
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.15),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Center(
+                          child: AppIcon(
+                            data.icon,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // شارة «إعلان»
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                              ),
+                              child: Text(
+                                'إعلان',
+                                style: context.text.labelSmall?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              data.title,
+                              style: context.text.titleSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              data.subtitle,
+                              style: context.text.labelSmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.72),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

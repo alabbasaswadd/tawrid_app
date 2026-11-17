@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/shared/widgets/conv_fab.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 
 class PhShell extends ConsumerStatefulWidget {
@@ -64,6 +63,9 @@ class _PhShellState extends ConsumerState<PhShell>
 
   @override
   Widget build(BuildContext context) {
+    final hasUnread =
+        (ref.watch(phUnreadConversationsProvider).value ?? 0) > 0;
+
     return PopScope(
       canPop: widget.navigationShell.currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -89,21 +91,19 @@ class _PhShellState extends ConsumerState<PhShell>
             child: widget.navigationShell,
           ),
         ),
-        floatingActionButton: ConvFab(
-          isWarehouse: false,
-          onTap: () => context.push(TRoutes.phConversations),
-        ),
-        floatingActionButtonLocation:
-            FloatingActionButtonLocation.startFloat,
         bottomNavigationBar: AppBottomNav(
           currentIndex: widget.navigationShell.currentIndex,
           onTap: _onTap,
-          items: const [
-            AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
-            AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبيات'),
-            AppBottomNavItem(icon: AppIcons.warehouse, label: 'المستودعات'),
-            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
-            AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
+          items: [
+            const AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
+            const AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبيات'),
+            AppBottomNavItem(
+              icon: AppIcons.messageSquare,
+              label: 'الرسائل',
+              showBadge: hasUnread,
+            ),
+            const AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
+            const AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
           ],
         ),
       ),

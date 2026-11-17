@@ -75,13 +75,17 @@ class _SplashPageState extends State<SplashPage>
                       opacity: _logoFade,
                       child: ScaleTransition(
                         scale: _logoScale,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(26),
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          padding: const EdgeInsets.all(8),
                           child: Image.asset(
                             'assets/images/logo.png',
-                            width: 36,
-                            height: 36,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),

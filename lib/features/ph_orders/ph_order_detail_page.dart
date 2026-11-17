@@ -17,7 +17,10 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
+import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 
 import 'ph_orders_page.dart' show orderTone;
 
@@ -357,26 +360,110 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     );
   }
 
-  void _contactWarehouse() {
-    final repo = ref.read(supplyOrderRepositoryProvider);
-    ChatSheet.show(
-      context,
-      title: 'مراسلة ${_order!.warehouseName}',
-      currentUserType: 'pharmacy',
-      loadMessages: () => repo.getPharmacyOrderMessages(widget.orderId),
-      sendMessage: (text) => repo.addPharmacyOrderMessage(widget.orderId, text),
+  Future<void> _contactWarehouse() async {
+    final order = _order!;
+    final me = ref.read(pharmacyMeProvider).value;
+    setState(() => _busy = true);
+    try {
+      final conv = await ref.read(phConversationRepositoryProvider).openConversation(
+        otherPartyId: order.supplyWarehouseId,
+        otherPartyName: order.warehouseName,
+        myName: me?.pharmacyName ?? '',
+      );
+      if (!mounted) return;
+      context.push(TRoutes.phConversationDetail(conv.id, order.warehouseName));
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showActionsSheet() {
+    final order = _order!;
+    final canCancel = order.status == SupplyOrderStatus.pending;
+    final canEdit = order.status == SupplyOrderStatus.pending;
+    final canInvoice =
+        order.status == SupplyOrderStatus.completed && !order.invoiceCreated;
+    final cs = context.colors;
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('خيارات الطلبية', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.chat_outlined),
+                title: const Text('تواصل مع المستودع'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _contactWarehouse();
+                },
+              ),
+              if (canEdit) ...[
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('تعديل الطلبية'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _editOrder();
+                  },
+                ),
+              ],
+              if (canCancel) ...[
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.cancel_outlined, color: cs.error),
+                  title: Text('إلغاء الطلبية',
+                      style: TextStyle(color: cs.error)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _cancel();
+                  },
+                ),
+              ],
+              if (order.status == SupplyOrderStatus.completed) ...[
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.receipt_outlined),
+                  title: Text(order.invoiceCreated
+                      ? 'الفاتورة مُولَّدة'
+                      : 'فاتورة الشراء'),
+                  enabled: canInvoice && !_busy,
+                  onTap: canInvoice && !_busy
+                      ? () {
+                          Navigator.pop(ctx);
+                          _generateInvoice();
+                        }
+                      : null,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildBottomBar() {
     final cs = context.colors;
     final tk = context.tokens;
-    final order = _order!;
-    final canCancel = order.status == SupplyOrderStatus.pending;
-    final canEdit = order.status == SupplyOrderStatus.pending;
-    final canInvoice =
-        order.status == SupplyOrderStatus.completed && !order.invoiceCreated;
-
     return SafeArea(
       top: false,
       child: Container(
@@ -387,49 +474,11 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
         ),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // زر التعديل — يظهر فقط بانتظار التأكيد
-            if (canEdit) ...[
-              AppButton(
-                label: 'تعديل الطلبية',
-                variant: AppButtonVariant.outline,
-                icon: Icons.edit_outlined,
-                onPressed: _busy ? null : _editOrder,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: 'تواصل مع المستودع',
-                    onPressed: _contactWarehouse,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: canCancel
-                      ? AppButton(
-                          label: 'إلغاء الطلبية',
-                          variant: AppButtonVariant.danger,
-                          loading: _busy,
-                          onPressed: _busy ? null : _cancel,
-                        )
-                      : AppButton(
-                          label: order.invoiceCreated
-                              ? 'الفاتورة مُولَّدة'
-                              : 'فاتورة الشراء',
-                          variant: AppButtonVariant.outline,
-                          loading: _busy && canInvoice,
-                          onPressed:
-                              canInvoice && !_busy ? _generateInvoice : null,
-                        ),
-                ),
-              ],
-            ),
-          ],
+        child: AppButton(
+          label: 'خيارات الطلبية',
+          icon: Icons.tune_outlined,
+          loading: _busy,
+          onPressed: _busy ? null : _showActionsSheet,
         ),
       ),
     );
@@ -704,22 +753,11 @@ class _OrderItemRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'الإجمالي',
-              style: context.text.labelSmall?.copyWith(color: tk.hint),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              item.agreedUnitPrice == null
-                  ? '—'
-                  : formatMoneyWith(item.agreedUnitPrice! * item.quantity, currency),
-              style: context.priceBrandStyle,
-            ),
-          ],
+        Text(
+          item.agreedUnitPrice == null
+              ? '—'
+              : formatMoneyWith(item.agreedUnitPrice! * item.quantity, currency),
+          style: context.priceBrandStyle,
         ),
       ],
     );

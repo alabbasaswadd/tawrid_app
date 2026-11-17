@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tawrid_app/app/router/routes.dart';
-import 'package:tawrid_app/shared/widgets/conv_fab.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 
 class WhShell extends ConsumerStatefulWidget {
@@ -50,7 +49,6 @@ class _WhShellState extends ConsumerState<WhShell>
     );
   }
 
-  // RTL swipe: سحب يمين (velocity > 0) = تبويب تالٍ، سحب يسار = تبويب سابق
   void _onSwipe(DragEndDetails details) {
     final v = details.primaryVelocity ?? 0;
     final cur = widget.navigationShell.currentIndex;
@@ -63,6 +61,9 @@ class _WhShellState extends ConsumerState<WhShell>
 
   @override
   Widget build(BuildContext context) {
+    final hasUnread =
+        (ref.watch(whUnreadConversationsProvider).value ?? 0) > 0;
+
     return PopScope(
       canPop: widget.navigationShell.currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -88,21 +89,19 @@ class _WhShellState extends ConsumerState<WhShell>
             child: widget.navigationShell,
           ),
         ),
-        floatingActionButton: ConvFab(
-          isWarehouse: true,
-          onTap: () => context.push(TRoutes.whConversations),
-        ),
-        floatingActionButtonLocation:
-            FloatingActionButtonLocation.startFloat,
         bottomNavigationBar: AppBottomNav(
           currentIndex: widget.navigationShell.currentIndex,
           onTap: _onTap,
-          items: const [
-            AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
-            AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبات'),
-            AppBottomNavItem(icon: AppIcons.package, label: 'أدويتي'),
-            AppBottomNavItem(icon: AppIcons.tag, label: 'العروض'),
-            AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
+          items: [
+            const AppBottomNavItem(icon: AppIcons.home, label: 'الرئيسية'),
+            const AppBottomNavItem(icon: AppIcons.clipboardList, label: 'الطلبات'),
+            AppBottomNavItem(
+              icon: AppIcons.messageSquare,
+              label: 'الرسائل',
+              showBadge: hasUnread,
+            ),
+            const AppBottomNavItem(icon: AppIcons.package, label: 'أدويتي'),
+            const AppBottomNavItem(icon: AppIcons.user, label: 'حسابي'),
           ],
         ),
       ),

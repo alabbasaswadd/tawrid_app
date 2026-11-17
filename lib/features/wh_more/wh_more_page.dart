@@ -65,11 +65,6 @@ class WhMorePage extends ConsumerWidget {
                 onTap: () => context.push(TRoutes.whUsers),
               ),
             _Row(
-              icon: Icons.campaign_outlined,
-              label: 'إعلاناتي وأخباري',
-              onTap: () => context.push(TRoutes.whListings),
-            ),
-            _Row(
               icon: Icons.local_offer_outlined,
               label: 'إعلانات الخصم',
               onTap: () => context.push(TRoutes.whAnnouncements),

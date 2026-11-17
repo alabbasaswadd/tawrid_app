@@ -180,4 +180,6 @@ abstract final class ApiEndpoints {
       '${_convRoot(warehouse)}/unread-count';
   static String conversationMarkRead(bool warehouse, String id) =>
       '${_convRoot(warehouse)}/$id/read';
+  static String conversationOpen(bool warehouse) =>
+      '${_convRoot(warehouse)}/open';
 }

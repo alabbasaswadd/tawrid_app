@@ -74,4 +74,20 @@ class ConversationRepository {
 
   Future<void> markRead(String conversationId) =>
       _api.post(ApiEndpoints.conversationMarkRead(isWarehouse, conversationId));
+
+  Future<Conversation> openConversation({
+    required String otherPartyId,
+    required String otherPartyName,
+    required String myName,
+  }) async {
+    final raw = await _api.post(
+      ApiEndpoints.conversationOpen(isWarehouse),
+      data: {
+        'otherPartyId': otherPartyId,
+        'otherPartyName': otherPartyName,
+        'myName': myName,
+      },
+    );
+    return Conversation.fromJson(raw as Map<String, dynamic>);
+  }
 }

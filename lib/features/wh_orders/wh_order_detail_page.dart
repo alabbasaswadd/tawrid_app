@@ -7,16 +7,18 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
+import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
-
 import 'wh_orders_page.dart' show whOrderTone;
 
 // تفاصيل الطلب الوارد عند المستودع (Figma: المستودع / تفاصيل الطلب).
@@ -188,38 +190,18 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     }
   }
 
-  void _openChat() {
-    final repo = ref.read(supplyOrderRepositoryProvider);
-    ChatSheet.show(
-      context,
-      title: 'مراسلة ${_order?.pharmacyName ?? 'الصيدلية'}',
-      currentUserType: 'warehouse',
-      loadMessages: () => repo.getWarehouseOrderMessages(widget.orderId),
-      sendMessage: (text) => repo.addWarehouseOrderMessage(widget.orderId, text),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: InnerTopBar(
-        title: 'تفاصيل الطلب',
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_order != null)
-              TextButton(
-                onPressed: _showExportSheet,
-                child: Text('تصدير', style: context.text.bodyMedium?.copyWith(color: context.colors.primary)),
-              ),
-            if (_order != null)
-              IconButton(
-                tooltip: 'دردشة مع الصيدلية',
-                icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                onPressed: _openChat,
-              ),
-          ],
-        ),
+      appBar: AppBar(
+        title: const Text('تفاصيل الطلب'),
+        actions: [
+          if (_order != null)
+            TextButton(
+              onPressed: _showExportSheet,
+              child: const Text('تصدير'),
+            ),
+        ],
       ),
       body: _buildBody(),
       bottomNavigationBar: _order == null ? null : _buildActions(),
@@ -394,20 +376,123 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     );
   }
 
-  // الإجراءات تُبنى من `nextAllowed` — نفس انتقالات الخادم، فلا يظهر زرّ
-  // يُرفض. لا يوجد «تعديل الكميات» في التصميم هنا لأن الخادم لا يتيحه:
-  // يُعدَّل الطلب بالتفاهم مع الصيدلية ثم يُرفض ويُعاد إنشاؤه.
-  Widget? _buildActions() {
+  Future<void> _contactPharmacy() async {
+    final order = _order!;
+    if (order.pharmacyTenantId == null) return;
+    final me = ref.read(warehouseMeProvider).value;
+    setState(() => _busy = true);
+    try {
+      final conv = await ref.read(whConversationRepositoryProvider).openConversation(
+        otherPartyId: order.pharmacyTenantId!,
+        otherPartyName: order.pharmacyName ?? '',
+        myName: me?.warehouseName ?? '',
+      );
+      if (!mounted) return;
+      context.push(TRoutes.whConversationDetail(conv.id, order.pharmacyName ?? ''));
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showActionsSheet() {
     final o = _order!;
     final next = o.status.nextAllowed;
-    if (next.isEmpty) return null;
-
-    final cs = context.colors;
-    final tk = context.tokens;
     final forward =
         next.where((s) => s != SupplyOrderStatus.cancelled).toList();
     final canReject = next.contains(SupplyOrderStatus.cancelled);
+    final cs = context.colors;
 
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('خيارات الطلب', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              if (o.pharmacyTenantId != null) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.chat_outlined),
+                  title: const Text('تواصل مع الصيدلية'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _contactPharmacy();
+                  },
+                ),
+                if (forward.isNotEmpty || canReject) const Divider(height: 1),
+              ],
+              for (final s in forward) ...[
+                if (s != forward.first) const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle_outline),
+                  title: Text(switch (s) {
+                    SupplyOrderStatus.confirmed => 'قبول الطلب',
+                    SupplyOrderStatus.processing => 'بدء التجهيز',
+                    SupplyOrderStatus.shipped => 'تأكيد الشحن',
+                    SupplyOrderStatus.delivered => 'تأكيد التسليم',
+                    SupplyOrderStatus.completed => 'إغلاق الطلب',
+                    _ => s.label,
+                  }),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _move(s,
+                        confirmText: switch (s) {
+                          SupplyOrderStatus.confirmed =>
+                            'هل تريد قبول هذا الطلب والالتزام بتجهيزه؟',
+                          SupplyOrderStatus.processing =>
+                            'هل تريد بدء تجهيز هذا الطلب؟',
+                          SupplyOrderStatus.shipped =>
+                            'هل تريد تأكيد شحن هذا الطلب؟',
+                          SupplyOrderStatus.delivered =>
+                            'هل تريد تأكيد تسليم الطلب للصيدلية؟',
+                          SupplyOrderStatus.completed =>
+                            'هل تريد إغلاق هذا الطلب نهائياً؟',
+                          _ =>
+                            'هل تريد تغيير حالة الطلب إلى «${s.label}»؟',
+                        });
+                  },
+                ),
+              ],
+              if (canReject) ...[
+                if (forward.isNotEmpty) const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.cancel_outlined, color: cs.error),
+                  title:
+                      Text('رفض الطلب', style: TextStyle(color: cs.error)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _move(SupplyOrderStatus.cancelled,
+                        confirmText:
+                            'سيُبلَّغ الصيدلية برفض الطلب، ولا يمكن التراجع عنه.');
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildActions() {
+    final o = _order!;
+    if (o.status.nextAllowed.isEmpty) return null;
+
+    final cs = context.colors;
+    final tk = context.tokens;
     return SafeArea(
       top: false,
       child: Container(
@@ -418,52 +503,11 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
         ),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
-        child: Row(
-          children: [
-            if (canReject)
-              TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => _move(SupplyOrderStatus.cancelled,
-                        confirmText:
-                            'سيُبلَّغ الصيدلية برفض الطلب، ولا يمكن التراجع عنه.'),
-                style: TextButton.styleFrom(foregroundColor: cs.error),
-                child: const Text('رفض'),
-              ),
-            if (canReject) const SizedBox(width: AppSpacing.sm),
-            if (forward.isNotEmpty)
-              Expanded(
-                child: AppButton(
-                  label: switch (forward.first) {
-                    SupplyOrderStatus.confirmed => 'قبول الطلب',
-                    SupplyOrderStatus.processing => 'بدء التجهيز',
-                    SupplyOrderStatus.shipped => 'تأكيد الشحن',
-                    SupplyOrderStatus.delivered => 'تأكيد التسليم',
-                    SupplyOrderStatus.completed => 'إغلاق الطلب',
-                    _ => forward.first.label,
-                  },
-                  loading: _busy,
-                  onPressed: _busy
-                      ? null
-                      : () => _move(
-                            forward.first,
-                            confirmText: switch (forward.first) {
-                              SupplyOrderStatus.confirmed =>
-                                'هل تريد قبول هذا الطلب والالتزام بتجهيزه؟',
-                              SupplyOrderStatus.processing =>
-                                'هل تريد بدء تجهيز هذا الطلب؟',
-                              SupplyOrderStatus.shipped =>
-                                'هل تريد تأكيد شحن هذا الطلب؟',
-                              SupplyOrderStatus.delivered =>
-                                'هل تريد تأكيد تسليم الطلب للصيدلية؟',
-                              SupplyOrderStatus.completed =>
-                                'هل تريد إغلاق هذا الطلب نهائياً؟',
-                              _ => 'هل تريد تغيير حالة الطلب إلى «${forward.first.label}»؟',
-                            },
-                          ),
-                ),
-              ),
-          ],
+        child: AppButton(
+          label: 'خيارات الطلب',
+          icon: Icons.tune_outlined,
+          loading: _busy,
+          onPressed: _busy ? null : _showActionsSheet,
         ),
       ),
     );
