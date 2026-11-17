@@ -166,7 +166,24 @@
       "Bash(git commit -m ' *)",
       "Bash(git commit -m 'feat: implement pharmacist and warehouse UI enhancements *)",
       "Bash(git worktree *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "PowerShell(\\(Get-Item \"E:\\\\tawrid\\\\tawrid_app\\\\assets\\\\images\\\\logo.jpg\"\\).Length; \\(Get-Item \"E:\\\\tawrid\\\\لوغو توريد - جديد .jpeg\"\\).Length)",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile\\(\"E:\\\\tawrid\\\\لوغو توريد - جديد .jpeg\"\\); \"$\\($img.Width\\) x $\\($img.Height\\)\"; $img.Dispose\\(\\))",
+      "Bash(mkdir -p \"E:/tawrid/Tawrid.API/Tawrid.Domain/Entities/Conversations\")",
+      "Bash(mkdir -p \"E:/tawrid/Tawrid.API/Tawrid.Application/Features/Conversations/Dtos\")",
+      "Bash(mkdir -p \"E:/tawrid/Tawrid.API/Tawrid.Application/Features/Conversations/Queries/GetConversations\")",
+      "Bash(mkdir -p \"E:/tawrid/Tawrid.API/Tawrid.Application/Features/Conversations/Queries/GetUnreadCount\")",
+      "Bash(mkdir -p \"E:/tawrid/Tawrid.API/Tawrid.Application/Features/Conversations/Queries/GetMessages\")",
+      "Bash(magick --version)",
+      "Bash(convert --version)",
+      "PowerShell(python --version; python3 --version)",
+      "PowerShell(node -e \"try{require\\('sharp'\\); console.log\\('sharp ok'\\)}catch\\(e\\){console.log\\('no sharp'\\)}\")",
+      "PowerShell(node -e \"try{require\\('jimp'\\); console.log\\('jimp ok'\\)}catch\\(e\\){console.log\\('no jimp'\\)}\")",
+      "PowerShell(flutter *)",
+      "PowerShell(node -e \"require\\('C:/Temp/imgproc/node_modules/sharp'\\); console.log\\('sharp ready'\\)\" 2>&1)",
+      "PowerShell(node \"C:\\\\Temp\\\\imgproc\\\\process.js\" 2>&1)",
+      "Bash(xargs sed -i \"s|logo\\\\.jpg|logo.png|g\")",
+      "PowerShell(node \"C:\\\\Temp\\\\imgproc\\\\process.js\")"
     ]
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/repositories/notification_repository.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
@@ -89,6 +92,7 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
   Widget build(BuildContext context) {
     final me = ref.watch(pharmacyMeProvider);
     final unread = ref.watch(phUnreadCountProvider).value ?? 0;
+    final unreadConvs = ref.watch(phUnreadConversationsProvider).value ?? 0;
 
     return Scaffold(
       appBar: WelcomeTopBar(
@@ -102,6 +106,10 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
             onTap: () => context.push(TRoutes.phCart),
           ),
         ],
+        trailingAction: _ConversationsButton(
+          hasUnread: unreadConvs > 0,
+          onTap: () => context.push(TRoutes.phConversations),
+        ),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -120,6 +128,11 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
       children: [
         // ١ — ما الذي ينتظرك: تنبيه واحد لا أكثر، وإلا صار ضجيجاً.
         ..._alertStrip(cartCount),
+
+        const SizedBox(height: AppSpacing.xl),
+
+        // ٢ — بانر الإعلانات المُدارة من إدارة المنصّة.
+        const _AdsBanner(),
 
         const SizedBox(height: AppSpacing.xl),
 
@@ -221,6 +234,59 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
     }
 
     return const [];
+  }
+}
+
+// ── زر المحادثات في شريط الترحيب ────────────────────────────────────────
+// دائرة صغيرة تعكس نمط زر الإشعارات — أيقونة محادثة ونقطة حمراء إن وُجد
+// غير مقروء. تظهر في أقصى اليسار (نهاية القراءة) كي تبقى مجموعة
+// «التواصل» متجاورة (محادثات ثم جرس).
+class _ConversationsButton extends StatelessWidget {
+  const _ConversationsButton({required this.hasUnread, required this.onTap});
+
+  final bool hasUnread;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    return Stack(
+      children: [
+        Material(
+          color: cs.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: Center(
+                child: AppIcon(
+                  AppIcons.messageSquare,
+                  size: 20,
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (hasUnread)
+          PositionedDirectional(
+            end: 2,
+            top: 2,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: tk.danger,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -402,6 +468,169 @@ class _ActionTile extends StatelessWidget {
                 AppIcon(AppIcons.chevronForwardRtl, size: 16, color: fg),
               ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── بانر الإعلانات ────────────────────────────────────────────────────────
+// إعلانات تُدار من إدارة التطبيق وتُعرض للصيدلي فقط. الكروسيل يتقلّب
+// تلقائياً كلّ ٤ ثوانٍ ويقبل السحب اليدوي. النقاط أسفله تعكس الصفحة الحالية.
+// البيانات الحالية تجريبية — ستُستبدل بمصدر API لاحقاً.
+class _AdsBanner extends StatefulWidget {
+  const _AdsBanner();
+
+  @override
+  State<_AdsBanner> createState() => _AdsBannerState();
+}
+
+class _AdsBannerState extends State<_AdsBanner> {
+  static const _demos = [
+    _AdData(
+      title: 'خصم 15% على أدوية القلب والضغط',
+      subtitle: 'مستودع الشفاء — العرض ساري حتى نهاية الشهر',
+    ),
+    _AdData(
+      title: 'بونص 1+1 على المضادات الحيوية',
+      subtitle: 'مستودع النور الطبي — اطّلع على الشروط الكاملة',
+    ),
+    _AdData(
+      title: 'الكتالوج الجديد متاح الآن',
+      subtitle: 'تحقّق من التحديثات في أسعار الأدوية المزمنة',
+    ),
+  ];
+
+  late final PageController _pageCtrl;
+  Timer? _timer;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageCtrl = PageController();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      _pageCtrl.animateToPage(
+        (_page + 1) % _demos.length,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 140,
+          child: PageView.builder(
+            controller: _pageCtrl,
+            itemCount: _demos.length,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (_, i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: _AdCard(data: _demos[i]),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_demos.length, (i) {
+            final active = i == _page;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: active ? 20 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: active
+                    ? context.colors.primary
+                    : context.tokens.hint.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdData {
+  const _AdData({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+}
+
+class _AdCard extends StatelessWidget {
+  const _AdCard({required this.data});
+
+  final _AdData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Material(
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {},
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+            boxShadow: tk.cardShadow,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'إعلان',
+                  style: context.text.labelSmall?.copyWith(
+                    color: cs.primary.withValues(alpha: 0.55),
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  data.title,
+                  style: context.text.titleMedium?.copyWith(color: cs.primary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  data.subtitle,
+                  style: context.text.labelSmall?.copyWith(
+                    color: tk.hint,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),

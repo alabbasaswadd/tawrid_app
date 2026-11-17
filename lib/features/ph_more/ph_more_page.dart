@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:tawrid_app/app/theme/font_scale_provider.dart';
 import 'package:tawrid_app/core/session/pharmacy_session.dart';
 import 'package:tawrid_app/models/pharmacy_auth_models.dart';
 import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/font_scale_sheet.dart';
 
 // حساب الصيدلية (Figma: الصيدلي / حسابي).
 class PhMorePage extends ConsumerWidget {
@@ -39,6 +41,12 @@ class PhMorePage extends ConsumerWidget {
               icon: Icons.notifications_outlined,
               label: 'الإشعارات',
               onTap: () => context.push(TRoutes.phNotificationSettings),
+            ),
+            _Row(
+              icon: Icons.text_fields_outlined,
+              label: 'حجم الخط',
+              value: ref.watch(fontScaleProvider).label,
+              onTap: () => showFontScaleSheet(context, ref),
             ),
           ]),
 
@@ -195,11 +203,13 @@ class _Row extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.value,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +226,11 @@ class _Row extends StatelessWidget {
             Icon(icon, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: AppSpacing.md),
             Expanded(child: Text(label, style: context.text.bodyMedium)),
+            if (value != null) ...[
+              Text(value!,
+                  style: context.text.labelMedium?.copyWith(color: tk.hint)),
+              const SizedBox(width: AppSpacing.xs),
+            ],
             AppIcon(AppIcons.chevronForwardRtl, size: 16, color: tk.hint),
           ],
         ),

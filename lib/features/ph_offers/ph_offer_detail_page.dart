@@ -183,6 +183,28 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     );
   }
 
+  /// يعرض ورقة تأكيد ثم يُضيف فقط إذا وافق المستخدم.
+  Future<void> _confirmThenAdd() async {
+    final offer = _offer;
+    if (offer == null || _selected.isEmpty) return;
+
+    final chosen =
+        offer.items.where((i) => _selected.containsKey(i.id)).toList();
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ConfirmCartSheet(
+        items: chosen,
+        selected: Map.unmodifiable(_selected),
+        total: _selectedTotal,
+        currency: offer.currency,
+      ),
+    );
+
+    if (confirmed == true) await _addSelectedToCart();
+  }
+
   void _openComments() {
     final repo = ref.read(salesOfferRepositoryProvider);
     ChatSheet.show(
@@ -217,99 +239,111 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     final offer = _offer!;
     final tk = context.tokens;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _HeaderCard(offer: offer),
-
-        const SizedBox(height: AppSpacing.lg),
-        Text('أصناف العرض', style: context.text.titleLarge),
-        const SizedBox(height: 2),
-        Text(
-          'اختر ما تحتاجه من الأصناف — الطلبية تُنشأ بأصنافها والكميات التي تحددها.',
-          style: context.text.bodySmall?.copyWith(color: tk.hint),
+        // بطاقة رأس العرض ثابتة في الأعلى لا تتحرك مع السكرول
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.sm),
+          child: _HeaderCard(offer: offer),
         ),
-        const SizedBox(height: AppSpacing.md),
+        Divider(height: 1, color: context.colors.outline),
+        // الأصناف وبقية المحتوى قابلة للتمرير
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.x3l),
+            children: [
+              Text('أصناف العرض', style: context.text.titleLarge),
+              const SizedBox(height: 2),
+              Text(
+                'اختر ما تحتاجه من الأصناف — الطلبية تُنشأ بأصنافها والكميات التي تحددها.',
+                style: context.text.bodySmall?.copyWith(color: tk.hint),
+              ),
+              const SizedBox(height: AppSpacing.md),
 
-        for (final item in offer.items) ...[
-          OfferItemRow(
-            name: item.medicineName,
-            form: [
-              item.quantity <= 0
-                  ? item.unit
-                  : '${item.unit} · الكمية ${item.quantity.toStringAsFixed(0)}',
-              if (item.discountPercentage != null)
-                'حسم ${item.discountPercentage!.toStringAsFixed(0)}٪',
-            ].join(' · '),
-            unitPrice: formatMoneyWith(_netUnitPrice(item), offer.currency),
-            bonusLabel: item.bonusLabel,
-            availableText: item.quantity <= 0
-                ? 'كمية مفتوحة'
-                : 'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
-            mode: OfferItemRowMode.select,
-            selected: _selected.containsKey(item.id),
-            onSelectedChanged: (v) => _toggle(item, v),
-          ),
-          // حقل الكمية يظهر عند التحديد فقط — حقل نصي للإدخال المباشر.
-          if (_selected.containsKey(item.id))
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Row(
-                children: [
-                  Text('الكمية المطلوبة',
-                      style: context.text.bodySmall?.copyWith(color: tk.hint)),
-                  const Spacer(),
-                  SizedBox(
-                    width: 72,
-                    child: TextFormField(
-                      controller: _qtyControllers[item.id],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: context.text.bodyMedium,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
+              for (final item in offer.items) ...[
+                OfferItemRow(
+                  name: item.medicineName,
+                  form: [
+                    item.quantity <= 0
+                        ? item.unit
+                        : '${item.unit} · الكمية ${item.quantity.toStringAsFixed(0)}',
+                    if (item.discountPercentage != null)
+                      'حسم ${item.discountPercentage!.toStringAsFixed(0)}٪',
+                  ].join(' · '),
+                  unitPrice: formatMoneyWith(_netUnitPrice(item), offer.currency),
+                  bonusLabel: item.bonusLabel,
+                  availableText: item.quantity <= 0
+                      ? 'كمية مفتوحة'
+                      : 'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
+                  mode: OfferItemRowMode.select,
+                  selected: _selected.containsKey(item.id),
+                  onSelectedChanged: (v) => _toggle(item, v),
+                ),
+                // حقل الكمية يظهر عند التحديد فقط — حقل نصي للإدخال المباشر.
+                if (_selected.containsKey(item.id))
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
+                    child: Row(
+                      children: [
+                        Text('الكمية المطلوبة',
+                            style: context.text.bodySmall?.copyWith(color: tk.hint)),
+                        const Spacer(),
+                        SizedBox(
+                          width: 72,
+                          child: TextFormField(
+                            controller: _qtyControllers[item.id],
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            style: context.text.bodyMedium,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                              ),
+                            ),
+                            onChanged: (v) {
+                              final n = int.tryParse(v.trim());
+                              if (n != null && n > 0) _setQuantity(item, n);
+                            },
+                          ),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        const SizedBox(width: 6),
+                        Text(
+                          '/ ${_maxFor(item)} ${item.unit}',
+                          style: context.text.bodySmall?.copyWith(color: tk.hint),
                         ),
-                      ),
-                      onChanged: (v) {
-                        final n = int.tryParse(v.trim());
-                        if (n != null && n > 0) _setQuantity(item, n);
-                      },
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '/ ${_maxFor(item)} ${item.unit}',
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-
-        if (offer.bonusMedicineName != null || offer.items.any((i) => i.hasBonus))
-          _BonusExplainer(offer: offer),
-
-        if (offer.consignmentTerms != null && offer.consignmentTerms!.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('شروط الدفع', style: context.text.titleSmall),
-                const SizedBox(height: AppSpacing.xs),
-                Text(offer.consignmentTerms!, style: context.text.bodySmall),
+                const SizedBox(height: AppSpacing.md),
               ],
-            ),
+
+              if (offer.bonusMedicineName != null || offer.items.any((i) => i.hasBonus))
+                _BonusExplainer(offer: offer),
+
+              if (offer.consignmentTerms != null && offer.consignmentTerms!.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('شروط الدفع', style: context.text.titleSmall),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(offer.consignmentTerms!, style: context.text.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ],
     );
   }
@@ -366,7 +400,7 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
                         : 'إضافة المحدد إلى السلّة ($count)',
                 icon: Icons.add_shopping_cart,
                 loading: _submitting,
-                onPressed: _canOrder ? _addSelectedToCart : null,
+                onPressed: _canOrder ? _confirmThenAdd : null,
               ),
             ),
           ],
@@ -515,6 +549,157 @@ class _MetaLine extends StatelessWidget {
           child: Text(text, style: context.text.bodySmall?.copyWith(color: c)),
         ),
       ],
+    );
+  }
+}
+
+// ورقة تأكيد الإضافة إلى السلّة — تعرض ملخّص الأصناف والإجمالي قبل التنفيذ.
+class _ConfirmCartSheet extends StatelessWidget {
+  const _ConfirmCartSheet({
+    required this.items,
+    required this.selected,
+    required this.total,
+    required this.currency,
+  });
+
+  final List<SalesOfferItem> items;
+  final Map<String, int> selected;
+  final double total;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+    final count = items.length;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // مقبض السحب
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // رأس الورقة
+            Row(
+              children: [
+                Expanded(
+                  child: Text('تأكيد إضافة الأصناف',
+                      style: context.text.titleLarge),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: tk.brandSurface,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                  child: Text(
+                    '$count ${count == 1 ? 'صنف' : 'أصناف'}',
+                    style: context.text.labelSmall
+                        ?.copyWith(color: cs.primary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // قائمة الأصناف (تتمرر إن طالت)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 260),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: items.length,
+                separatorBuilder: (_, _) =>
+                    Divider(height: AppSpacing.lg, color: cs.outline),
+                itemBuilder: (_, i) {
+                  final item = items[i];
+                  final qty = selected[item.id] ?? 0;
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.medicineName,
+                                style: context.text.titleSmall,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$qty ${item.unit}',
+                              style: context.text.bodySmall
+                                  ?.copyWith(color: tk.hint),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        formatMoneyWith(
+                            _netUnitPrice(item) * qty, currency),
+                        style: context.text.bodyMedium,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+            Divider(color: cs.outline),
+            const SizedBox(height: AppSpacing.sm),
+
+            // الإجمالي
+            Row(
+              children: [
+                Expanded(
+                  child: Text('الإجمالي',
+                      style: context.text.titleSmall),
+                ),
+                Text(formatMoneyWith(total, currency),
+                    style: context.priceBrandStyle),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // الأزرار
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'تراجع',
+                    variant: AppButtonVariant.outline,
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: AppButton(
+                    label: 'أضف إلى السلّة',
+                    icon: Icons.add_shopping_cart,
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

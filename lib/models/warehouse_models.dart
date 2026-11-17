@@ -24,6 +24,18 @@ class WarehousePicker {
   /// متوسط أيام التسليم — قد يكون null إذا لم يرسله الخادم بعد.
   final double? avgDeliveryDays;
 
+  /// الحد الأدنى لأيام القبول (نطاق يحدّده المستودع).
+  final double? minAcceptanceDays;
+
+  /// الحد الأقصى لأيام القبول (نطاق يحدّده المستودع).
+  final double? maxAcceptanceDays;
+
+  /// الحد الأدنى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? minDeliveryDays;
+
+  /// الحد الأقصى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? maxDeliveryDays;
+
   WarehousePicker({
     required this.id,
     required this.name,
@@ -36,6 +48,10 @@ class WarehousePicker {
     this.pricingCurrency = 'SYP',
     this.avgAcceptanceDays,
     this.avgDeliveryDays,
+    this.minAcceptanceDays,
+    this.maxAcceptanceDays,
+    this.minDeliveryDays,
+    this.maxDeliveryDays,
   });
 
   factory WarehousePicker.fromJson(Map<String, dynamic> j) => WarehousePicker(
@@ -52,6 +68,10 @@ class WarehousePicker {
         pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
         avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
         avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
+        minAcceptanceDays: (j['minAcceptanceDays'] as num?)?.toDouble(),
+        maxAcceptanceDays: (j['maxAcceptanceDays'] as num?)?.toDouble(),
+        minDeliveryDays: (j['minDeliveryDays'] as num?)?.toDouble(),
+        maxDeliveryDays: (j['maxDeliveryDays'] as num?)?.toDouble(),
       );
 }
 
@@ -85,6 +105,18 @@ class WarehouseProfile {
   /// متوسط أيام التسليم — قد يكون null إذا لم يرسله الخادم بعد.
   final double? avgDeliveryDays;
 
+  /// الحد الأدنى لأيام القبول (نطاق يحدّده المستودع).
+  final double? minAcceptanceDays;
+
+  /// الحد الأقصى لأيام القبول (نطاق يحدّده المستودع).
+  final double? maxAcceptanceDays;
+
+  /// الحد الأدنى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? minDeliveryDays;
+
+  /// الحد الأقصى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? maxDeliveryDays;
+
   const WarehouseProfile({
     required this.id,
     required this.name,
@@ -100,6 +132,10 @@ class WarehouseProfile {
     this.pricingCurrency = 'SYP',
     this.avgAcceptanceDays,
     this.avgDeliveryDays,
+    this.minAcceptanceDays,
+    this.maxAcceptanceDays,
+    this.minDeliveryDays,
+    this.maxDeliveryDays,
   });
 
   factory WarehouseProfile.fromJson(Map<String, dynamic> j) => WarehouseProfile(
@@ -118,5 +154,9 @@ class WarehouseProfile {
         pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
         avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
         avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
+        minAcceptanceDays: (j['minAcceptanceDays'] as num?)?.toDouble(),
+        maxAcceptanceDays: (j['maxAcceptanceDays'] as num?)?.toDouble(),
+        minDeliveryDays: (j['minDeliveryDays'] as num?)?.toDouble(),
+        maxDeliveryDays: (j['maxDeliveryDays'] as num?)?.toDouble(),
       );
 }

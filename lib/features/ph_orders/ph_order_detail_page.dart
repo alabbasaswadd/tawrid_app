@@ -264,16 +264,8 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) {
-      return ListView(
-        children: const [AppDetailSkeleton()],
-      );
-    }
-    if (_error != null) {
-      return ListView(
-        children: [ErrorState(message: _error!, onRetry: _load)],
-      );
-    }
+    if (_loading) return const AppDetailSkeleton();
+    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     final order = _order!;
     final tk = context.tokens;
@@ -292,79 +284,22 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final item in order.items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.medicineName,
-                              style: context.text.bodyMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            // الكمية وسعر الوحدة سطرٌ مستقلّ كما في السلّة:
-                            // كانا محشورَين بين قوسين في الاسم فيُقرأ السطر
-                            // جملةً واحدة لا بيانات.
-                            Text(
-                              '${formatQuantity(item.quantity)} ${item.unit}'
-                              '${item.agreedUnitPrice == null ? '' : ' · سعر الوحدة '
-                                  '${formatMoneyWith(item.agreedUnitPrice!, _currency)}'}',
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: context.tokens.hint),
-                            ),
-                            if (item.manufacturerName != null &&
-                                item.manufacturerName!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                item.manufacturerName!,
-                                style: context.text.labelSmall
-                                    ?.copyWith(color: context.tokens.hint),
-                              ),
-                            ],
-                            // البونص شارةٌ ذهبية كما في السلّة لا نصّاً
-                            // داخل الاسم — وهو ما يُحضَّر مع الطلبية، فحقّه
-                            // أن يُرى لا أن يُستخرَج من بين قوسين.
-                            if (_freeUnitsOf(item) > 0) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              BonusBadge(
-                                label:
-                                    '+${formatQuantity(_freeUnitsOf(item))} ${item.unit} مجاناً',
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'الإجمالي',
-                            style: context.text.labelSmall
-                                ?.copyWith(color: context.tokens.hint),
-                          ),
-                          Text(
-                            item.agreedUnitPrice == null
-                                ? '—'
-                                : formatMoneyWith(
-                                    item.agreedUnitPrice! * item.quantity,
-                                    _currency),
-                            style: context.text.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ],
+              for (int idx = 0; idx < order.items.length; idx++) ...[
+                if (idx > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Divider(height: 1, color: context.colors.outline),
                   ),
+                _OrderItemRow(
+                  item: order.items[idx],
+                  currency: _currency,
+                  freeUnits: _freeUnitsOf(order.items[idx]),
                 ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
               if (_freeUnits > 0) ...[
                 Divider(color: context.colors.outline),
+                const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
                     Expanded(
@@ -375,8 +310,8 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                             ?.copyWith(color: tk.goldStrong)),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.xs),
               ],
-              const SizedBox(height: AppSpacing.xs),
               Divider(color: context.colors.outline),
               const SizedBox(height: AppSpacing.xs),
               Row(
@@ -470,7 +405,6 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                 Expanded(
                   child: AppButton(
                     label: 'تواصل مع المستودع',
-                    icon: Icons.chat,
                     onPressed: _contactWarehouse,
                   ),
                 ),
@@ -711,6 +645,81 @@ class _MetaLine extends StatelessWidget {
         const SizedBox(width: 6),
         Expanded(
           child: Text(text, style: context.text.bodySmall?.copyWith(color: c)),
+        ),
+      ],
+    );
+  }
+}
+
+// صنف واحد في قائمة أصناف الطلبية — اسم + تفاصيل + بونص + إجمالي السطر.
+class _OrderItemRow extends StatelessWidget {
+  const _OrderItemRow({
+    required this.item,
+    required this.currency,
+    required this.freeUnits,
+  });
+
+  final SupplyOrderItem item;
+  final String currency;
+  final double freeUnits;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.medicineName,
+                style: context.text.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${formatQuantity(item.quantity)} ${item.unit}'
+                '${item.agreedUnitPrice == null ? '' : '  ·  سعر الوحدة '
+                    '${formatMoneyWith(item.agreedUnitPrice!, currency)}'}',
+                style: context.text.bodySmall?.copyWith(color: tk.hint),
+              ),
+              if (item.manufacturerName != null &&
+                  item.manufacturerName!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  item.manufacturerName!,
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
+              ],
+              if (freeUnits > 0) ...[
+                const SizedBox(height: AppSpacing.xs),
+                BonusBadge(
+                  label: '+${formatQuantity(freeUnits)} ${item.unit} مجاناً',
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'الإجمالي',
+              style: context.text.labelSmall?.copyWith(color: tk.hint),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              item.agreedUnitPrice == null
+                  ? '—'
+                  : formatMoneyWith(item.agreedUnitPrice! * item.quantity, currency),
+              style: context.priceBrandStyle,
+            ),
+          ],
         ),
       ],
     );

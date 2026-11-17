@@ -168,4 +168,16 @@ abstract final class ApiEndpoints {
       '${warehouse ? _wh : _ph}/auth/devices';
   static String deviceByToken(bool warehouse, String token) =>
       '${warehouse ? _wh : _ph}/auth/devices/$token';
+
+  // ── Conversations (رسائل مباشرة بين صيدلية ومستودع أو صيدليتين) ──────────
+  // البادئة تحدّد التوكن تلقائياً كما في الإشعارات (warehouse/ أو لا).
+  static String _convRoot(bool warehouse) =>
+      '${warehouse ? _wh : _ph}/conversations';
+  static String conversations(bool warehouse) => _convRoot(warehouse);
+  static String conversationMessages(bool warehouse, String id) =>
+      '${_convRoot(warehouse)}/$id/messages';
+  static String conversationsUnreadCount(bool warehouse) =>
+      '${_convRoot(warehouse)}/unread-count';
+  static String conversationMarkRead(bool warehouse, String id) =>
+      '${_convRoot(warehouse)}/$id/read';
 }

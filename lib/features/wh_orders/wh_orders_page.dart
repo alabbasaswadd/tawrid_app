@@ -140,7 +140,7 @@ class _WhOrdersPageState extends ConsumerState<WhOrdersPage> {
       children: [
         // الشرائح أفقية: أربع شرائح عربية لا تتّسع لعرض الشاشة في صفّ ثابت.
         SizedBox(
-          height: 34,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),

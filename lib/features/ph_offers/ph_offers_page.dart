@@ -278,7 +278,7 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
 
         const SizedBox(height: AppSpacing.md),
         SizedBox(
-          height: 34,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),

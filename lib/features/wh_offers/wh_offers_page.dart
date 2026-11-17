@@ -222,7 +222,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     return Column(
       children: [
         SizedBox(
-          height: 34,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
@@ -241,7 +241,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
 
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
-          height: 34,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),

@@ -35,7 +35,7 @@ class AppBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 68,
+          height: 72,
           child: Padding(
             padding: const EdgeInsets.only(top: 2, bottom: 6),
             child: Row(

@@ -13,6 +13,7 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.onNotificationsTap,
     this.hasUnread = false,
     this.actions = const [],
+    this.trailingAction,
     super.key,
   });
 
@@ -21,12 +22,15 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onNotificationsTap;
   final bool hasUnread;
 
-  /// إجراءات تسبق زرّ الإشعارات (بحث الأسعار والسلّة في رئيسية الصيدلي).
+  /// إجراءات تسبق زرّ الإشعارات (السلّة وما شابهها).
   final List<Widget> actions;
 
-  /// سطرا الشريط بمقياس الخط الافتراضي: «نص مساعد» ١٢/١٨ فوق «عنوان قسم»
-  /// ١٨/٢٦ = ٤٤، وحشوٌ رأسي ١٢ من الطرفين — مجموعها ٦٨ كما في Figma.
-  static const double _contentHeight = 18 + 26;
+  /// عنصر يظهر بعد زرّ الإشعارات — أقصى اليسار في RTL (مثل زر المحادثات).
+  final Widget? trailingAction;
+
+  /// سطرا الشريط بمقياس الخط الافتراضي: «نص مساعد» ١٤/٢٠ فوق «عنوان قسم»
+  /// ٢٠/٢٨ = ٤٨، وحشوٌ رأسي ١٢ من الطرفين — مجموعها ٧٢.
+  static const double _contentHeight = 20 + 28;
   static const double _verticalPadding = AppSpacing.md;
 
   // الارتفاع يتبع تكبير خطّ النظام. تثبيته على ٦٨ كان يعني صفر هامش عند
@@ -132,6 +136,10 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                 ],
               ),
+              if (trailingAction != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                trailingAction!,
+              ],
             ],
           ),
         ),

@@ -126,6 +126,19 @@ abstract final class TRoutes {
   static const String whNotifications = '/wh/notifications';
   static const String whNotificationSettings = '/wh/notifications/settings';
 
+  // المحادثات المباشرة — صيدلية ↔ مستودع، صيدلية ↔ صيدلية
+  static const String phConversations = '/conversations';
+  static const String phConversationDetailPattern =
+      '/conversations/:conversationId';
+  static String phConversationDetail(String id, String title) =>
+      '/conversations/$id?title=${Uri.encodeComponent(title)}';
+
+  static const String whConversations = '/wh/conversations';
+  static const String whConversationDetailPattern =
+      '/wh/conversations/:conversationId';
+  static String whConversationDetail(String id, String title) =>
+      '/wh/conversations/$id?title=${Uri.encodeComponent(title)}';
+
   // معرض نظام التصميم (للتطوير)
   static const String devGallery = '/dev/gallery';
 

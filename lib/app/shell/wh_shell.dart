@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
+import 'package:tawrid_app/shared/widgets/conv_fab.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 
-class WhShell extends StatefulWidget {
+class WhShell extends ConsumerStatefulWidget {
   const WhShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  State<WhShell> createState() => _WhShellState();
+  ConsumerState<WhShell> createState() => _WhShellState();
 }
 
-class _WhShellState extends State<WhShell>
+class _WhShellState extends ConsumerState<WhShell>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
@@ -85,6 +88,12 @@ class _WhShellState extends State<WhShell>
             child: widget.navigationShell,
           ),
         ),
+        floatingActionButton: ConvFab(
+          isWarehouse: true,
+          onTap: () => context.push(TRoutes.whConversations),
+        ),
+        floatingActionButtonLocation:
+            FloatingActionButtonLocation.startFloat,
         bottomNavigationBar: AppBottomNav(
           currentIndex: widget.navigationShell.currentIndex,
           onTap: _onTap,

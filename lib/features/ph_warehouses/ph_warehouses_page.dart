@@ -216,6 +216,18 @@ class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
   }
 }
 
+/// نص نطاق الأيام: «2 - 3 يوم» إذا توفّر min وmax، أو «3 يوم» إذا توفّر
+/// avg فقط. يُرجع null إذا لم تتوفّر أي قيمة.
+String? _daysRangeText(double? min, double? max, double? avg) {
+  final lo = min ?? avg;
+  final hi = max ?? avg;
+  if (lo == null) return null;
+  final loInt = lo.ceil();
+  final hiInt = hi?.ceil() ?? loInt;
+  if (loInt == hiInt) return '$loInt يوم';
+  return '$loInt - $hiInt يوم';
+}
+
 // كارد المستودع — مستطيل أفقي، خلفية بيضاء، بدون أيقونة كبيرة وبدون تذييل
 class _WarehouseCard extends StatelessWidget {
   const _WarehouseCard({required this.warehouse});
@@ -229,17 +241,8 @@ class _WarehouseCard extends StatelessWidget {
 
     const radius = BorderRadius.all(Radius.circular(AppRadius.md));
 
-    // نص متوسط مدة القبول/التسليم — يُظهر فقط إذا توفّر أحدهما
-    final hasStats = w.avgAcceptanceDays != null || w.avgDeliveryDays != null;
-    final acceptText = w.avgAcceptanceDays != null
-        ? 'قبول: ${w.avgAcceptanceDays!.toStringAsFixed(1)} ي'
-        : null;
-    final deliveryText = w.avgDeliveryDays != null
-        ? 'تسليم: ${w.avgDeliveryDays!.toStringAsFixed(1)} ي'
-        : null;
-    final statsText = [acceptText, deliveryText]
-        .where((s) => s != null)
-        .join('  |  ');
+    final hasStats = w.avgAcceptanceDays != null || w.minAcceptanceDays != null
+        || w.avgDeliveryDays != null || w.minDeliveryDays != null;
 
     return Material(
       color: Colors.transparent,
@@ -258,7 +261,6 @@ class _WarehouseCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg, vertical: AppSpacing.md),
             child: Row(
-              // السهم في المنتصف عمودياً بفضل crossAxisAlignment.center
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // المعلومات
@@ -298,13 +300,25 @@ class _WarehouseCard extends StatelessWidget {
                         ),
                       ],
                       if (hasStats) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          statsText,
-                          style: context.text.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 11,
-                          ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            if (_daysRangeText(w.minAcceptanceDays, w.maxAcceptanceDays, w.avgAcceptanceDays) != null)
+                              _StatChip(
+                                icon: AppIcons.clock,
+                                label: 'متوسط القبول',
+                                value: _daysRangeText(w.minAcceptanceDays, w.maxAcceptanceDays, w.avgAcceptanceDays)!,
+                              ),
+                            if (_daysRangeText(w.minAcceptanceDays, w.maxAcceptanceDays, w.avgAcceptanceDays) != null
+                                && _daysRangeText(w.minDeliveryDays, w.maxDeliveryDays, w.avgDeliveryDays) != null)
+                              const SizedBox(width: AppSpacing.sm),
+                            if (_daysRangeText(w.minDeliveryDays, w.maxDeliveryDays, w.avgDeliveryDays) != null)
+                              _StatChip(
+                                icon: AppIcons.truck,
+                                label: 'التسليم',
+                                value: _daysRangeText(w.minDeliveryDays, w.maxDeliveryDays, w.avgDeliveryDays)!,
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -317,6 +331,43 @@ class _WarehouseCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// شريحة صغيرة تعرض أيقونة + تسمية + قيمة (مثل «⏱ متوسط القبول: 2-3 يوم»)
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final AppIcons icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final cs = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      decoration: BoxDecoration(
+        color: tk.brandSurfaceSubtle,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIcon(icon, size: 12, color: cs.primary),
+          const SizedBox(width: 4),
+          Text(
+            '$label: $value',
+            style: context.text.labelSmall?.copyWith(color: cs.primary),
+          ),
+        ],
       ),
     );
   }

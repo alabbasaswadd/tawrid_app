@@ -185,9 +185,9 @@ class SupplyOrderDetail {
         status: SupplyOrderStatus.fromCode(j['status'] as int),
         supplyWarehouseId: j['supplyWarehouseId'] as String,
         warehouseName: j['warehouseName'] as String,
-        warehousePhone: j['warehousePhone'] as String,
-        warehouseCity: j['warehouseCity'] as String,
-        warehouseGovernorate: j['warehouseGovernorate'] as String,
+        warehousePhone: j['warehousePhone'] as String? ?? '',
+        warehouseCity: j['warehouseCity'] as String? ?? '',
+        warehouseGovernorate: j['warehouseGovernorate'] as String? ?? '',
         notes: j['notes'] as String?,
         currency: j['currency'] as String? ?? 'SYP',
         expectedDeliveryDate: j['expectedDeliveryDate'] != null

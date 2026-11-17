@@ -51,6 +51,8 @@ import 'package:tawrid_app/features/wh_offers/wh_offer_detail_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_order_detail_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_orders_page.dart';
+import 'package:tawrid_app/features/conversations/conversation_chat_page.dart';
+import 'package:tawrid_app/features/conversations/conversations_page.dart';
 import 'package:tawrid_app/features/wh_announcements/wh_announcements_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_submit_tender_offer_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_tenders_page.dart';
@@ -163,6 +165,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phProfile,
         TRoutes.phReports,
         TRoutes.phTenderReports,
+        TRoutes.phConversations,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
       final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
@@ -171,7 +174,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               loc.startsWith('/tenders/')) &&
           loc.split('/').length == 3;
       final isPhListingRoute = loc.startsWith('/listings/');
-      if ((phRoutes.contains(loc) || isPhDetailRoute || isPhListingRoute) &&
+      final isPhConversationRoute = loc.startsWith('/conversations/');
+      if ((phRoutes.contains(loc) ||
+              isPhDetailRoute ||
+              isPhListingRoute ||
+              isPhConversationRoute) &&
           !phAuth) {
         return TRoutes.phLogin;
       }
@@ -192,6 +199,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whOrderSettings,
         TRoutes.whNotifications,
         TRoutes.whNotificationSettings,
+        TRoutes.whConversations,
       };
       final isSubmitOfferRoute =
           loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
@@ -372,6 +380,38 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: TRoutes.whAnnouncements,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, _) => const WhAnnouncementsPage(),
+      ),
+
+      // ── المحادثات المباشرة ───────────────────────────────────────────────
+      GoRoute(
+        path: TRoutes.phConversations,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) =>
+            const ConversationsPage(isWarehouse: false),
+      ),
+      GoRoute(
+        path: TRoutes.phConversationDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => ConversationChatPage(
+          conversationId: state.pathParameters['conversationId']!,
+          title: state.uri.queryParameters['title'] ?? 'محادثة',
+          isWarehouse: false,
+        ),
+      ),
+      GoRoute(
+        path: TRoutes.whConversations,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) =>
+            const ConversationsPage(isWarehouse: true),
+      ),
+      GoRoute(
+        path: TRoutes.whConversationDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => ConversationChatPage(
+          conversationId: state.pathParameters['conversationId']!,
+          title: state.uri.queryParameters['title'] ?? 'محادثة',
+          isWarehouse: true,
+        ),
       ),
 
       // البحث عن دواء (الصيدلي) — يُفتح من الرئيسية

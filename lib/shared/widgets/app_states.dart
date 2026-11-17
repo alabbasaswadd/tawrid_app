@@ -47,19 +47,15 @@ class _LoadingStateState extends State<LoadingState>
             opacity: Tween<double>(begin: 0.45, end: 1).animate(curve),
             child: ScaleTransition(
               scale: Tween<double>(begin: 0.94, end: 1).animate(curve),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                child: Image.asset(
-                  'assets/images/logo.jpg',
-                  width: 84,
-                  height: 84,
-                  fit: BoxFit.contain,
-                  // غياب الأصل لا يجوز أن يُسقط كل شاشة تُحمِّل.
-                  errorBuilder: (_, _, _) => Icon(
-                      Icons.local_pharmacy_outlined,
-                      size: 48,
-                      color: context.colors.primary),
-                ),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 36,
+                fit: BoxFit.fitWidth,
+                // غياب الأصل لا يجوز أن يُسقط كل شاشة تُحمِّل.
+                errorBuilder: (_, _, _) => Icon(
+                    Icons.local_pharmacy_outlined,
+                    size: 48,
+                    color: context.colors.primary),
               ),
             ),
           ),
