@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
@@ -80,6 +81,9 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
 
   /// هل ابتعد القارئ عن الأسفل بما يكفي ليُعرض زرّ العودة؟
   bool _showJumpToBottom = false;
+
+  /// الرسالة التي يجري الردّ عليها — تُعرَض فوق حقل الكتابة.
+  ConversationMessage? _replyingTo;
 
   ConversationRepository get _repo => widget.isWarehouse
       ? ref.read(whConversationRepositoryProvider)
@@ -218,6 +222,49 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     }
   }
 
+  /// قائمة إجراءات الرسالة — ردّ أو نسخ.
+  ///
+  /// ورقة سفلية لا قائمة منبثقة: الأصابع تصل أسفل الشاشة، والمنبثقة عند
+  /// موضع الضغط تحجب الرسالة التي يختار المستخدم إجراءً عليها.
+  Future<void> _showMessageActions(ConversationMessage message) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            ListTile(
+              leading: const Icon(Icons.reply),
+              title: const Text('ردّ'),
+              onTap: () => Navigator.pop(ctx, 'reply'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: const Text('نسخ النصّ'),
+              onTap: () => Navigator.pop(ctx, 'copy'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case 'reply':
+        setState(() => _replyingTo = message);
+        _inputFocus.requestFocus();
+      case 'copy':
+        await Clipboard.setData(ClipboardData(text: message.content));
+        if (mounted) AppSnackbar.success(context, 'نُسخ النصّ');
+    }
+  }
+
   void _scheduleMarkRead() {
     _markReadTimer?.cancel();
     _markReadTimer = Timer(_markReadDelay, () {
@@ -266,6 +313,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     if (text.isEmpty) return;
 
     final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final replyTo = _replyingTo;
     _textCtrl.clear();
 
     // التركيز يُستردّ فوراً لا بعد ردّ الخادم: الإرسال لا ينتظره أصلاً،
@@ -279,13 +327,23 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
           localId: localId,
           content: text,
           senderName: '',
+          replyTo: replyTo == null
+              ? null
+              : ReplyPreview(
+                  id: replyTo.id,
+                  senderName: replyTo.senderName,
+                  content: replyTo.content,
+                ),
         ),
       ],
     );
+    // يُلغى فور الإرسال لا بعد التأكيد: الشريط باقياً بعد الضغط يوهم
+    // أن الردّ لم يُرسَل.
+    if (replyTo != null) setState(() => _replyingTo = null);
     _scrollToBottom();
 
     try {
-      final sent = await _deliver(text);
+      final sent = await _deliver(text, replyToId: replyTo?.id);
       if (!mounted) return;
       _confirm(localId, sent);
     } catch (e) {
@@ -321,7 +379,10 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     );
 
     try {
-      final sent = await _deliver(failed.content);
+      final sent = await _deliver(
+        failed.content,
+        replyToId: failed.replyTo?.id,
+      );
       if (!mounted) return;
       _confirm(failed.id, sent);
     } catch (e) {
@@ -347,18 +408,26 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   /// وتكرار رسالة أهون من ضياعها: الأولى يراها المستخدم ويحذفها، والثانية
   /// لا يعرف بها أصلاً. ومع ذلك لا يتكرّر الاحتمال إلا مرة — الحالة
   /// الوحيدة المعروفة (طريقة معدومة) تُطفئ المسار بعدها.
-  Future<ConversationMessage> _deliver(String text) async {
+  Future<ConversationMessage> _deliver(String text, {String? replyToId}) async {
     final hub = ref.read(conversationHubProvider);
 
     if (hub.canSend) {
       try {
-        return await hub.sendMessage(widget.conversationId, text);
+        return await hub.sendMessage(
+          widget.conversationId,
+          text,
+          replyToMessageId: replyToId,
+        );
       } catch (_) {
         // يسقط إلى REST أدناه.
       }
     }
 
-    return _repo.sendMessage(widget.conversationId, text);
+    return _repo.sendMessage(
+      widget.conversationId,
+      text,
+      replyToMessageId: replyToId,
+    );
   }
 
   /// يُثبّت الفقاعة المحلّية بنسختها المؤكَّدة — في موضعها نفسه.
@@ -464,57 +533,70 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
               AppSpacing.sm,
               AppSpacing.sm + bottomPad,
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textCtrl,
-                    focusNode: _inputFocus,
-                    textInputAction: TextInputAction.send,
-                    // لوحة المفاتيح تبقى بعد الإرسال: onSubmitted يُغلقها
-                    // افتراضياً، وطلب التركيز داخل _send يُبقيها.
-                    onSubmitted: (_) => _send(),
-                    // رسالة طويلة تلتفّ فينمو الحقل إلى خمسة أسطر ثم
-                    // يُمرَّر داخله بدل أن يبتلع الشاشة.
-                    //
-                    // بلا keyboardType: multiline عمداً — يُحوّل مفتاح
-                    // الإدخال إلى سطر جديد فيُفقد زرّ الإرسال من اللوحة.
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      hintText: 'اكتب رسالة...',
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: cs.outlineVariant),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: cs.outlineVariant),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: cs.primary, width: 1.5),
+                if (_replyingTo case final replying?)
+                  _ReplyComposerBar(
+                    message: replying,
+                    onCancel: () => setState(() => _replyingTo = null),
+                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _textCtrl,
+                        focusNode: _inputFocus,
+                        textInputAction: TextInputAction.send,
+                        // لوحة المفاتيح تبقى بعد الإرسال: onSubmitted يُغلقها
+                        // افتراضياً، وطلب التركيز داخل _send يُبقيها.
+                        onSubmitted: (_) => _send(),
+                        // رسالة طويلة تلتفّ فينمو الحقل إلى خمسة أسطر ثم
+                        // يُمرَّر داخله بدل أن يبتلع الشاشة.
+                        //
+                        // بلا keyboardType: multiline عمداً — يُحوّل مفتاح
+                        // الإدخال إلى سطر جديد فيُفقد زرّ الإرسال من اللوحة.
+                        minLines: 1,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          hintText: 'اكتب رسالة...',
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: cs.outlineVariant),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: cs.outlineVariant),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(
+                              color: cs.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                // الزرّ لا يُقفَل ولا يحمل دوّارة: حال كل رسالة مكتوبة على
-                // فقاعتها. وقفلُه كان يمنع كتابة رسالة ثانية قبل وصول
-                // الأولى — وهو ما لا يفعله أي تطبيق مراسلة.
-                IconButton.filled(
-                  icon: const Icon(Icons.send, size: 18),
-                  onPressed: _send,
-                  style: IconButton.styleFrom(
-                    backgroundColor: cs.primary,
-                    foregroundColor: cs.onPrimary,
-                    minimumSize: const Size(36, 36),
-                  ),
+                    const SizedBox(width: AppSpacing.sm),
+                    // الزرّ لا يُقفَل ولا يحمل دوّارة: حال كل رسالة مكتوبة على
+                    // فقاعتها. وقفلُه كان يمنع كتابة رسالة ثانية قبل وصول
+                    // الأولى — وهو ما لا يفعله أي تطبيق مراسلة.
+                    IconButton.filled(
+                      icon: const Icon(Icons.send, size: 18),
+                      onPressed: _send,
+                      style: IconButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: cs.onPrimary,
+                        minimumSize: const Size(36, 36),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -568,6 +650,10 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
           _MessageRow(:final message) => _MessageBubble(
             message: message,
             onRetry: message.failed ? () => _retry(message) : null,
+            // المعلَّقة لا إجراء عليها: لا معرّف لها في الخادم بعد.
+            onLongPress: message.pending || message.failed
+                ? null
+                : () => _showMessageActions(message),
           ),
         };
       },
@@ -689,12 +775,15 @@ class _DateSeparator extends StatelessWidget {
 
 // ── فقاعة رسالة ──────────────────────────────────────────────────────────
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, this.onRetry});
+  const _MessageBubble({required this.message, this.onRetry, this.onLongPress});
 
   final ConversationMessage message;
 
   /// يُمرَّر للفقاعة الفاشلة وحدها — الضغط يُعيد إرسالها.
   final VoidCallback? onRetry;
+
+  /// قائمة إجراءات الرسالة — للمؤكَّدة وحدها.
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -741,6 +830,10 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ),
             ),
+          if (message.replyTo case final quoted?) ...[
+            _QuotedMessage(reply: quoted, onMine: isMe),
+            const SizedBox(height: 6),
+          ],
           Text(
             message.content,
             style: context.text.bodyMedium?.copyWith(color: textColor),
@@ -777,12 +870,13 @@ class _MessageBubble extends StatelessWidget {
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       // الفقاعة الفاشلة وحدها تستجيب للضغط: جعلُ كل فقاعة قابلة للضغط
       // بلا فعلٍ يُربك — أثرُ ضغطٍ لا يتبعه شيء.
-      child: onRetry == null
+      child: onRetry == null && onLongPress == null
           ? bubble
           : Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: onRetry,
+                onLongPress: onLongPress,
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 child: bubble,
               ),
@@ -817,6 +911,118 @@ class _JumpToBottomButton extends StatelessWidget {
             child: AppIcon(AppIcons.chevronDown, size: 20, color: cs.onSurface),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// شريط الردّ فوق حقل الكتابة: يقول على ماذا تردّ، ويسمح بالتراجع.
+class _ReplyComposerBar extends StatelessWidget {
+  const _ReplyComposerBar({required this.message, required this.onCancel});
+
+  final ConversationMessage message;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        // شريط لوني في بداية القراءة — نفس ما يميّز الاقتباس في الفقاعة،
+        // فيُقرأ الاثنان شيئاً واحداً.
+        border: BorderDirectional(
+          start: BorderSide(color: cs.primary, width: 3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'ردّ على ${message.isFromMe ? 'رسالتك' : message.senderName}',
+                  style: context.text.labelSmall?.copyWith(color: cs.primary),
+                ),
+                Text(
+                  message.content,
+                  style: context.text.bodySmall?.copyWith(color: tk.hint),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: AppIcon(AppIcons.x, size: 16, color: tk.hint),
+            onPressed: onCancel,
+            tooltip: 'إلغاء الردّ',
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// الاقتباس داخل الفقاعة: مقتطف الأصل فوق نصّ الردّ.
+class _QuotedMessage extends StatelessWidget {
+  const _QuotedMessage({required this.reply, required this.onMine});
+
+  final ReplyPreview reply;
+
+  /// فقاعتي داكنة وفقاعة الآخر فاتحة — والاقتباس يتبع أرضيّته لا لوناً
+  /// ثابتاً، وإلا اختفى على إحداهما.
+  final bool onMine;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    final accent = onMine ? cs.onPrimary : cs.primary;
+    final faded = onMine ? cs.onPrimary.withValues(alpha: 0.75) : tk.hint;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: (onMine ? cs.onPrimary : cs.onSurface).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: BorderDirectional(start: BorderSide(color: accent, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            reply.senderName,
+            style: context.text.labelSmall?.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            reply.content,
+            style: context.text.bodySmall?.copyWith(color: faded),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

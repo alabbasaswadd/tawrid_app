@@ -76,8 +76,9 @@ class ConversationHub {
   /// تماماً: الـ Hub يُفوّض إلى الأمر نفسه.
   Future<ConversationMessage> sendMessage(
     String conversationId,
-    String content,
-  ) async {
+    String content, {
+    String? replyToMessageId,
+  }) async {
     final connection = _connection;
     if (connection == null ||
         connection.state != HubConnectionState.Connected) {
@@ -88,7 +89,13 @@ class ConversationHub {
     try {
       raw = await connection.invoke(
         'SendMessage',
-        args: [conversationId, content],
+        // الوسيط الثالث يُحذف حين لا ردّ: قائمة الاستدعاء لا تقبل null،
+        // والطريقة في الـ Hub تحمل قيمة افتراضية فتُبنى بوسيطين.
+        args: [
+          conversationId,
+          content,
+          ?replyToMessageId,
+        ],
       );
     } catch (e) {
       // خادم لا يعرف الطريقة أصلاً: لم يُكتب شيء، والمحاولة لن تنجح

@@ -151,11 +151,15 @@ class ConversationRepository {
 
   Future<ConversationMessage> sendMessage(
     String conversationId,
-    String content,
-  ) async {
+    String content, {
+    String? replyToMessageId,
+  }) async {
     final raw = await _api.post(
       ApiEndpoints.conversationMessages(isWarehouse, conversationId),
-      data: {'content': content},
+      data: {
+        'content': content,
+        'replyToMessageId': ?replyToMessageId,
+      },
     );
     return ConversationMessage.fromJson(raw as Map<String, dynamic>);
   }

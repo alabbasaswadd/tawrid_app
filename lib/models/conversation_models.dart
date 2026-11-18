@@ -44,6 +44,25 @@ class Conversation {
   );
 }
 
+/// مقتطف الرسالة المردود عليها — ما يكفي لرسم الاقتباس بلا جلب ثانٍ.
+class ReplyPreview {
+  const ReplyPreview({
+    required this.id,
+    required this.senderName,
+    required this.content,
+  });
+
+  final String id;
+  final String senderName;
+  final String content;
+
+  factory ReplyPreview.fromJson(Map<String, dynamic> j) => ReplyPreview(
+    id: j['id'] as String,
+    senderName: j['senderName'] as String? ?? '',
+    content: j['content'] as String? ?? '',
+  );
+}
+
 class ConversationMessage {
   const ConversationMessage({
     required this.id,
@@ -51,6 +70,7 @@ class ConversationMessage {
     required this.isFromMe,
     required this.senderName,
     required this.createdAt,
+    this.replyTo,
     this.pending = false,
     this.failed = false,
   });
@@ -60,6 +80,9 @@ class ConversationMessage {
   final bool isFromMe;
   final String senderName;
   final DateTime createdAt;
+
+  /// الرسالة المُقتبَسة — تغيب حين لا تكون هذه ردّاً.
+  final ReplyPreview? replyTo;
 
   /// فقاعة رُسمت قبل تأكيد الخادم — معرّفها محلّي ووقتها تقديري.
   ///
@@ -74,12 +97,14 @@ class ConversationMessage {
     required String localId,
     required String content,
     required String senderName,
+    ReplyPreview? replyTo,
   }) => ConversationMessage(
     id: localId,
     content: content,
     isFromMe: true,
     senderName: senderName,
     createdAt: DateTime.now(),
+    replyTo: replyTo,
     pending: true,
   );
 
@@ -90,6 +115,7 @@ class ConversationMessage {
         isFromMe: isFromMe,
         senderName: senderName,
         createdAt: createdAt,
+        replyTo: replyTo,
         pending: pending ?? this.pending,
         failed: failed ?? this.failed,
       );
@@ -101,5 +127,10 @@ class ConversationMessage {
         isFromMe: j['isFromMe'] as bool? ?? false,
         senderName: j['senderName'] as String? ?? '',
         createdAt: DateTime.parse(j['createdAt'] as String),
+        replyTo: j['replyTo'] == null
+            ? null
+            : ReplyPreview.fromJson(
+                Map<String, dynamic>.from(j['replyTo'] as Map),
+              ),
       );
 }
