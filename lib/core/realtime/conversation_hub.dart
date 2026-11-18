@@ -187,6 +187,29 @@ class ConversationHub {
     }
   }
 
+  /// يُغلق القناة عند خروج التطبيق من المقدمة.
+  ///
+  /// إبقاؤها مفتوحة في الخلفية يستنزف البطارية بلا فائدة: النظام يقطع
+  /// المقابس في وضع الخمول على كل حال، والتنبيه الفوري (push) هو من
+  /// يُعلم المستخدم وقتها لا القناة.
+  ///
+  /// الجهة تُحفَظ ليُعاد الفتح بها عند العودة بلا أن يُمرّرها أحد.
+  Future<void> suspend() async {
+    if (_connection == null) return;
+    _wasConnected = true;
+    await disconnect();
+  }
+
+  /// يُعيد فتح القناة عند عودة التطبيق — إن كانت مفتوحة قبل التعليق.
+  Future<void> resume() async {
+    if (!_wasConnected || _connection != null) return;
+    _wasConnected = false;
+    await connect(isWarehouse: _isWarehouse);
+  }
+
+  /// هل كانت القناة مفتوحة قبل التعليق؟ يمنع فتحها لمن لم يسجّل دخوله.
+  bool _wasConnected = false;
+
   Future<void> disconnect() async {
     final connection = _connection;
     _connection = null;

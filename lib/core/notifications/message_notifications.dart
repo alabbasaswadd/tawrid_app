@@ -15,9 +15,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 class MessageNotifications {
   MessageNotifications._();
 
-  static const _channelId = 'messages';
+  /// معرّف القناة يحمل لاحقة النغمة.
+  ///
+  /// أندرويد يُجمّد إعدادات القناة عند إنشائها — الصوت والأهمية لا
+  /// يتغيّران بعدها مهما أعدنا الإنشاء. وتغيير النغمة لاحقاً يستلزم
+  /// معرّفاً جديداً، فتُزاد اللاحقة ويُحذف القديم.
+  static const _channelId = 'messages_v2';
   static const _channelName = 'الرسائل';
   static const _channelDescription = 'رسائل المحادثات المباشرة';
+
+  /// نغمة الرسائل — ملف في android/app/src/main/res/raw بلا امتداد.
+  static const _sound = RawResourceAndroidNotificationSound('message_tone');
+
+  /// قنوات سابقة تُحذف عند الترقية، وإلا بقيت في إعدادات النظام بلا عمل.
+  static const _legacyChannelIds = ['messages'];
 
   /// سجلّ الرسائل الأخيرة لكل محادثة.
   ///
@@ -65,8 +76,17 @@ class MessageNotifications {
             _channelName,
             description: _channelDescription,
             importance: Importance.high,
+            sound: _sound,
           ),
         );
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    for (final id in _legacyChannelIds) {
+      await android?.deleteNotificationChannel(channelId: id);
+    }
 
     _ready = true;
   }
@@ -109,8 +129,14 @@ class MessageNotifications {
           // أن يبعثرها بين إشعارات محادثات أخرى.
           groupKey: 'conversation_$conversationId',
           category: AndroidNotificationCategory.message,
+          // يُعاد ذكره هنا أيضاً: القناة تحكم أندرويد ٨ فما فوق، وهذا
+          // يحكم ما دونها.
+          sound: _sound,
         ),
-        iOS: DarwinNotificationDetails(threadIdentifier: conversationId),
+        iOS: DarwinNotificationDetails(
+          threadIdentifier: conversationId,
+          sound: 'message_tone.wav',
+        ),
       ),
       payload: jsonEncode({
         'conversationId': conversationId,

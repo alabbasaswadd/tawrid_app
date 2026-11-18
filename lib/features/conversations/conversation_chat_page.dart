@@ -57,6 +57,13 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   StreamSubscription<IncomingMessage>? _liveSub;
   StreamSubscription<void>? _reconnectSub;
 
+  /// حجم الدفعة — ما يملأ شاشتين تقريباً، فلا يُطلب التالي فور الفتح.
+  static const _pageSize = 25;
+
+  /// هل بقي أقدم مما حُمّل؟ دفعةٌ أقصر من المطلوب تعني أننا بلغنا البداية.
+  bool _hasOlder = true;
+  bool _loadingOlder = false;
+
   ConversationRepository get _repo => widget.isWarehouse
       ? ref.read(whConversationRepositoryProvider)
       : ref.read(phConversationRepositoryProvider);
@@ -71,8 +78,60 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     ref.read(pushServiceProvider).setOpenConversation(widget.conversationId);
     MessageNotifications.clear(widget.conversationId).ignore();
 
+    _scrollCtrl.addListener(_onScroll);
     _load();
     _listenLive();
+  }
+
+  // قرب القمة لا عندها: التحميل يبدأ قبل أن يصطدم المستخدم بالحافة،
+  // فلا يرى فراغاً ينتظره.
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    if (_scrollCtrl.position.pixels > 200) return;
+    _loadOlder();
+  }
+
+  /// يجلب الدفعة الأسبق ويُقدّمها، مع تثبيت موضع القراءة.
+  ///
+  /// بلا التثبيت تقفز الشاشة: إضافة رسائل فوق المعروض تدفعه للأسفل بقدر
+  /// ارتفاعها، فيفقد المستخدم السطر الذي كان يقرأه.
+  Future<void> _loadOlder() async {
+    if (_loadingOlder || !_hasOlder) return;
+
+    final current = _messages;
+    if (current == null || current.isEmpty) return;
+
+    setState(() => _loadingOlder = true);
+    final before = current.first.createdAt;
+    final extentBefore = _scrollCtrl.position.maxScrollExtent;
+
+    try {
+      final older = await _repo.getMessages(
+        widget.conversationId,
+        before: before,
+        take: _pageSize,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _hasOlder = older.length == _pageSize;
+        if (older.isNotEmpty) _messages = [...older, ...current];
+        _loadingOlder = false;
+      });
+
+      if (older.isEmpty) return;
+
+      // بعد الرسم: الارتفاع الجديد لا يُعرف قبل أن تُبنى الفقاعات.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollCtrl.hasClients) return;
+        final grew = _scrollCtrl.position.maxScrollExtent - extentBefore;
+        if (grew > 0) _scrollCtrl.jumpTo(_scrollCtrl.position.pixels + grew);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingOlder = false);
+      AppSnackbar.error(context, ApiException.from(e).message);
+    }
   }
 
   @override
@@ -139,12 +198,17 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
       _error = null;
     });
     try {
-      final msgs = await _repo.getMessages(widget.conversationId);
+      final msgs = await _repo.getMessages(
+        widget.conversationId,
+        take: _pageSize,
+      );
       // تعليم كمقروء فور فتح المحادثة
       _repo.markRead(widget.conversationId).ignore();
       if (!mounted) return;
       setState(() {
         _messages = msgs;
+        // دفعةٌ أقصر من المطلوبة تعني أن المحادثة كلها هنا.
+        _hasOlder = msgs.length == _pageSize;
         _loading = false;
       });
       _scrollToBottom();
@@ -384,8 +448,23 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
-      itemCount: msgs.length,
-      itemBuilder: (_, i) => _MessageBubble(message: msgs[i]),
+      // عنصر إضافي في الأعلى حين يجري جلب الأسبق.
+      itemCount: msgs.length + (_loadingOlder ? 1 : 0),
+      itemBuilder: (_, i) {
+        if (_loadingOlder && i == 0) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        return _MessageBubble(message: msgs[i - (_loadingOlder ? 1 : 0)]);
+      },
     );
   }
 }
