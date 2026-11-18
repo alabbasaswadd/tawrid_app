@@ -126,12 +126,6 @@ class PushService {
       }
       _ready = true;
 
-      // لا يعمل على الويب: لا عزلة خلفية هناك، ولا إشعارات نظام محلّية.
-      if (!kIsWeb) {
-        FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
-        await MessageNotifications.init(onOpenConversation: _openConversation);
-      }
-
       _listenForTokenRefresh();
       _listenForForegroundMessages();
       _listenForNotificationTaps();
@@ -144,6 +138,24 @@ class PushService {
       // متوقَّع قبل ضبط المشروع، لا خطأ يستحق إسقاط التطبيق.
       _log.w('[Push] تعذّرت تهيئة Firebase — التنبيه الفوري معطَّل: $e');
       _ready = false;
+      return;
+    }
+
+    // إشعارات النظام المحلّية في محاولة مستقلّة.
+    //
+    // كانت داخل try التهيئة، فأيُّ تعثّر فيها — قناة، نغمة، تفاصيل
+    // إقلاع — يُرجع _ready إلى false. وregisterForSession تقف عنده،
+    // فلا يُسجَّل رمز الجهاز ولا يصل إشعارٌ واحد من أي نوع.
+    //
+    // نظامٌ ثانوي لا يصحّ أن يُعطّل الأساسي: التنبيه عبر FCM يعمل بلا
+    // تجميعٍ ولا نغمة، والعكس غير صحيح.
+    if (kIsWeb) return;
+
+    try {
+      FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
+      await MessageNotifications.init(onOpenConversation: _openConversation);
+    } catch (e) {
+      _log.w('[Push] تعذّر إعداد إشعارات النظام — التنبيه الأساسي يعمل: $e');
     }
   }
 
@@ -151,7 +163,12 @@ class PushService {
   ///
   /// يُستدعى بعد تسجيل الدخول: قبله لا نعرف لمن نُسجّل الجهاز.
   Future<void> registerForSession({required bool isWarehouse}) async {
-    if (!_ready) return;
+    // الخروج الصامت هنا كان يُخفي العطل: لا رمز جهاز يُسجَّل، ولا إذن
+    // إشعارات يُطلَب، ولا شيء في السجلّ يقول لماذا.
+    if (!_ready) {
+      _log.w('[Push] Firebase غير مُهيّأ — لم يُسجَّل الجهاز ولن تصل إشعارات.');
+      return;
+    }
     try {
       final messaging = FirebaseMessaging.instance;
 
