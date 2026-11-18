@@ -132,16 +132,33 @@ abstract final class TRoutes {
       '/conversations/:conversationId';
   /// [draft] نصّ يُعبَّأ في حقل الكتابة ولا يُرسَل — لفتح محادثة بسياقها
   /// (عرضٌ بعينه مثلاً) بدل صفحة بيضاء يبدأ منها المستخدم من الصفر.
-  static String phConversationDetail(String id, String title, {String? draft}) =>
+  /// [partyId] و[partyType] يجعلان العنوان مدخلاً إلى ملف الطرف الآخر.
+  static String phConversationDetail(
+    String id,
+    String title, {
+    String? draft,
+    String? partyId,
+    String? partyType,
+  }) =>
       '/conversations/$id?title=${Uri.encodeComponent(title)}'
-      '${draft == null ? '' : '&draft=${Uri.encodeComponent(draft)}'}';
+      '${draft == null ? '' : '&draft=${Uri.encodeComponent(draft)}'}'
+      '${partyId == null ? '' : '&partyId=$partyId'}'
+      '${partyType == null ? '' : '&partyType=$partyType'}';
 
   static const String whConversations = '/wh/conversations';
   static const String whConversationDetailPattern =
       '/wh/conversations/:conversationId';
-  static String whConversationDetail(String id, String title, {String? draft}) =>
+  static String whConversationDetail(
+    String id,
+    String title, {
+    String? draft,
+    String? partyId,
+    String? partyType,
+  }) =>
       '/wh/conversations/$id?title=${Uri.encodeComponent(title)}'
-      '${draft == null ? '' : '&draft=${Uri.encodeComponent(draft)}'}';
+      '${draft == null ? '' : '&draft=${Uri.encodeComponent(draft)}'}'
+      '${partyId == null ? '' : '&partyId=$partyId'}'
+      '${partyType == null ? '' : '&partyType=$partyType'}';
 
   // معرض نظام التصميم (للتطوير)
   static const String devGallery = '/dev/gallery';

@@ -168,6 +168,8 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
           conv.id,
           conv.otherPartyName,
           draft: 'السلام عليكم، بخصوص عرض «${offer.title}»',
+          partyId: conv.otherPartyId,
+          partyType: conv.otherPartyType,
         ),
       );
     } catch (e) {

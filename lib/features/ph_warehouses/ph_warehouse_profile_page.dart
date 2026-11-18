@@ -87,7 +87,12 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
           .read(phConversationRepositoryProvider)
           .openConversation(otherPartyId: p.id);
       if (!mounted) return;
-      context.push(TRoutes.phConversationDetail(conv.id, conv.otherPartyName));
+      context.push(TRoutes.phConversationDetail(
+        conv.id,
+        conv.otherPartyName,
+        partyId: conv.otherPartyId,
+        partyType: conv.otherPartyType,
+      ));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     }

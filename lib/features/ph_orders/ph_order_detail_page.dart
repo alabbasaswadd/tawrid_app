@@ -367,7 +367,12 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
           .read(phConversationRepositoryProvider)
           .openConversation(otherPartyId: order.supplyWarehouseId);
       if (!mounted) return;
-      context.push(TRoutes.phConversationDetail(conv.id, conv.otherPartyName));
+      context.push(TRoutes.phConversationDetail(
+        conv.id,
+        conv.otherPartyName,
+        partyId: conv.otherPartyId,
+        partyType: conv.otherPartyType,
+      ));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {

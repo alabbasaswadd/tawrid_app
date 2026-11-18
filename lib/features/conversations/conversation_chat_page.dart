@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 import 'package:tawrid_app/models/conversation_models.dart';
@@ -18,6 +20,8 @@ class ConversationChatPage extends ConsumerStatefulWidget {
     required this.title,
     required this.isWarehouse,
     this.draft,
+    this.otherPartyId,
+    this.otherPartyType,
     super.key,
   });
 
@@ -30,6 +34,11 @@ class ConversationChatPage extends ConsumerStatefulWidget {
   /// لا يُرسَل تلقائياً عمداً: الرسالة تُنسَب إلى المستخدم، فلا يصحّ أن
   /// يُرسِل التطبيق باسمه شيئاً لم يقرأه. ويبقى تعديله أو حذفه بيده.
   final String? draft;
+
+  /// هوية الطرف الآخر — تجعل اسمه في الرأس مدخلاً إلى ملفه.
+  /// تغيب حين تُفتح المحادثة من إشعار، فالإشعار يحمل الاسم لا المعرّف.
+  final String? otherPartyId;
+  final String? otherPartyType;
 
   @override
   ConsumerState<ConversationChatPage> createState() =>
@@ -262,8 +271,26 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     final cs = context.colors;
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
+    // ملف المستودع متاح للصيدلية وحدها — لا شاشة مقابلة تعرض صيدلية
+    // للمستودع، فالعنوان يبقى نصّاً عنده.
+    final opensProfile =
+        !widget.isWarehouse &&
+        widget.otherPartyType == 'warehouse' &&
+        (widget.otherPartyId?.isNotEmpty ?? false);
+
     return Scaffold(
-      appBar: InnerTopBar(title: widget.title),
+      appBar: InnerTopBar(
+        title: widget.title,
+        subtitle: switch (widget.otherPartyType) {
+          'warehouse' => 'مستودع',
+          'pharmacy' => 'صيدلية',
+          _ => null,
+        },
+        onTitleTap: opensProfile
+            ? () =>
+                  context.push(TRoutes.phWarehouseProfile(widget.otherPartyId!))
+            : null,
+      ),
       body: Column(
         children: [
           Expanded(child: _buildMessages()),

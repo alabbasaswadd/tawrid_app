@@ -384,7 +384,12 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
           .read(whConversationRepositoryProvider)
           .openConversation(otherPartyId: order.pharmacyTenantId!);
       if (!mounted) return;
-      context.push(TRoutes.whConversationDetail(conv.id, conv.otherPartyName));
+      context.push(TRoutes.whConversationDetail(
+        conv.id,
+        conv.otherPartyName,
+        partyId: conv.otherPartyId,
+        partyType: conv.otherPartyType,
+      ));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {

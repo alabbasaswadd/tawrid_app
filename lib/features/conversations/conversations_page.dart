@@ -163,8 +163,18 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
             _clearUnread(conv.id);
             context.push(
               widget.isWarehouse
-                  ? TRoutes.whConversationDetail(conv.id, conv.otherPartyName)
-                  : TRoutes.phConversationDetail(conv.id, conv.otherPartyName),
+                  ? TRoutes.whConversationDetail(
+                      conv.id,
+                      conv.otherPartyName,
+                      partyId: conv.otherPartyId,
+                      partyType: conv.otherPartyType,
+                    )
+                  : TRoutes.phConversationDetail(
+                      conv.id,
+                      conv.otherPartyName,
+                      partyId: conv.otherPartyId,
+                      partyType: conv.otherPartyType,
+                    ),
             );
           },
         );

@@ -155,6 +155,7 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.subtitle,
     this.onBack,
+    this.onTitleTap,
     this.trailing,
     this.showBack = true,
     super.key,
@@ -168,6 +169,10 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   // الافتراضي: Navigator.maybePop.
   final VoidCallback? onBack;
+
+  /// يجعل العنوان مدخلاً إلى صاحبه — اسم المستودع في رأس المحادثة يفتح
+  /// ملفه مثلاً. يُغفَل حين يكون null فيبقى العنوان نصّاً.
+  final VoidCallback? onTitleTap;
 
   // عنصر اختياري مكان الموازن (مثل زر إجراء).
   final Widget? trailing;
@@ -215,27 +220,30 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
             else
               const SizedBox(width: 40, height: 40),
             Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: context.text.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty)
+              child: _TappableTitle(
+                onTap: onTitleTap,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      subtitle!,
+                      title,
                       textAlign: TextAlign.center,
-                      style: context.text.labelSmall?.copyWith(
-                        color: context.tokens.hint,
-                      ),
+                      style: context.text.titleMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    if (subtitle != null && subtitle!.isNotEmpty)
+                      Text(
+                        subtitle!,
+                        textAlign: TextAlign.center,
+                        style: context.text.labelSmall?.copyWith(
+                          color: context.tokens.hint,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
               ),
             ),
             // حدٌّ أدنى لا عرضٌ ثابت: الخانة توازن زرّ الرجوع حين تفرغ،
@@ -246,6 +254,28 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// يلفّ العنوان بمنطقة ضغط حين يكون له وجهة، ويُمرّره كما هو حين لا وجهة
+// له — فلا يُضاف أثر ضغطٍ لعنوانٍ لا يستجيب.
+class _TappableTitle extends StatelessWidget {
+  const _TappableTitle({required this.child, this.onTap});
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (onTap == null) return child;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: child,
       ),
     );
   }
