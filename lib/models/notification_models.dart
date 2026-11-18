@@ -17,6 +17,7 @@ enum NotificationType {
   newComment(8),
   warehouseAnnouncement(9),
   newOrderMessage(10),
+  newDirectMessage(11),
   general(99),
   unknown(-1);
 

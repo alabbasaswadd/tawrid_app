@@ -12,6 +12,7 @@ String? notificationDestination({
   required NotificationType type,
   required String? referenceId,
   required bool isWarehouse,
+  String? title,
 }) {
   final id = referenceId;
   if (id == null || id.isEmpty) return null;
@@ -26,6 +27,12 @@ String? notificationDestination({
     NotificationType.newSupplyOrder ||
     NotificationType.newOrderMessage =>
       wh ? TRoutes.whOrderDetail(id) : TRoutes.phOrderDetail(id),
+
+    // رسالة مباشرة — referenceId معرّف المحادثة، والعنوان اسم المُرسِل
+    // فيُستعمل عنواناً للشاشة بلا رحلة شبكة إضافية.
+    NotificationType.newDirectMessage => wh
+        ? TRoutes.whConversationDetail(id, title ?? '')
+        : TRoutes.phConversationDetail(id, title ?? ''),
 
     // طلب تسعير: الصيدلية تقارن العروض على طلبها، والمستودع يقدّم عرضه.
     NotificationType.quotationRequestAwarded ||
@@ -51,9 +58,13 @@ String? notificationDestination({
 /// الخادم يضع في `data` مفتاحَي `type` (رقم) و`referenceId` — وهما ما
 /// يحتاجه التوجيه. النوع المجهول يُقرأ `unknown` فلا يقفز بالمستخدم إلى
 /// شاشة خاطئة، ولا يُسقط شيئاً.
+///
+/// [title] يأتي من كتلة `notification` في رسالة FCM لا من `data` — وهو
+/// اسم المُرسِل في إشعار الرسالة، يُستعمل عنواناً لشاشة المحادثة.
 String? pushDestination(
   Map<String, dynamic> data, {
   required bool isWarehouse,
+  String? title,
 }) {
   final code = int.tryParse('${data['type']}');
   if (code == null) return null;
@@ -62,5 +73,6 @@ String? pushDestination(
     type: NotificationType.fromCode(code),
     referenceId: data['referenceId'] as String?,
     isWarehouse: isWarehouse,
+    title: title,
   );
 }

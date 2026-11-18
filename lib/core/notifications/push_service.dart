@@ -225,6 +225,7 @@ class PushService {
     final destination = pushDestination(
       message.data,
       isWarehouse: owner == 'warehouse',
+      title: message.notification?.title,
     );
     if (destination == null) return;
 

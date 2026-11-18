@@ -42,8 +42,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       _error = null;
     });
     try {
-      final list = await notificationRepositoryOf(ref, widget.isWarehouse)
-          .getNotifications(unreadOnly: _unreadOnly, limit: 50);
+      final list = await notificationRepositoryOf(
+        ref,
+        widget.isWarehouse,
+      ).getNotifications(unreadOnly: _unreadOnly, limit: 50);
       if (!mounted) return;
       setState(() {
         _items = list;
@@ -63,14 +65,29 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   // التعليم كمقروء يُطبَّق محلياً فوراً ثم يُرسل — الشبكة لا تؤخّر إحساس
   // الاستجابة، وفشلها يُعيد الحالة إلى ما كانت عليه.
-  Future<void> _markRead(AppNotification n) async {
-    if (n.isRead) return;
+  /// يُعلّم إشعارات المجموعة كلها مقروءة لا الأحدث وحدها: المستخدم فتح
+  /// المحادثة فقرأ ما فيها جميعاً، وإبقاء البقية غير مقروءة يُبقي العدّاد
+  /// منتفخاً على رسائل رآها.
+  Future<void> _markRead(Iterable<AppNotification> group) async {
+    final unread = group.where((n) => !n.isRead).toList();
+    if (unread.isEmpty) return;
+
+    final ids = unread.map((n) => n.id).toSet();
     final before = _items;
-    setState(() => _items = _items
-        ?.map((e) => e.id == n.id ? e.copyWith(isRead: true, readAt: DateTime.now()) : e)
-        .toList());
+    final now = DateTime.now();
+
+    setState(
+      () => _items = _items
+          ?.map(
+            (e) =>
+                ids.contains(e.id) ? e.copyWith(isRead: true, readAt: now) : e,
+          )
+          .toList(),
+    );
+
     try {
-      await notificationRepositoryOf(ref, widget.isWarehouse).markRead(n.id);
+      final repo = notificationRepositoryOf(ref, widget.isWarehouse);
+      await Future.wait(ids.map(repo.markRead));
       if (mounted) invalidateUnreadCount(ref, widget.isWarehouse);
     } catch (e) {
       if (!mounted) return;
@@ -82,12 +99,18 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   Future<void> _markAllRead() async {
     setState(() => _busy = true);
     try {
-      final affected =
-          await notificationRepositoryOf(ref, widget.isWarehouse).markAllRead();
+      final affected = await notificationRepositoryOf(
+        ref,
+        widget.isWarehouse,
+      ).markAllRead();
       if (!mounted) return;
       invalidateUnreadCount(ref, widget.isWarehouse);
       AppSnackbar.success(
-          context, affected == 0 ? 'لا إشعارات غير مقروءة' : 'عُلِّم $affected إشعاراً كمقروء');
+        context,
+        affected == 0
+            ? 'لا إشعارات غير مقروءة'
+            : 'عُلِّم $affected إشعاراً كمقروء',
+      );
       await _load();
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
@@ -107,6 +130,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       type: n.type,
       referenceId: n.referenceId,
       isWarehouse: widget.isWarehouse,
+      // عنوان إشعار الرسالة هو اسم المُرسِل — يصلح عنواناً لشاشة المحادثة.
+      title: n.title,
     );
     if (destination != null) context.push(destination);
   }
@@ -126,7 +151,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             icon: const Icon(Icons.tune),
             tooltip: 'إعدادات الإشعارات',
             onPressed: () => context.push(
-                widget.isWarehouse ? TRoutes.whNotificationSettings : TRoutes.phNotificationSettings),
+              widget.isWarehouse
+                  ? TRoutes.whNotificationSettings
+                  : TRoutes.phNotificationSettings,
+            ),
           ),
         ],
       ),
@@ -144,7 +172,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xs),
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.xs,
+          ),
           child: Row(
             children: [
               ChoiceChip(
@@ -179,22 +211,37 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       message: _unreadOnly
                           ? 'لا إشعارات غير مقروءة'
                           : 'لا إشعارات بعد — ستصلك هنا تحديثات الطلبيات '
-                              'وطلبات التسعير والعروض',
+                                'وطلبات التسعير والعروض',
                     ),
                   ],
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.x3l),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) => _NotificationTile(
-                    notification: items[i],
-                    onTap: () async {
-                      await _markRead(items[i]);
-                      if (mounted) _openTarget(items[i]);
-                    },
-                  ),
+              : Builder(
+                  builder: (_) {
+                    final groups = _groupByThread(items);
+                    return ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        AppSpacing.xs,
+                        AppSpacing.lg,
+                        AppSpacing.x3l,
+                      ),
+                      itemCount: groups.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (_, i) {
+                        final g = groups[i];
+                        return _NotificationTile(
+                          notification: g.latest,
+                          count: g.items.length,
+                          groupUnread: g.hasUnread,
+                          onTap: () async {
+                            await _markRead(g.items);
+                            if (mounted) _openTarget(g.latest);
+                          },
+                        );
+                      },
+                    );
+                  },
                 ),
         ),
       ],
@@ -202,35 +249,102 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 }
 
-class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.notification, required this.onTap});
+/// صفٌّ واحد في الشاشة: إشعار مفرد، أو عدّة إشعارات لخيط واحد.
+class _NotificationGroup {
+  _NotificationGroup(AppNotification first) : items = [first];
 
+  /// مرتَّبة كما وصلت — الأحدث أولاً، فالأول هو ما يُعرَض.
+  final List<AppNotification> items;
+
+  AppNotification get latest => items.first;
+  bool get hasUnread => items.any((n) => !n.isRead);
+}
+
+/// يجمع إشعارات الرسائل الواردة من الطرف نفسه في صفّ واحد.
+///
+/// المفتاح `referenceId` وهو معرّف المحادثة (أو الطلبية). والمحادثة علاقة
+/// بين طرفين، فالتجميع به هو بعينه التجميع حسب الصيدلية أو المستودع — بلا
+/// حقل إضافي ولا تغيير في قاعدة البيانات.
+///
+/// التجميع عرضٌ لا تخزين: الصفوف تبقى في الخادم كما هي، فلا يضيع «متى وصلت
+/// كل رسالة». وبقية الأنواع تمرّ مفردة — خمس طلبيات تغيّرت حالاتها خمسة
+/// أحداث مستقلة لا حدثٌ مكرّر.
+List<_NotificationGroup> _groupByThread(List<AppNotification> items) {
+  const groupable = {
+    NotificationType.newDirectMessage,
+    NotificationType.newOrderMessage,
+  };
+
+  final byKey = <String, _NotificationGroup>{};
+  final out = <_NotificationGroup>[];
+
+  for (final n in items) {
+    final id = n.referenceId;
+    final canGroup = groupable.contains(n.type) && id != null && id.isNotEmpty;
+
+    if (!canGroup) {
+      out.add(_NotificationGroup(n));
+      continue;
+    }
+
+    // النوع جزء من المفتاح: رسالة طلبية ورسالة محادثة قد تتشاركان معرّفاً
+    // دون أن تكونا الخيط نفسه.
+    final key = '${n.typeCode}:$id';
+    final existing = byKey[key];
+
+    if (existing == null) {
+      // موضع المجموعة في القائمة يحدّده أحدثُ إشعاراتها — وهو أوّل ما يُرى.
+      final group = _NotificationGroup(n);
+      byKey[key] = group;
+      out.add(group);
+    } else {
+      existing.items.add(n);
+    }
+  }
+
+  return out;
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.notification,
+    required this.onTap,
+    this.count = 1,
+    this.groupUnread,
+  });
+
+  /// الإشعار المُمثِّل للصفّ — أحدث ما في المجموعة.
   final AppNotification notification;
   final VoidCallback onTap;
 
+  /// عدد إشعارات الخيط المُجمَّعة في هذا الصفّ.
+  final int count;
+
+  /// حالة المجموعة لا الإشعار المفرد: صفٌّ فيه رسالة غير مقروءة واحدة
+  /// يبقى غير مقروء ولو قُرئت بقيّته.
+  final bool? groupUnread;
+
   IconData get _icon => switch (notification.type) {
-        NotificationType.supplyOrderStatusChanged ||
-        NotificationType.supplyOrderCreated ||
-        NotificationType.newSupplyOrder =>
-          Icons.local_shipping_outlined,
-        NotificationType.quotationRequestAwarded ||
-        NotificationType.newQuotation ||
-        NotificationType.newQuotationRequest =>
-          Icons.request_quote_outlined,
-        NotificationType.newSalesOffer => Icons.sell_outlined,
-        NotificationType.warehouseAnnouncement => Icons.campaign_outlined,
-        NotificationType.newComment ||
-        NotificationType.newOrderMessage =>
-          Icons.chat_bubble_outline,
-        NotificationType.general || NotificationType.unknown =>
-          Icons.notifications_none,
-      };
+    NotificationType.supplyOrderStatusChanged ||
+    NotificationType.supplyOrderCreated ||
+    NotificationType.newSupplyOrder => Icons.local_shipping_outlined,
+    NotificationType.quotationRequestAwarded ||
+    NotificationType.newQuotation ||
+    NotificationType.newQuotationRequest => Icons.request_quote_outlined,
+    NotificationType.newSalesOffer => Icons.sell_outlined,
+    NotificationType.warehouseAnnouncement => Icons.campaign_outlined,
+    NotificationType.newComment ||
+    NotificationType.newOrderMessage ||
+    NotificationType.newDirectMessage => Icons.chat_bubble_outline,
+    NotificationType.general ||
+    NotificationType.unknown => Icons.notifications_none,
+  };
 
   @override
   Widget build(BuildContext context) {
     final cs = context.colors;
     final tk = context.tokens;
-    final unread = !notification.isRead;
+    final unread = groupUnread ?? !notification.isRead;
 
     return AppCard(
       onTap: onTap,
@@ -264,21 +378,49 @@ class _NotificationTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // عدد رسائل الخيط — يسبق نقطة «غير مقروء» فيُقرأ معها.
+                    if (count > 1)
+                      Container(
+                        margin: const EdgeInsets.only(right: AppSpacing.xs),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 20),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          textAlign: TextAlign.center,
+                          style: context.text.labelSmall?.copyWith(
+                            color: cs.onPrimary,
+                          ),
+                        ),
+                      ),
                     if (unread)
                       Container(
                         width: 8,
                         height: 8,
-                        margin: const EdgeInsets.only(top: 4, right: AppSpacing.xs),
-                        decoration:
-                            BoxDecoration(color: tk.danger, shape: BoxShape.circle),
+                        margin: const EdgeInsets.only(
+                          top: 4,
+                          right: AppSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tk.danger,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(notification.body, style: context.text.bodySmall),
                 const SizedBox(height: AppSpacing.xs),
-                Text(formatSmartTimestamp(notification.createdOn),
-                    style: context.text.labelSmall?.copyWith(color: tk.hint)),
+                Text(
+                  formatSmartTimestamp(notification.createdOn),
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
               ],
             ),
           ),
