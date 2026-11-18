@@ -1,34 +1,110 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
+import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 import 'package:tawrid_app/models/conversation_models.dart';
 
 final phConversationRepositoryProvider = Provider<ConversationRepository>(
-  (ref) => ConversationRepository(
-    ref.watch(apiClientProvider),
-    isWarehouse: false,
-  ),
+  (ref) =>
+      ConversationRepository(ref.watch(apiClientProvider), isWarehouse: false),
 );
 
 final whConversationRepositoryProvider = Provider<ConversationRepository>(
-  (ref) => ConversationRepository(
-    ref.watch(apiClientProvider),
-    isWarehouse: true,
-  ),
+  (ref) =>
+      ConversationRepository(ref.watch(apiClientProvider), isWarehouse: true),
 );
 
-final phUnreadConversationsProvider = FutureProvider<int>(
-  (ref) => ref.watch(phConversationRepositoryProvider).getUnreadCount(),
-);
-
-final whUnreadConversationsProvider = FutureProvider<int>(
-  (ref) => ref.watch(whConversationRepositoryProvider).getUnreadCount(),
-);
-
-void invalidateUnreadConversations(WidgetRef ref, {required bool isWarehouse}) =>
-    ref.invalidate(
-      isWarehouse ? whUnreadConversationsProvider : phUnreadConversationsProvider,
+final phUnreadConversationsProvider =
+    AsyncNotifierProvider<PhUnreadConversations, int>(
+      PhUnreadConversations.new,
     );
+
+final whUnreadConversationsProvider =
+    AsyncNotifierProvider<WhUnreadConversations, int>(
+      WhUnreadConversations.new,
+    );
+
+/// عدّاد الرسائل غير المقروءة — يُقرأ من الشبكة مرّة ويُحدَّث بالأحداث.
+///
+/// كان FutureProvider يُبطَل عند كل رسالة، فيُطلِق `unread-count` في كل
+/// مرّة — طلبُ شبكة كامل ليزيد رقمٌ نعرف زيادته من الحدث نفسه. والصدفة
+/// تراقبه، فالطلب يقع فعلاً لا نظرياً.
+///
+/// صار يستمع إلى القناة مباشرةً: رسالة واردة تزيده، ورسالتي لا تزيده،
+/// وفتحُ محادثة يُنقصه بعدد ما كان فيها.
+abstract class _UnreadConversationsBase extends AsyncNotifier<int> {
+  bool get isWarehouse;
+
+  ConversationRepository get _repo => ref.read(
+    isWarehouse
+        ? whConversationRepositoryProvider
+        : phConversationRepositoryProvider,
+  );
+
+  @override
+  Future<int> build() async {
+    final sub = ref.read(conversationHubProvider).messages.listen((event) {
+      // رسالتي أنا تعود عبر القناة لتظهر على بقية أجهزتي — ولا تُحتسب
+      // غير مقروءة عندي.
+      if (event.message.isFromMe) return;
+      final current = state.value;
+      if (current != null) state = AsyncData(current + 1);
+    });
+    ref.onDispose(sub.cancel);
+
+    return _repo.getUnreadCount();
+  }
+
+  /// يُنقص العدّاد بعد قراءة محادثة — بلا إعادة سؤال الخادم.
+  void reduceBy(int count) {
+    if (count <= 0) return;
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current - count < 0 ? 0 : current - count);
+  }
+
+  /// مزامنة كاملة مع الخادم — للسحب للتحديث وبعد إقلاع الشاشة.
+  Future<void> refresh() async {
+    state = AsyncData(await _repo.getUnreadCount());
+  }
+}
+
+class PhUnreadConversations extends _UnreadConversationsBase {
+  @override
+  bool get isWarehouse => false;
+}
+
+class WhUnreadConversations extends _UnreadConversationsBase {
+  @override
+  bool get isWarehouse => true;
+}
+
+/// يُنقص العدّاد محلياً بعد فتح محادثة كان فيها [readCount] غير مقروء.
+void reduceUnreadConversations(
+  WidgetRef ref, {
+  required bool isWarehouse,
+  required int readCount,
+}) => ref
+    .read(
+      (isWarehouse
+              ? whUnreadConversationsProvider
+              : phUnreadConversationsProvider)
+          .notifier,
+    )
+    .reduceBy(readCount);
+
+/// مزامنة كاملة — تُستعمل عند تحميل قائمة المحادثات لا عند كل رسالة.
+void invalidateUnreadConversations(
+  WidgetRef ref, {
+  required bool isWarehouse,
+}) => ref
+    .read(
+      (isWarehouse
+              ? whUnreadConversationsProvider
+              : phUnreadConversationsProvider)
+          .notifier,
+    )
+    .refresh();
 
 class ConversationRepository {
   ConversationRepository(this._api, {required this.isWarehouse});

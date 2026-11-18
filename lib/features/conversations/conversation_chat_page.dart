@@ -102,10 +102,17 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     _scrollToBottom();
 
     // وصلت ونحن داخل المحادثة ⇒ قُرئت. بلا هذا يبقى العدّاد منتفخاً.
+    //
+    // والإنقاص محلّي بواحد: العدّاد زاد بواحد لتوّه من الحدث نفسه، فلا
+    // داعي لسؤال الخادم عن رقمٍ نعرفه.
     if (!message.isFromMe) {
       _repo.markRead(widget.conversationId).ignore();
+      reduceUnreadConversations(
+        ref,
+        isWarehouse: widget.isWarehouse,
+        readCount: 1,
+      );
     }
-    invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
   }
 
   Future<void> _load() async {
@@ -161,7 +168,6 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
       final sent = await _deliver(text);
       if (!mounted) return;
       _confirm(localId, sent);
-      invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
     } catch (e) {
       if (!mounted) return;
       // الفقاعة تبقى معلَّمة بالفشل لا تُمحى: نصٌّ يختفي بعد الضغط يُقرأ

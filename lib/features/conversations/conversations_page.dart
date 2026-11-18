@@ -39,17 +39,73 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
     super.initState();
     _load();
 
-    // أي رسالة واردة تُغيّر ترتيب القائمة ونصّ المعاينة والعدّاد معاً —
-    // إعادة الجلب أبسط وأصدق من تعديل ثلاثة حقول محلياً. القائمة قصيرة
-    // والحدث نادر بما يكفي.
-    _liveSub =
-        ref.read(conversationHubProvider).messages.listen((_) => _load());
+    // القائمة تُعدَّل محلياً لا تُعاد من الشبكة: إعادة الجلب كانت تُطلِق
+    // GET /conversations عند كل رسالة — ومنها رسالتي أنا العائدة عبر
+    // القناة. طلبٌ كامل لتغيير ثلاثة حقول نعرفها من الحدث نفسه.
+    _liveSub = ref
+        .read(conversationHubProvider)
+        .messages
+        .listen(_applyIncoming);
   }
 
   @override
   void dispose() {
     _liveSub?.cancel();
     super.dispose();
+  }
+
+  /// يُحدّث الكاش من الرسالة نفسها — بلا شبكة.
+  ///
+  /// الحدث يحمل كل ما يتغيّر: نصّ المعاينة، ووقت آخر نشاط، وعدّاد غير
+  /// المقروء. والمحادثة تقفز إلى الأعلى لأن الترتيب بآخر نشاط.
+  void _applyIncoming(IncomingMessage event) {
+    if (!mounted) return;
+
+    final index = _conversations.indexWhere(
+      (c) => c.id == event.conversationId,
+    );
+
+    // محادثة لا نعرفها — بدأها الطرف الآخر للتوّ. هنا وحدها نسأل الشبكة،
+    // فبياناتها (الاسم والجهة) ليست في الحدث.
+    if (index == -1) {
+      _load();
+      return;
+    }
+
+    final old = _conversations[index];
+    final updated = old.copyWith(
+      lastMessageText: event.message.content,
+      updatedAt: event.message.createdAt,
+      // رسالتي أنا لا تزيد عدّاد غير المقروء عندي.
+      unreadCount: event.message.isFromMe
+          ? old.unreadCount
+          : old.unreadCount + 1,
+    );
+
+    setState(() {
+      _conversations = [
+        updated,
+        ...[..._conversations]..removeAt(index),
+      ];
+    });
+  }
+
+  /// يصفّر عدّاد محادثة فُتحت — الشاشة تُعلّمها مقروءة في الخادم.
+  void _clearUnread(String conversationId) {
+    final index = _conversations.indexWhere((c) => c.id == conversationId);
+    if (index == -1 || _conversations[index].unreadCount == 0) return;
+
+    // العدّاد العام في الصدفة يُنقَص بالقدر نفسه — محلياً لا بسؤال الخادم.
+    reduceUnreadConversations(
+      ref,
+      isWarehouse: widget.isWarehouse,
+      readCount: _conversations[index].unreadCount,
+    );
+
+    setState(() {
+      _conversations = [..._conversations]
+        ..[index] = _conversations[index].copyWith(unreadCount: 0);
+    });
   }
 
   Future<void> _load() async {
@@ -78,10 +134,7 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const InnerTopBar(title: 'المحادثات'),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _buildBody(),
-      ),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }
 
@@ -104,11 +157,16 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
         final conv = _conversations[i];
         return _ConversationTile(
           conversation: conv,
-          onTap: () => context.push(
-            widget.isWarehouse
-                ? TRoutes.whConversationDetail(conv.id, conv.otherPartyName)
-                : TRoutes.phConversationDetail(conv.id, conv.otherPartyName),
-          ),
+          onTap: () {
+            // الصفر فوراً لا بعد العودة: الشاشة تُعلّمها مقروءة في الخادم،
+            // وإبقاء الشارة حتى الرجوع يُقرأ تأخّراً.
+            _clearUnread(conv.id);
+            context.push(
+              widget.isWarehouse
+                  ? TRoutes.whConversationDetail(conv.id, conv.otherPartyName)
+                  : TRoutes.phConversationDetail(conv.id, conv.otherPartyName),
+            );
+          },
         );
       },
     );
@@ -117,10 +175,7 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
 
 // ── صف المحادثة ──────────────────────────────────────────────────────────
 class _ConversationTile extends StatelessWidget {
-  const _ConversationTile({
-    required this.conversation,
-    required this.onTap,
-  });
+  const _ConversationTile({required this.conversation, required this.onTap});
 
   final Conversation conversation;
   final VoidCallback onTap;
@@ -166,9 +221,7 @@ class _ConversationTile extends StatelessWidget {
                 border: Border.all(color: cs.surface, width: 2),
               ),
               child: Icon(
-                isWh
-                    ? Icons.warehouse_outlined
-                    : Icons.local_pharmacy_outlined,
+                isWh ? Icons.warehouse_outlined : Icons.local_pharmacy_outlined,
                 size: 8,
                 color: cs.onPrimary,
               ),

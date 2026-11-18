@@ -18,6 +18,21 @@ class Conversation {
   final int unreadCount;
   final DateTime updatedAt;
 
+  /// نسخة معدَّلة — لتحديث الكاش محلياً بلا رحلة شبكة.
+  Conversation copyWith({
+    String? lastMessageText,
+    int? unreadCount,
+    DateTime? updatedAt,
+  }) => Conversation(
+    id: id,
+    otherPartyId: otherPartyId,
+    otherPartyName: otherPartyName,
+    otherPartyType: otherPartyType,
+    lastMessageText: lastMessageText ?? this.lastMessageText,
+    unreadCount: unreadCount ?? this.unreadCount,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
   factory Conversation.fromJson(Map<String, dynamic> j) => Conversation(
     id: j['id'] as String,
     otherPartyId: j['otherPartyId'] as String,

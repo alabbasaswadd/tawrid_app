@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (API 31+): mandatory SplashScreen API.
+
+     واجهة بيضاء خالية: الخلفية بيضاء، والأيقونة شفّافة فلا يظهر الشعار.
+     حذف windowSplashScreenAnimatedIcon لا يكفي — النظام يرجع حينها إلى
+     أيقونة التطبيق من الـ manifest. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon_none</item>
+    </style>
+    <!-- يُطبَّق بعد أول إطار من Flutter. أبيض مثل واجهة الإقلاع لئلّا
+         يومض لونٌ مخالف في الانتقال بينهما. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>
