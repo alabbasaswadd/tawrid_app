@@ -222,47 +222,19 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     }
   }
 
-  /// قائمة إجراءات الرسالة — ردّ أو نسخ.
+  /// يبدأ الردّ على رسالة — من السحب عليها.
+  void _startReply(ConversationMessage message) {
+    setState(() => _replyingTo = message);
+    _inputFocus.requestFocus();
+  }
+
+  /// ينسخ نصّ الرسالة — من الضغط المطوّل.
   ///
-  /// ورقة سفلية لا قائمة منبثقة: الأصابع تصل أسفل الشاشة، والمنبثقة عند
-  /// موضع الضغط تحجب الرسالة التي يختار المستخدم إجراءً عليها.
-  Future<void> _showMessageActions(ConversationMessage message) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('ردّ'),
-              onTap: () => Navigator.pop(ctx, 'reply'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy_outlined),
-              title: const Text('نسخ النصّ'),
-              onTap: () => Navigator.pop(ctx, 'copy'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-        ),
-      ),
-    );
-
-    if (!mounted || action == null) return;
-
-    switch (action) {
-      case 'reply':
-        setState(() => _replyingTo = message);
-        _inputFocus.requestFocus();
-      case 'copy':
-        await Clipboard.setData(ClipboardData(text: message.content));
-        if (mounted) AppSnackbar.success(context, 'نُسخ النصّ');
-    }
+  /// مباشرةً بلا ورقة خيارات: بقي إجراءٌ واحد بعد أن انتقل الردّ إلى
+  /// السحب، وورقةٌ بخيار واحد خطوةٌ زائدة.
+  Future<void> _copyMessage(ConversationMessage message) async {
+    await Clipboard.setData(ClipboardData(text: message.content));
+    if (mounted) AppSnackbar.success(context, 'نُسخ النصّ');
   }
 
   void _scheduleMarkRead() {
@@ -650,10 +622,11 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
           _MessageRow(:final message) => _MessageBubble(
             message: message,
             onRetry: message.failed ? () => _retry(message) : null,
-            // المعلَّقة لا إجراء عليها: لا معرّف لها في الخادم بعد.
-            onLongPress: message.pending || message.failed
+            // المعلَّقة لا رَدَّ عليها: لا معرّف لها في الخادم بعد.
+            onReply: message.pending || message.failed
                 ? null
-                : () => _showMessageActions(message),
+                : () => _startReply(message),
+            onLongPress: () => _copyMessage(message),
           ),
         };
       },
@@ -775,14 +748,22 @@ class _DateSeparator extends StatelessWidget {
 
 // ── فقاعة رسالة ──────────────────────────────────────────────────────────
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, this.onRetry, this.onLongPress});
+  const _MessageBubble({
+    required this.message,
+    this.onRetry,
+    this.onReply,
+    this.onLongPress,
+  });
 
   final ConversationMessage message;
 
   /// يُمرَّر للفقاعة الفاشلة وحدها — الضغط يُعيد إرسالها.
   final VoidCallback? onRetry;
 
-  /// قائمة إجراءات الرسالة — للمؤكَّدة وحدها.
+  /// السحب يبدأ الردّ — للمؤكَّدة وحدها.
+  final VoidCallback? onReply;
+
+  /// الضغط المطوّل ينسخ النصّ.
   final VoidCallback? onLongPress;
 
   @override
@@ -860,6 +841,12 @@ class _MessageBubble extends StatelessWidget {
                   color: message.failed ? tk.danger : timeColor,
                 ),
               ),
+              // علامتا الإيصال على رسائلي وحدها: علامةٌ على رسالة الآخر
+              // تقول «قرأتُها» — وهو يعرف ذلك ولا ينتظر إخباري به.
+              if (isMe && !message.pending && !message.failed) ...[
+                const SizedBox(width: 4),
+                _ReadTicks(read: message.isReadByOther, color: timeColor),
+              ],
             ],
           ),
         ],
@@ -870,17 +857,20 @@ class _MessageBubble extends StatelessWidget {
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       // الفقاعة الفاشلة وحدها تستجيب للضغط: جعلُ كل فقاعة قابلة للضغط
       // بلا فعلٍ يُربك — أثرُ ضغطٍ لا يتبعه شيء.
-      child: onRetry == null && onLongPress == null
-          ? bubble
-          : Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onRetry,
-                onLongPress: onLongPress,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                child: bubble,
-              ),
-            ),
+      child: _SwipeToReply(
+        enabled: onReply != null,
+        messageKey: message.id,
+        onReply: onReply,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onRetry,
+            onLongPress: onLongPress,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            child: bubble,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1024,6 +1014,87 @@ class _QuotedMessage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// علامتا الإيصال: واحدة لما وصل الخادم، واثنتان لما قرأه الطرف الآخر.
+//
+// المقروءة أوضح لوناً لا أكبر حجماً: تغيّر الحجم يُزحزح سطر الوقت كلّه
+// كلّما تبدّلت الحالة.
+class _ReadTicks extends StatelessWidget {
+  const _ReadTicks({required this.read, required this.color});
+
+  final bool read;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = read ? color : color.withValues(alpha: 0.6);
+
+    return SizedBox(
+      width: read ? 15 : 10,
+      height: 11,
+      child: Stack(
+        children: [
+          Positioned(
+            right: 0,
+            child: AppIcon(AppIcons.check, size: 11, color: tint),
+          ),
+          if (read)
+            Positioned(
+              right: 5,
+              child: AppIcon(AppIcons.check, size: 11, color: tint),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// السحب للردّ.
+//
+// Dismissible بـ confirmDismiss يُرجع false: يعطي الحركة والارتداد
+// مجاناً ويمنع اختفاء الرسالة — فالسحب هنا إيماءةٌ لا حذف.
+//
+// والاتجاه startToEnd يتبع اتجاه القراءة: في واجهة عربية يعني السحب من
+// اليمين، فتوافق الإيماءةُ الحسَّ لا تخالفه.
+class _SwipeToReply extends StatelessWidget {
+  const _SwipeToReply({
+    required this.child,
+    required this.enabled,
+    required this.messageKey,
+    this.onReply,
+  });
+
+  final Widget child;
+  final bool enabled;
+  final String messageKey;
+  final VoidCallback? onReply;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+
+    final cs = context.colors;
+
+    return Dismissible(
+      key: ValueKey('swipe_$messageKey'),
+      direction: DismissDirection.startToEnd,
+      // ربع العرض: أقلّ منه تنطلق الإيماءة بأي لمسة مائلة أثناء التمرير.
+      dismissThresholds: const {DismissDirection.startToEnd: 0.25},
+      confirmDismiss: (_) async {
+        onReply?.call();
+        return false;
+      },
+      background: Padding(
+        padding: const EdgeInsetsDirectional.only(start: AppSpacing.md),
+        child: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Icon(Icons.reply, size: 18, color: cs.primary),
+        ),
+      ),
+      child: child,
     );
   }
 }

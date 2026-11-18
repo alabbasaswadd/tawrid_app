@@ -71,6 +71,7 @@ class ConversationMessage {
     required this.senderName,
     required this.createdAt,
     this.replyTo,
+    this.isReadByOther = false,
     this.pending = false,
     this.failed = false,
   });
@@ -83,6 +84,9 @@ class ConversationMessage {
 
   /// الرسالة المُقتبَسة — تغيب حين لا تكون هذه ردّاً.
   final ReplyPreview? replyTo;
+
+  /// هل قرأ الطرف الآخر رسالتي؟ لا معنى لها على رسائله هو.
+  final bool isReadByOther;
 
   /// فقاعة رُسمت قبل تأكيد الخادم — معرّفها محلّي ووقتها تقديري.
   ///
@@ -108,17 +112,21 @@ class ConversationMessage {
     pending: true,
   );
 
-  ConversationMessage copyWith({bool? pending, bool? failed}) =>
-      ConversationMessage(
-        id: id,
-        content: content,
-        isFromMe: isFromMe,
-        senderName: senderName,
-        createdAt: createdAt,
-        replyTo: replyTo,
-        pending: pending ?? this.pending,
-        failed: failed ?? this.failed,
-      );
+  ConversationMessage copyWith({
+    bool? pending,
+    bool? failed,
+    bool? isReadByOther,
+  }) => ConversationMessage(
+    id: id,
+    content: content,
+    isFromMe: isFromMe,
+    senderName: senderName,
+    createdAt: createdAt,
+    replyTo: replyTo,
+    isReadByOther: isReadByOther ?? this.isReadByOther,
+    pending: pending ?? this.pending,
+    failed: failed ?? this.failed,
+  );
 
   factory ConversationMessage.fromJson(Map<String, dynamic> j) =>
       ConversationMessage(
@@ -127,6 +135,7 @@ class ConversationMessage {
         isFromMe: j['isFromMe'] as bool? ?? false,
         senderName: j['senderName'] as String? ?? '',
         createdAt: DateTime.parse(j['createdAt'] as String),
+        isReadByOther: j['isReadByOther'] as bool? ?? false,
         replyTo: j['replyTo'] == null
             ? null
             : ReplyPreview.fromJson(
