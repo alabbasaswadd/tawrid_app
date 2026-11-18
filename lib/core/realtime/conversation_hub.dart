@@ -57,7 +57,14 @@ class ConversationHub {
   /// نبضة بعد كل عودة اتصال — إشارة لإعادة الجلب وسدّ ما فات أثناء الانقطاع.
   Stream<void> get onReconnected => _reconnected.stream;
 
+  /// خادمٌ أقدم من إضافة الإرسال عبر القناة — يُكتشف من أول محاولة
+  /// ويُحفَظ، فلا تُجرَّب طريقةٌ معدومة مع كل رسالة.
+  bool _sendUnsupported = false;
+
   bool get isConnected => _connection?.state == HubConnectionState.Connected;
+
+  /// هل يصلح الإرسال عبر القناة الآن؟ متصلة، والخادم يعرف الطريقة.
+  bool get canSend => isConnected && !_sendUnsupported;
 
   /// يُرسل رسالة عبر الاتصال القائم ويُعيدها مؤكَّدةً من الخادم.
   ///
@@ -77,13 +84,32 @@ class ConversationHub {
       throw StateError('القناة غير متصلة');
     }
 
-    final raw = await connection.invoke(
-      'SendMessage',
-      args: [conversationId, content],
-    );
+    final Object? raw;
+    try {
+      raw = await connection.invoke(
+        'SendMessage',
+        args: [conversationId, content],
+      );
+    } catch (e) {
+      // خادم لا يعرف الطريقة أصلاً: لم يُكتب شيء، والمحاولة لن تنجح
+      // في المرّات التالية — نُطفئ المسار ونترك المُستدعي يسقط إلى REST.
+      if (_looksLikeMissingMethod(e)) {
+        _sendUnsupported = true;
+        _log.w('[Hub] الخادم لا يدعم الإرسال عبر القناة — الاعتماد على REST.');
+      }
+      rethrow;
+    }
 
     if (raw is! Map) throw StateError('ردٌّ غير مفهوم من الخادم');
     return ConversationMessage.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  // رسالة SignalR حين تُستدعى طريقة لا وجود لها على الخادم. تمييزها
+  // يهمّ: هذه وحدها تضمن أن شيئاً لم يُكتب، فالسقوط إلى REST بعدها
+  // لا يُكرّر رسالة.
+  static bool _looksLikeMissingMethod(Object error) {
+    final text = error.toString().toLowerCase();
+    return text.contains('does not exist') || text.contains('method');
   }
 
   /// يُعلّم المحادثة مقروءة عبر القناة — بلا ردّ ينتظره أحد.
@@ -112,6 +138,8 @@ class ConversationHub {
     }
 
     _isWarehouse = isWarehouse;
+    // اتصالٌ جديد قد يكون إلى خادم مُحدَّث — تُعاد المحاولة مرّة.
+    _sendUnsupported = false;
 
     final connection = HubConnectionBuilder()
         .withUrl(

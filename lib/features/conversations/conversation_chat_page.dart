@@ -152,11 +152,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     _scrollToBottom();
 
     try {
-      final hub = ref.read(conversationHubProvider);
-      final sent = hub.isConnected
-          ? await hub.sendMessage(widget.conversationId, text)
-          : await _repo.sendMessage(widget.conversationId, text);
-
+      final sent = await _deliver(text);
       if (!mounted) return;
       _replaceLocal(localId, sent);
       invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
@@ -177,6 +173,28 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// يوصل الرسالة: القناة أولاً، وREST إن تعذّرت.
+  ///
+  /// السقوط يشمل فشل الاستدعاء لا انقطاع القناة وحده — قناةٌ مفتوحة إلى
+  /// خادم لا يعرف الطريقة كانت تُضيع الرسالة بدل أن تُوصلها.
+  ///
+  /// وتكرار رسالة أهون من ضياعها: الأولى يراها المستخدم ويحذفها، والثانية
+  /// لا يعرف بها أصلاً. ومع ذلك لا يتكرّر الاحتمال إلا مرة — الحالة
+  /// الوحيدة المعروفة (طريقة معدومة) تُطفئ المسار بعدها.
+  Future<ConversationMessage> _deliver(String text) async {
+    final hub = ref.read(conversationHubProvider);
+
+    if (hub.canSend) {
+      try {
+        return await hub.sendMessage(widget.conversationId, text);
+      } catch (_) {
+        // يسقط إلى REST أدناه.
+      }
+    }
+
+    return _repo.sendMessage(widget.conversationId, text);
   }
 
   /// يستبدل الفقاعة المحلّية بالمؤكَّدة — أو يحذفها إن سبقها البثّ.
