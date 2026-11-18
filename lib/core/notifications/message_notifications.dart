@@ -43,6 +43,14 @@ class MessageNotifications {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _ready = false;
 
+  /// الإشعار الذي أقلع منه التطبيق وهو مُغلق تماماً.
+  ///
+  /// نقرةٌ تُقلع التطبيق لا تمرّ بـ onDidReceiveNotificationResponse: ذاك
+  /// لمن كان التطبيق حيّاً حين نُقر. ولا يراها getInitialMessage من FCM
+  /// لأن الإشعار بناه التطبيق لا النظام — فبلا هذا كانت النقرة تفتح
+  /// التطبيق على آخر شاشة ولا تنقل إلى المحادثة.
+  static _NotificationPayload? _launchPayload;
+
   /// يُهيّئ القناة ومعالج النقر. آمن للاستدعاء المتكرّر.
   ///
   /// [onOpenConversation] يُستدعى بمعرّف المحادثة عند النقر على الإشعار.
@@ -88,7 +96,25 @@ class MessageNotifications {
       await android?.deleteNotificationChannel(channelId: id);
     }
 
+    // تُقرأ مرّة واحدة عند الإقلاع وتُحتجَز: الراوتر لا يقوم بعد، فتُستهلك
+    // بعد أول إطار عبر [takeLaunchPayload].
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      _launchPayload = _decodePayload(launch?.notificationResponse?.payload);
+    }
+
     _ready = true;
+  }
+
+  /// يُرجع إشعار الإقلاع مرّة واحدة — ثم يَنساه.
+  ///
+  /// مرّة واحدة عمداً: بقاؤه يعني أن كل عودة إلى المقدمة تقفز بالمستخدم
+  /// إلى محادثةٍ فتحها مرّة.
+  static ({String conversationId, String title})? takeLaunchPayload() {
+    final payload = _launchPayload;
+    _launchPayload = null;
+    if (payload == null) return null;
+    return (conversationId: payload.conversationId, title: payload.title);
   }
 
   /// يُظهر رسالة واردة، مضمومةً إلى سابقاتها في المحادثة نفسها.

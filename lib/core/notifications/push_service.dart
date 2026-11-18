@@ -311,6 +311,13 @@ class PushService {
   /// ينفّذ انتقال الإشعار الذي أقلع منه التطبيق — يُستدعى بعد أول إطار،
   /// حين يكون الراوتر جاهزاً. لا أثر له إن لم يُفتح التطبيق من إشعار.
   Future<void> consumeLaunchNotification() async {
+    // إشعار رسالة بناه التطبيق: لا يراه FCM، فيُسأل عنه أولاً.
+    final local = MessageNotifications.takeLaunchPayload();
+    if (local != null) {
+      _openConversation(local.conversationId, local.title);
+      return;
+    }
+
     final message = _launchMessage;
     _launchMessage = null;
     if (message != null) await _navigateTo(message);
