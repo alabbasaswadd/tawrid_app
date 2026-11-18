@@ -57,28 +57,17 @@ class _WebFirebaseConfig {
 /// الذاكرة. كل ما يلزم يأتي في الرسالة أو من التخزين الدائم.
 @pragma('vm:entry-point')
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
+  // العرض صار من النظام: الإشعار يحمل كتلة notification ووسمَ خيطه،
+  // فيظهر ويتجدّد بلا تدخّل — ويعمل والتطبيق مُغلق تماماً، بخلاف
+  // البناء داخل عزلة قد تمنعها إعدادات توفير الطاقة.
+  //
+  // وتبقى العزلة مسجَّلة: حذف المعالج يمنع تسليم حمولة data إلى
+  // التطبيق على بعض الإصدارات.
   await Firebase.initializeApp();
-  await _showIfMessage(message);
 }
 
-/// يبني إشعار رسالة من حمولة خامّة — إن كانت رسالةً أصلاً.
-///
-/// الرسالة وحدها تأتي بلا كتلة notification (dataOnly)، وبقية الأنواع
-/// يعرضها النظام بنفسه فلا شأن لنا بها.
-Future<void> _showIfMessage(RemoteMessage message) async {
-  if (message.notification != null) return;
-
-  final data = message.data;
-  final conversationId = data['referenceId'] as String?;
-  if (conversationId == null || conversationId.isEmpty) return;
-
-  await MessageNotifications.init(onOpenConversation: (_, _) {});
-  await MessageNotifications.showMessage(
-    conversationId: conversationId,
-    senderName: (data['title'] as String?) ?? 'رسالة جديدة',
-    body: (data['body'] as String?) ?? '',
-  );
-}
+/// نوع «رسالة مباشرة» كما يرسله الخادم في حمولة الإشعار.
+const _directMessageType = '11';
 
 final pushServiceProvider = Provider<PushService>((ref) => PushService(ref));
 
@@ -270,10 +259,11 @@ class PushService {
       final owner = await appSecureStorage.read(key: StorageKeys.fcmTokenOwner);
       if (owner == null) return;
 
-      // رسالة محادثة: تُعرَض بنمط المحادثة إلا أن تكون مفتوحة أمامه.
+      // رسالة محادثة — تُميَّز بنوعها لا بغياب كتلة notification: صارت
+      // تحملها ليعرضها النظام حين يكون التطبيق في الخلفية.
       final conversationId = message.data['referenceId'] as String?;
       final isMessage =
-          message.notification == null &&
+          message.data['type'] == _directMessageType &&
           conversationId != null &&
           conversationId.isNotEmpty;
 
