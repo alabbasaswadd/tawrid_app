@@ -20,6 +20,9 @@ import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 // المستويين، والتمييز بينهما يأتي من حقول الملخّص.
 enum _QuickFilter {
   all('الكل'),
+  // «له بونص» تجمع المستويين: الصيدلي يبحث عن مجّانيّات لا عن تصنيفها.
+  // والتمييز بين بونص الأصناف وبونص العرض يبقى متاحاً لمن يريده.
+  anyBonus('له بونص'),
   // نوع العرض محورٌ قائم بذاته: «ثابت» نشرة أسعارٍ سارية حتى يُلغيها
   // المستودع، و«لفترة محدّدة» حملةٌ تنتهي بتاريخها. والفرق قرارُ شراء:
   // ما يختفي غداً يُشترى اليوم، والثابت يُنتظَر.
@@ -34,10 +37,10 @@ enum _QuickFilter {
 
   /// النوع الذي ترشّح به هذه الشريحة — null لما لا يخصّ النوع.
   SalesOfferKind? get kind => switch (this) {
-        _QuickFilter.standing => SalesOfferKind.standing,
-        _QuickFilter.timeLimited => SalesOfferKind.timeLimited,
-        _ => null,
-      };
+    _QuickFilter.standing => SalesOfferKind.standing,
+    _QuickFilter.timeLimited => SalesOfferKind.timeLimited,
+    _ => null,
+  };
 }
 
 // حالة التصفية المتقدّمة كما تظهر في ورقة الفلاتر وزرّ الشريط العلوي.
@@ -59,12 +62,12 @@ class _OfferFilters {
   // ما يُحتسب في شارة زرّ الفلاتر: ما اختاره المستخدم صراحةً فوق
   // الافتراضي. الترتيب يُحتسب لأنه يغيّر ما يراه أولاً.
   int get activeCount => [
-        quick != _QuickFilter.all,
-        sort != OfferSort.newest,
-        minPrice != null,
-        maxPrice != null,
-        dosageForm != null,
-      ].where((e) => e).length;
+    quick != _QuickFilter.all,
+    sort != OfferSort.newest,
+    minPrice != null,
+    maxPrice != null,
+    dosageForm != null,
+  ].where((e) => e).length;
 
   _OfferFilters copyWith({
     _QuickFilter? quick,
@@ -74,14 +77,13 @@ class _OfferFilters {
     DosageForm? dosageForm,
     bool clearPrices = false,
     bool clearDosage = false,
-  }) =>
-      _OfferFilters(
-        quick: quick ?? this.quick,
-        sort: sort ?? this.sort,
-        minPrice: clearPrices ? null : (minPrice ?? this.minPrice),
-        maxPrice: clearPrices ? null : (maxPrice ?? this.maxPrice),
-        dosageForm: clearDosage ? null : (dosageForm ?? this.dosageForm),
-      );
+  }) => _OfferFilters(
+    quick: quick ?? this.quick,
+    sort: sort ?? this.sort,
+    minPrice: clearPrices ? null : (minPrice ?? this.minPrice),
+    maxPrice: clearPrices ? null : (maxPrice ?? this.maxPrice),
+    dosageForm: clearDosage ? null : (dosageForm ?? this.dosageForm),
+  );
 }
 
 // عروض المستودعات المتاحة للصيدلية (Figma: الصيدلي / العروض).
@@ -123,13 +125,19 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
       _error = null;
     });
     try {
-      final offers = await ref.read(salesOfferRepositoryProvider).getAvailableOffers(
+      final offers = await ref
+          .read(salesOfferRepositoryProvider)
+          .getAvailableOffers(
             search: _search.isEmpty ? null : _search,
             hasBonus: switch (_filters.quick) {
-              _QuickFilter.itemBonus || _QuickFilter.offerBonus => true,
+              _QuickFilter.anyBonus ||
+              _QuickFilter.itemBonus ||
+              _QuickFilter.offerBonus => true,
               _ => null,
             },
-            expiringWithinDays: _filters.quick == _QuickFilter.expiring ? 7 : null,
+            expiringWithinDays: _filters.quick == _QuickFilter.expiring
+                ? 7
+                : null,
             kind: _filters.quick.kind,
             minUnitPrice: _filters.minPrice,
             maxUnitPrice: _filters.maxPrice,
@@ -156,7 +164,8 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
   List<SalesOfferSummary> _narrowBonusKind(List<SalesOfferSummary> offers) =>
       switch (_filters.quick) {
         _QuickFilter.itemBonus => offers.where((o) => o.hasItemBonus).toList(),
-        _QuickFilter.offerBonus => offers.where((o) => o.hasOfferBonus).toList(),
+        _QuickFilter.offerBonus =>
+          offers.where((o) => o.hasOfferBonus).toList(),
         _ => offers,
       };
 
@@ -188,7 +197,8 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
     final picked = await showModalBottomSheet<OfferSort>(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -219,7 +229,8 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => _FilterSheet(initial: _filters),
     );
     if (result == null) return;
@@ -262,7 +273,11 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page, AppSpacing.xs, AppSpacing.page, 0),
+            AppSpacing.page,
+            AppSpacing.xs,
+            AppSpacing.page,
+            0,
+          ),
           // نفس الحقل حرفياً كما في الرئيسية (Figma: شريط بحث) — أيقونة
           // البحث في بداية القراءة وقارئ الباركود في الطرف المقابل.
           // الخادم يطابق عنوان العرض ووصفه وأسماء أصنافه، فالحقل واحد
@@ -298,7 +313,11 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
         // سطر النتائج والترتيب (Figma: النتائج والترتيب)
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.sm),
+            AppSpacing.page,
+            AppSpacing.md,
+            AppSpacing.page,
+            AppSpacing.sm,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -315,12 +334,18 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_filters.sort.label,
-                        style: context.text.bodySmall
-                            ?.copyWith(color: context.colors.primary)),
+                    Text(
+                      _filters.sort.label,
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.colors.primary,
+                      ),
+                    ),
                     const SizedBox(width: 2),
-                    AppIcon(AppIcons.chevronDown,
-                        size: 14, color: context.colors.primary),
+                    AppIcon(
+                      AppIcons.chevronDown,
+                      size: 14,
+                      color: context.colors.primary,
+                    ),
                   ],
                 ),
               ),
@@ -353,15 +378,22 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page, 0, AppSpacing.page, AppSpacing.x3l),
+        AppSpacing.page,
+        0,
+        AppSpacing.page,
+        AppSpacing.x3l,
+      ),
       itemCount: offers.length,
       // التعليقات انتقلت إلى شاشة التفاصيل — الضغط المطوّل إيماءة مخفية
       // لا يكتشفها أحد، وزرٌّ في الشريط العلوي هناك يفعل الشيء نفسه ظاهراً.
+      // بلا onAdd عمداً: «إضافة للطلبية» من القائمة كانت تُنزل المستخدم في
+      // شاشة التفاصيل نفسها التي يفتحها زرّ التفاصيل — زرّان بوعدين
+      // مختلفين ونتيجة واحدة. بقي «تفاصيل العرض» وحده بعرض البطاقة
+      // كاملاً، والبطاقة نفسها تفتحه عند الضغط.
       itemBuilder: (_, i) => Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.md),
         child: OfferSummaryCard(
           offer: offers[i],
-          onAdd: () => _openDetails(offers[i]),
           onDetails: () => _openDetails(offers[i]),
         ),
       ),
@@ -391,7 +423,9 @@ class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.page, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.page,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
             Expanded(child: Text('العروض', style: context.text.headlineSmall)),
@@ -410,8 +444,11 @@ class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
                       width: 40,
                       height: 40,
                       child: Center(
-                        child: AppIcon(AppIcons.sliders,
-                            size: 18, color: cs.onSurface),
+                        child: AppIcon(
+                          AppIcons.sliders,
+                          size: 18,
+                          color: cs.onSurface,
+                        ),
                       ),
                     ),
                   ),
@@ -421,20 +458,27 @@ class _OffersTopBar extends StatelessWidget implements PreferredSizeWidget {
                     end: -4,
                     top: -4,
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
                       constraints: const BoxConstraints(minWidth: 18),
                       decoration: BoxDecoration(
                         color: cs.primary,
                         borderRadius: BorderRadius.circular(AppRadius.full),
                         border: Border.all(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            width: 2),
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          width: 2,
+                        ),
                       ),
-                      child: Text('$activeFilters',
-                          textAlign: TextAlign.center,
-                          style: context.text.labelSmall
-                              ?.copyWith(color: cs.onPrimary, fontSize: 10)),
+                      child: Text(
+                        '$activeFilters',
+                        textAlign: TextAlign.center,
+                        style: context.text.labelSmall?.copyWith(
+                          color: cs.onPrimary,
+                          fontSize: 10,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -458,9 +502,11 @@ class _FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<_FilterSheet> {
   late _OfferFilters _draft = widget.initial;
   late final _min = TextEditingController(
-      text: widget.initial.minPrice?.toStringAsFixed(0) ?? '');
+    text: widget.initial.minPrice?.toStringAsFixed(0) ?? '',
+  );
   late final _max = TextEditingController(
-      text: widget.initial.maxPrice?.toStringAsFixed(0) ?? '');
+    text: widget.initial.maxPrice?.toStringAsFixed(0) ?? '',
+  );
 
   @override
   void dispose() {
@@ -499,7 +545,11 @@ class _FilterSheetState extends State<_FilterSheet> {
       builder: (_, controller) => SingleChildScrollView(
         controller: controller,
         padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.x3l),
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.x3l,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -517,7 +567,8 @@ class _FilterSheetState extends State<_FilterSheet> {
             Row(
               children: [
                 Expanded(
-                    child: Text('تصفية العروض', style: context.text.titleLarge)),
+                  child: Text('تصفية العروض', style: context.text.titleLarge),
+                ),
                 TextButton(
                   onPressed: () => setState(() {
                     _draft = const _OfferFilters();
@@ -540,7 +591,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                   AppFilterChip(
                     label: s.label,
                     selected: _draft.sort == s,
-                    onTap: () => setState(() => _draft = _draft.copyWith(sort: s)),
+                    onTap: () =>
+                        setState(() => _draft = _draft.copyWith(sort: s)),
                   ),
               ],
             ),
@@ -556,7 +608,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                   AppFilterChip(
                     label: q.label,
                     selected: _draft.quick == q,
-                    onTap: () => setState(() => _draft = _draft.copyWith(quick: q)),
+                    onTap: () =>
+                        setState(() => _draft = _draft.copyWith(quick: q)),
                   ),
               ],
             ),
@@ -596,8 +649,9 @@ class _FilterSheetState extends State<_FilterSheet> {
                 AppFilterChip(
                   label: 'الكل',
                   selected: _draft.dosageForm == null,
-                  onTap: () =>
-                      setState(() => _draft = _draft.copyWith(clearDosage: true)),
+                  onTap: () => setState(
+                    () => _draft = _draft.copyWith(clearDosage: true),
+                  ),
                 ),
                 for (final d in DosageForm.values)
                   AppFilterChip(

@@ -93,7 +93,9 @@ class OfferCard extends StatelessWidget {
               ),
               if (_headerBadge(context) case final badge?)
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(start: AppSpacing.sm),
+                  padding: const EdgeInsetsDirectional.only(
+                    start: AppSpacing.sm,
+                  ),
                   child: badge,
                 ),
             ],
@@ -160,7 +162,20 @@ class OfferCard extends StatelessWidget {
       ),
     );
 
-    return paused ? Opacity(opacity: 0.6, child: card) : card;
+    // البطاقة كلها مدخلٌ إلى التفاصيل — هدفٌ أوسع بكثير من رابط نصّي في
+    // زاويتها. الزرّ يبقى لأنه يُسمّي الوجهة لمن لا يخمّن أن البطاقة تُضغط.
+    final tappable = onDetails == null
+        ? card
+        : Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onDetails,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: card,
+            ),
+          );
+
+    return paused ? Opacity(opacity: 0.6, child: tappable) : tappable;
   }
 
   Widget? _headerBadge(BuildContext context) {
@@ -170,10 +185,7 @@ class OfferCard extends StatelessWidget {
       // شارة البونص قابلة للنقر → تفاصيل العرض
       OfferCardStatus.bonus => GestureDetector(
         onTap: onDetails,
-        child: BonusBadge(
-          label: statusLabel ?? 'بونص',
-          compact: true,
-        ),
+        child: BonusBadge(label: statusLabel ?? 'بونص', compact: true),
       ),
       OfferCardStatus.expiring => _Pill(
         label: statusLabel ?? 'ينتهي قريباً',
@@ -281,14 +293,19 @@ class _AddButton extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 9),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 9,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
                   child: Text(
                     label,
-                    style: context.text.bodySmall?.copyWith(color: cs.onPrimary),
+                    style: context.text.bodySmall?.copyWith(
+                      color: cs.onPrimary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -318,7 +335,10 @@ class _DetailsLink extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 9),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: 9,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -354,7 +374,10 @@ class _DetailsButtonFull extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 9),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 9,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

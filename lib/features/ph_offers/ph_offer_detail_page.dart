@@ -13,6 +13,7 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
+import 'package:tawrid_app/shared/widgets/quantity_dialog.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 
 /// سعر الوحدة بعد الحسم.
@@ -35,14 +36,10 @@ class PhOfferDetailPage extends ConsumerStatefulWidget {
 class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
   SalesOfferDetail? _offer;
   bool _loading = true;
-  bool _submitting = false;
   String? _error;
 
-  /// معرّف الصنف ← الكمية المطلوبة. وجود المفتاح يعني أن الصنف مُحدَّد.
-  final Map<String, int> _selected = {};
-
-  /// متحكّمات حقول الكمية — تُنشأ عند التحديد وتُتلف عند الإلغاء.
-  final Map<String, TextEditingController> _qtyControllers = {};
+  /// معرّف الصنف الجاري إضافته — يُظهر التحميل على زرّه وحده.
+  String? _addingItemId;
 
   final _scrollCtrl = ScrollController();
 
@@ -96,135 +93,52 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
 
   @override
   void dispose() {
-    for (final c in _qtyControllers.values) {
-      c.dispose();
-    }
     _scrollCtrl.dispose();
     super.dispose();
   }
 
-  void _toggle(SalesOfferItem item, bool selected) {
-    setState(() {
-      if (selected) {
-        final initial = _maxFor(item);
-        _selected[item.id] = initial;
-        _qtyControllers[item.id] = TextEditingController(text: '$initial');
-      } else {
-        _selected.remove(item.id);
-        _qtyControllers.remove(item.id)?.dispose();
-      }
-    });
-  }
-
-  void _setQuantity(SalesOfferItem item, int value) {
-    final max = _maxFor(item);
-    final clamped = value.clamp(1, max);
-    setState(() => _selected[item.id] = clamped);
-    // تصحيح النص في الحقل إذا تجاوز الحد الأقصى.
-    if (clamped != value) {
-      final ctrl = _qtyControllers[item.id];
-      if (ctrl != null) {
-        final text = '$clamped';
-        ctrl.value = TextEditingValue(
-          text: text,
-          selection: TextSelection.collapsed(offset: text.length),
-        );
-      }
-    }
-  }
-
-  double get _selectedTotal {
-    final items = _offer?.items ?? const <SalesOfferItem>[];
-    var total = 0.0;
-    for (final i in items) {
-      final qty = _selected[i.id];
-      if (qty != null) total += _netUnitPrice(i) * qty;
-    }
-    return total;
-  }
-
-  bool get _canOrder {
-    final o = _offer;
-    return o != null &&
-        _selected.isNotEmpty &&
-        o.status == SalesOfferStatus.active &&
-        !_submitting;
-  }
-
-  /// يُضيف الأصناف المحدَّدة إلى السلّة — لا يُنشئ طلبية.
+  /// يُضيف صنفاً واحداً إلى السلّة بعد حوار الكمية.
   ///
-  /// الإضافة صنفاً صنفاً عبر `addOfferItem`: الخادم هو من يقرأ سعر الصنف
-  /// وحسمه وسلّم بونصه ويُجمّدها في السطر، فلا يُرسَل من هنا سعرٌ ولا بونص
-  /// — وهو ما يمنع اختلاف ما في السلّة عمّا في العرض.
+  /// الحوار هو المشترك نفسه المستعمَل في بحث الأسعار والكتالوج: يبدأ من
+  /// أصغر عتبة بونص ويقفز بخطوتها ويُظهر ما سيُنال مجاناً عند كل كمية.
+  /// حقلٌ نصّي حرّ كان يُدخل الصيدلي كمية تفوّت عتبةً بفارق وحدة بلا أن
+  /// يدري.
   ///
-  /// والفشل جزئيّ لا كلّي: صنفٌ لم يعد متاحاً لا يُسقِط إضافة بقيّته، ويُقال
-  /// عددُ ما نجح وما أخفق صراحةً.
-  Future<void> _addSelectedToCart() async {
+  /// ولا يُرسَل من هنا سعر ولا بونص: الخادم يقرأ سعر الصنف وحسمه وسلّم
+  /// بونصه ويُجمّدها في السطر — وهو ما يمنع اختلاف ما في السلّة عمّا في
+  /// العرض.
+  Future<void> _addItem(SalesOfferItem item) async {
     final offer = _offer;
-    if (offer == null || _selected.isEmpty) return;
+    if (offer == null || _addingItemId != null) return;
 
-    final chosen = offer.items
-        .where((i) => _selected.containsKey(i.id))
-        .toList();
-
-    setState(() => _submitting = true);
-    var added = 0;
-    String? firstError;
-
-    try {
-      final cart = ref.read(cartProvider.notifier);
-      for (final item in chosen) {
-        final qty = _selected[item.id] ?? _maxFor(item);
-        try {
-          await cart.addOfferItem(item.id, quantity: qty);
-          added++;
-        } catch (e) {
-          firstError ??= ApiException.from(e).message;
-        }
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-
-    if (!mounted) return;
-
-    if (added == 0) {
-      AppSnackbar.error(context, firstError ?? 'تعذّرت الإضافة إلى السلّة');
-      return;
-    }
-
-    setState(() => _selected.clear());
-
-    final failed = chosen.length - added;
-    AppSnackbar.success(
+    final qty = await showQuantityDialog(
       context,
-      failed == 0
-          ? 'أُضيف $added ${added == 1 ? 'صنف' : 'أصناف'} إلى السلّة'
-          : 'أُضيف $added، وتعذّر $failed — ${firstError ?? ''}',
+      medicineName: item.medicineName,
+      initialQuantity: 1,
+      maxQuantity: _maxFor(item),
+      tiers: item.bonusTiers,
+      unit: item.unit,
+      unitPrice: _netUnitPrice(item),
+      currency: offer.currency,
+      warehouseName: offer.warehouseName,
+      hint: item.quantity <= 0
+          ? 'كمية مفتوحة'
+          : 'المتاح في العرض: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
     );
-  }
+    if (qty == null || !mounted) return;
 
-  /// يعرض ورقة تأكيد ثم يُضيف فقط إذا وافق المستخدم.
-  Future<void> _confirmThenAdd() async {
-    final offer = _offer;
-    if (offer == null || _selected.isEmpty) return;
-
-    final chosen = offer.items
-        .where((i) => _selected.containsKey(i.id))
-        .toList();
-
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _ConfirmCartSheet(
-        items: chosen,
-        selected: Map.unmodifiable(_selected),
-        total: _selectedTotal,
-        currency: offer.currency,
-      ),
-    );
-
-    if (confirmed == true) await _addSelectedToCart();
+    setState(() => _addingItemId = item.id);
+    try {
+      await ref
+          .read(cartProvider.notifier)
+          .addOfferItem(item.id, quantity: qty);
+      if (!mounted) return;
+      AppSnackbar.success(context, 'أُضيف ${item.medicineName} إلى السلّة');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _addingItemId = null);
+    }
   }
 
   void _openComments() {
@@ -309,53 +223,40 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
             availableText: item.quantity <= 0
                 ? 'كمية مفتوحة'
                 : 'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
-            mode: OfferItemRowMode.select,
-            selected: _selected.containsKey(item.id),
-            onSelectedChanged: (v) => _toggle(item, v),
           ),
-          // حقل الكمية يظهر عند التحديد فقط — حقل نصي للإدخال المباشر.
-          if (_selected.containsKey(item.id))
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Row(
-                children: [
-                  Text(
-                    'الكمية المطلوبة',
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: 72,
-                    child: TextFormField(
-                      controller: _qtyControllers[item.id],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: context.text.bodyMedium,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                      ),
-                      onChanged: (v) {
-                        final n = int.tryParse(v.trim());
-                        if (n != null && n > 0) _setQuantity(item, n);
-                      },
+          // إجراءا الصنف: الإضافة تمرّ بحوار الكمية الواعي بالبونص،
+          // والمقارنة تُخرج إلى بحث الأسعار محصوراً بهذا الصنف.
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              AppButton(
+                label: 'أضف للسلة',
+                icon: Icons.add,
+                fullWidth: false,
+                compact: true,
+                loading: _addingItemId == item.id,
+                onPressed: offer.status != SalesOfferStatus.active
+                    ? null
+                    : () => _addItem(item),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              if (item.catalogItemId != null)
+                AppButton(
+                  label: 'مقارنة الأسعار',
+                  icon: Icons.compare_arrows,
+                  fullWidth: false,
+                  compact: true,
+                  variant: AppButtonVariant.tonal,
+                  onPressed: () => context.push(
+                    TRoutes.phPriceCompareItem(
+                      catalogItemId: item.catalogItemId,
+                      name: item.medicineName,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '/ ${_maxFor(item)} ${item.unit}',
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: AppSpacing.md),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
         ],
 
         if (offer.bonusMedicineName != null ||
@@ -380,14 +281,14 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     );
   }
 
-  // الشريط السفلي الثابت (Figma): إجمالي المحدد + زر الإضافة بعدد المحدد.
-  Widget _buildBottomBar() {
+  // الشريط السفلي صار جسراً إلى السلّة لا زرّ إضافة: الإضافة انتقلت إلى
+  // كل صنف بحواره. ويُخفى حين تكون السلّة فارغة فلا يأكل مساحة بلا وعد.
+  Widget? _buildBottomBar() {
+    final inCart = ref.watch(cartCountProvider);
+    if (inCart == 0) return null;
+
     final cs = context.colors;
     final tk = context.tokens;
-    final offer = _offer!;
-    final count = _selected.length;
-    final closed = offer.status != SalesOfferStatus.active;
-    final inCart = ref.watch(cartCountProvider);
 
     return SafeArea(
       top: false,
@@ -403,48 +304,10 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
           AppSpacing.page,
           AppSpacing.md,
         ),
-        child: Row(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'إجمالي المحدد',
-                  style: context.text.labelSmall?.copyWith(color: tk.hint),
-                ),
-                Text(
-                  formatMoneyWith(_selectedTotal, offer.currency),
-                  style: context.priceBrandStyle,
-                ),
-                // ما في السلّة أصلاً يُقال هنا: بعد الإضافة يحتاج الصيدلي
-                // أن يعرف أين ذهب ما أضافه وكيف يُتمّه.
-                if (inCart > 0)
-                  GestureDetector(
-                    onTap: () => context.push(TRoutes.phCart),
-                    child: Text(
-                      'في سلّتك $inCart — إتمام الطلبية',
-                      style: context.text.labelSmall?.copyWith(
-                        color: context.colors.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: AppButton(
-                label: closed
-                    ? 'العرض ${offer.status.label}'
-                    : count == 0
-                    ? 'اختر صنفاً لإضافته'
-                    : 'إضافة المحدد إلى السلّة ($count)',
-                icon: Icons.add_shopping_cart,
-                loading: _submitting,
-                onPressed: _canOrder ? _confirmThenAdd : null,
-              ),
-            ),
-          ],
+        child: AppButton(
+          label: 'إتمام الطلبية — في سلّتك $inCart',
+          icon: Icons.shopping_cart_checkout,
+          onPressed: () => context.push(TRoutes.phCart),
         ),
       ),
     );
@@ -600,162 +463,3 @@ class _MetaLine extends StatelessWidget {
 }
 
 // ورقة تأكيد الإضافة إلى السلّة — تعرض ملخّص الأصناف والإجمالي قبل التنفيذ.
-class _ConfirmCartSheet extends StatelessWidget {
-  const _ConfirmCartSheet({
-    required this.items,
-    required this.selected,
-    required this.total,
-    required this.currency,
-  });
-
-  final List<SalesOfferItem> items;
-  final Map<String, int> selected;
-  final double total;
-  final String currency;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-    final count = items.length;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page,
-          AppSpacing.lg,
-          AppSpacing.page,
-          AppSpacing.lg,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // مقبض السحب
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // رأس الورقة
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'تأكيد إضافة الأصناف',
-                    style: context.text.titleLarge,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tk.brandSurface,
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
-                  child: Text(
-                    '$count ${count == 1 ? 'صنف' : 'أصناف'}',
-                    style: context.text.labelSmall?.copyWith(color: cs.primary),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // قائمة الأصناف (تتمرر إن طالت)
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 260),
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: items.length,
-                separatorBuilder: (_, _) =>
-                    Divider(height: AppSpacing.lg, color: cs.outline),
-                itemBuilder: (_, i) {
-                  final item = items[i];
-                  final qty = selected[item.id] ?? 0;
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.medicineName,
-                              style: context.text.titleSmall,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$qty ${item.unit}',
-                              style: context.text.bodySmall?.copyWith(
-                                color: tk.hint,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        formatMoneyWith(_netUnitPrice(item) * qty, currency),
-                        style: context.text.bodyMedium,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-            Divider(color: cs.outline),
-            const SizedBox(height: AppSpacing.sm),
-
-            // الإجمالي
-            Row(
-              children: [
-                Expanded(
-                  child: Text('الإجمالي', style: context.text.titleSmall),
-                ),
-                Text(
-                  formatMoneyWith(total, currency),
-                  style: context.priceBrandStyle,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            // الأزرار
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: 'تراجع',
-                    variant: AppButtonVariant.outline,
-                    onPressed: () => Navigator.of(context).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: AppButton(
-                    label: 'أضف إلى السلّة',
-                    icon: Icons.add_shopping_cart,
-                    onPressed: () => Navigator.of(context).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
