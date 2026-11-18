@@ -20,7 +20,6 @@ import 'package:tawrid_app/shared/widgets/app_states.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/repositories/conversation_repository.dart';
-import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 
 import 'ph_orders_page.dart' show orderTone;
 
@@ -362,16 +361,13 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
 
   Future<void> _contactWarehouse() async {
     final order = _order!;
-    final me = ref.read(pharmacyMeProvider).value;
     setState(() => _busy = true);
     try {
-      final conv = await ref.read(phConversationRepositoryProvider).openConversation(
-        otherPartyId: order.supplyWarehouseId,
-        otherPartyName: order.warehouseName,
-        myName: me?.pharmacyName ?? '',
-      );
+      final conv = await ref
+          .read(phConversationRepositoryProvider)
+          .openConversation(otherPartyId: order.supplyWarehouseId);
       if (!mounted) return;
-      context.push(TRoutes.phConversationDetail(conv.id, order.warehouseName));
+      context.push(TRoutes.phConversationDetail(conv.id, conv.otherPartyName));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {

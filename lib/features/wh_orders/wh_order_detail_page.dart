@@ -14,7 +14,6 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
-import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
@@ -379,16 +378,13 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
   Future<void> _contactPharmacy() async {
     final order = _order!;
     if (order.pharmacyTenantId == null) return;
-    final me = ref.read(warehouseMeProvider).value;
     setState(() => _busy = true);
     try {
-      final conv = await ref.read(whConversationRepositoryProvider).openConversation(
-        otherPartyId: order.pharmacyTenantId!,
-        otherPartyName: order.pharmacyName ?? '',
-        myName: me?.warehouseName ?? '',
-      );
+      final conv = await ref
+          .read(whConversationRepositoryProvider)
+          .openConversation(otherPartyId: order.pharmacyTenantId!);
       if (!mounted) return;
-      context.push(TRoutes.whConversationDetail(conv.id, order.pharmacyName ?? ''));
+      context.push(TRoutes.whConversationDetail(conv.id, conv.otherPartyName));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {

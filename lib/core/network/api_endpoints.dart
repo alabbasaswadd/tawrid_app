@@ -182,4 +182,8 @@ abstract final class ApiEndpoints {
       '${_convRoot(warehouse)}/$id/read';
   static String conversationOpen(bool warehouse) =>
       '${_convRoot(warehouse)}/open';
+
+  /// قناة الأحداث الفورية (SignalR) — مسار واحد للجهتين: الخادم يشتقّ
+  /// المجموعة من التوكن، فلا حاجة إلى بادئة warehouse/ هنا.
+  static const String conversationsHub = '$_ph/hubs/conversations';
 }

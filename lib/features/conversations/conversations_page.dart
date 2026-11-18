@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 import 'package:tawrid_app/models/conversation_models.dart';
 import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -25,6 +28,8 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
   bool _loading = true;
   String? _error;
 
+  StreamSubscription<IncomingMessage>? _liveSub;
+
   ConversationRepository get _repo => widget.isWarehouse
       ? ref.read(whConversationRepositoryProvider)
       : ref.read(phConversationRepositoryProvider);
@@ -33,6 +38,18 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
   void initState() {
     super.initState();
     _load();
+
+    // أي رسالة واردة تُغيّر ترتيب القائمة ونصّ المعاينة والعدّاد معاً —
+    // إعادة الجلب أبسط وأصدق من تعديل ثلاثة حقول محلياً. القائمة قصيرة
+    // والحدث نادر بما يكفي.
+    _liveSub =
+        ref.read(conversationHubProvider).messages.listen((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _liveSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

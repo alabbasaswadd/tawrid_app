@@ -10,7 +10,6 @@ import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/warehouse_models.dart';
 import 'package:tawrid_app/repositories/announcement_repository.dart';
 import 'package:tawrid_app/repositories/conversation_repository.dart';
-import 'package:tawrid_app/repositories/pharmacy_profile_repository.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/repositories/warehouse_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -83,15 +82,12 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
 
   Future<void> _contactWarehouse() async {
     final p = _profile!;
-    final me = ref.read(pharmacyMeProvider).value;
     try {
-      final conv = await ref.read(phConversationRepositoryProvider).openConversation(
-        otherPartyId: p.id,
-        otherPartyName: p.name,
-        myName: me?.pharmacyName ?? '',
-      );
+      final conv = await ref
+          .read(phConversationRepositoryProvider)
+          .openConversation(otherPartyId: p.id);
       if (!mounted) return;
-      context.push(TRoutes.phConversationDetail(conv.id, p.name));
+      context.push(TRoutes.phConversationDetail(conv.id, conv.otherPartyName));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     }

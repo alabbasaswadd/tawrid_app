@@ -51,9 +51,21 @@ class ConversationRepository {
     return (data as num).toInt();
   }
 
-  Future<List<ConversationMessage>> getMessages(String conversationId) async {
+  /// رسائل المحادثة من الأقدم إلى الأحدث داخل الصفحة.
+  ///
+  /// [before]: يجلب ما قبل هذا الوقت حصراً — مرّر وقت أقدم رسالة معروضة
+  /// للتمرير إلى الأعلى. الافتراضي (null) يجلب أحدث صفحة.
+  Future<List<ConversationMessage>> getMessages(
+    String conversationId, {
+    DateTime? before,
+    int take = 50,
+  }) async {
     final raw = await _api.get(
       ApiEndpoints.conversationMessages(isWarehouse, conversationId),
+      queryParameters: {
+        if (before != null) 'before': before.toUtc().toIso8601String(),
+        'take': take,
+      },
     );
     final data = ApiClient.itemsOf(raw);
     return data
@@ -75,18 +87,15 @@ class ConversationRepository {
   Future<void> markRead(String conversationId) =>
       _api.post(ApiEndpoints.conversationMarkRead(isWarehouse, conversationId));
 
-  Future<Conversation> openConversation({
-    required String otherPartyId,
-    required String otherPartyName,
-    required String myName,
-  }) async {
+  /// يفتح محادثة مع الطرف الآخر أو يُرجع القائمة إن وُجدت.
+  ///
+  /// المعرّف وحده يكفي: الخادم يقرأ اسمَي الطرفين من قاعدة البيانات، ولا
+  /// يقبلهما من العميل. استخدم [Conversation.otherPartyName] من النتيجة
+  /// عنواناً للشاشة بدل اسم محفوظ محلياً.
+  Future<Conversation> openConversation({required String otherPartyId}) async {
     final raw = await _api.post(
       ApiEndpoints.conversationOpen(isWarehouse),
-      data: {
-        'otherPartyId': otherPartyId,
-        'otherPartyName': otherPartyName,
-        'myName': myName,
-      },
+      data: {'otherPartyId': otherPartyId},
     );
     return Conversation.fromJson(raw as Map<String, dynamic>);
   }

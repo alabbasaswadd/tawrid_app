@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 import 'package:tawrid_app/models/conversation_models.dart';
 import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -34,6 +37,9 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   bool _sending = false;
   String? _error;
 
+  StreamSubscription<IncomingMessage>? _liveSub;
+  StreamSubscription<void>? _reconnectSub;
+
   ConversationRepository get _repo => widget.isWarehouse
       ? ref.read(whConversationRepositoryProvider)
       : ref.read(phConversationRepositoryProvider);
@@ -42,13 +48,47 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   void initState() {
     super.initState();
     _load();
+    _listenLive();
   }
 
   @override
   void dispose() {
+    _liveSub?.cancel();
+    _reconnectSub?.cancel();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  // البثّ الفوري يُلحق الرسائل الواردة بلا إعادة جلب. وإن انقطع الاتصال
+  // ثم عاد، نُعيد الجلب كاملاً بدل محاولة تعويض ما فات أثناء الانقطاع.
+  void _listenLive() {
+    final hub = ref.read(conversationHubProvider);
+
+    _liveSub = hub.messages.listen((event) {
+      if (event.conversationId != widget.conversationId) return;
+      _appendLive(event.message);
+    });
+
+    _reconnectSub = hub.onReconnected.listen((_) => _load());
+  }
+
+  void _appendLive(ConversationMessage message) {
+    if (!mounted) return;
+
+    final current = _messages ?? const <ConversationMessage>[];
+    // الرسالة التي أرسلتُها تصل أيضاً عبر القناة (لتظهر على بقية أجهزتي)،
+    // وقد تكون مضافة محلياً من ردّ الإرسال — المعرّف يمنع ازدواجها.
+    if (current.any((m) => m.id == message.id)) return;
+
+    setState(() => _messages = [...current, message]);
+    _scrollToBottom();
+
+    // وصلت ونحن داخل المحادثة ⇒ قُرئت. بلا هذا يبقى العدّاد منتفخاً.
+    if (!message.isFromMe) {
+      _repo.markRead(widget.conversationId).ignore();
+    }
+    invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
   }
 
   Future<void> _load() async {
@@ -85,7 +125,12 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
       final msg =
           await _repo.sendMessage(widget.conversationId, text);
       if (!mounted) return;
-      setState(() => _messages = [...(_messages ?? []), msg]);
+      // الخادم يبثّ الرسالة قبل أن يردّ على هذا الطلب، فقد تكون وصلت عبر
+      // القناة أولاً — المعرّف يحسم الأمر بدل أن تظهر مرّتين.
+      final current = _messages ?? const <ConversationMessage>[];
+      if (!current.any((m) => m.id == msg.id)) {
+        setState(() => _messages = [...current, msg]);
+      }
       _scrollToBottom();
       invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
     } catch (e) {

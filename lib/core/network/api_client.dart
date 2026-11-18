@@ -12,7 +12,7 @@ import 'package:tawrid_app/core/session/warehouse_session.dart';
 // فعلاً في كل مسارات ApiEndpoints. للعمل على باك إند محلي بدلاً منه:
 //   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5289   (محاكي أندرويد)
 //   flutter run --dart-define=API_BASE_URL=http://localhost:5289  (ويندوز/ويب)
-const String _baseUrl = String.fromEnvironment(
+const String apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://169.58.139.217:5040',
 );
@@ -31,7 +31,7 @@ class ApiClient {
   static ApiClient _create(Ref ref) {
     final dio = Dio(
       BaseOptions(
-        baseUrl: _baseUrl,
+        baseUrl: apiBaseUrl,
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {
