@@ -7,6 +7,8 @@ import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/core/notifications/message_notifications.dart';
+import 'package:tawrid_app/core/notifications/push_service.dart';
 import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 import 'package:tawrid_app/models/conversation_models.dart';
 import 'package:tawrid_app/repositories/conversation_repository.dart';
@@ -63,12 +65,19 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   void initState() {
     super.initState();
     _textCtrl.text = widget.draft ?? '';
+
+    // المحادثة أمام المستخدم: لا إشعار لرسائلها، ويُمحى ما تراكم منها في
+    // شريط النظام — إشعارٌ برسالة يراها بعينه إزعاجٌ لا خدمة.
+    ref.read(pushServiceProvider).setOpenConversation(widget.conversationId);
+    MessageNotifications.clear(widget.conversationId).ignore();
+
     _load();
     _listenLive();
   }
 
   @override
   void dispose() {
+    ref.read(pushServiceProvider).setOpenConversation(null);
     _liveSub?.cancel();
     _reconnectSub?.cancel();
     _textCtrl.dispose();

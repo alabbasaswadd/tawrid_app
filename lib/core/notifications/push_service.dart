@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:tawrid_app/app/router/router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
+import 'package:tawrid_app/core/notifications/message_notifications.dart';
 import 'package:tawrid_app/core/notifications/notification_routing.dart';
 import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'package:tawrid_app/repositories/device_repository.dart';
@@ -30,18 +32,52 @@ class _WebFirebaseConfig {
   static const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
   static const appId = String.fromEnvironment('FIREBASE_APP_ID');
   static const senderId = String.fromEnvironment('FIREBASE_SENDER_ID');
-  static const projectId =
-      String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'tawrid-6adcd');
+  static const projectId = String.fromEnvironment(
+    'FIREBASE_PROJECT_ID',
+    defaultValue: 'tawrid-6adcd',
+  );
 
   static bool get isComplete =>
       apiKey.isNotEmpty && appId.isNotEmpty && senderId.isNotEmpty;
 
   static FirebaseOptions get options => FirebaseOptions(
-        apiKey: apiKey,
-        appId: appId,
-        messagingSenderId: senderId,
-        projectId: projectId,
-      );
+    apiKey: apiKey,
+    appId: appId,
+    messagingSenderId: senderId,
+    projectId: projectId,
+  );
+}
+
+/// معالج رسائل الخلفية — يعمل في عزلة مستقلّة.
+///
+/// @pragma('vm:entry-point') ضروري: الدالة تُستدعى من كود المنصّة لا من
+/// Dart، فبدونه يحذفها البناء في وضع الإصدار ولا تصل رسالة واحدة.
+///
+/// لا Riverpod هنا ولا حالة تطبيق: العزلة جديدة لا ترى شيئاً مما في
+/// الذاكرة. كل ما يلزم يأتي في الرسالة أو من التخزين الدائم.
+@pragma('vm:entry-point')
+Future<void> handleBackgroundMessage(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  await _showIfMessage(message);
+}
+
+/// يبني إشعار رسالة من حمولة خامّة — إن كانت رسالةً أصلاً.
+///
+/// الرسالة وحدها تأتي بلا كتلة notification (dataOnly)، وبقية الأنواع
+/// يعرضها النظام بنفسه فلا شأن لنا بها.
+Future<void> _showIfMessage(RemoteMessage message) async {
+  if (message.notification != null) return;
+
+  final data = message.data;
+  final conversationId = data['referenceId'] as String?;
+  if (conversationId == null || conversationId.isEmpty) return;
+
+  await MessageNotifications.init(onOpenConversation: (_, _) {});
+  await MessageNotifications.showMessage(
+    conversationId: conversationId,
+    senderName: (data['title'] as String?) ?? 'رسالة جديدة',
+    body: (data['body'] as String?) ?? '',
+  );
 }
 
 final pushServiceProvider = Provider<PushService>((ref) => PushService(ref));
@@ -78,7 +114,9 @@ class PushService {
     try {
       if (kIsWeb) {
         if (!_WebFirebaseConfig.isComplete) {
-          _log.w('[Push] إعدادات Firebase للويب غير مُمرَّرة — التنبيه الفوري معطَّل.');
+          _log.w(
+            '[Push] إعدادات Firebase للويب غير مُمرَّرة — التنبيه الفوري معطَّل.',
+          );
           return;
         }
         await Firebase.initializeApp(options: _WebFirebaseConfig.options);
@@ -87,6 +125,13 @@ class PushService {
         await Firebase.initializeApp();
       }
       _ready = true;
+
+      // لا يعمل على الويب: لا عزلة خلفية هناك، ولا إشعارات نظام محلّية.
+      if (!kIsWeb) {
+        FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
+        await MessageNotifications.init(onOpenConversation: _openConversation);
+      }
+
       _listenForTokenRefresh();
       _listenForForegroundMessages();
       _listenForNotificationTaps();
@@ -163,7 +208,9 @@ class PushService {
       return;
     }
 
-    await _ref.read(deviceRepositoryProvider).register(
+    await _ref
+        .read(deviceRepositoryProvider)
+        .register(
           isWarehouse: isWarehouse,
           token: token,
           platform: _platform,
@@ -180,7 +227,9 @@ class PushService {
   // وبلا إعادة تسجيل تتوقّف الإشعارات صامتةً.
   void _listenForTokenRefresh() {
     _refreshSub?.cancel();
-    _refreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+    _refreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((
+      token,
+    ) async {
       const store = appSecureStorage;
       final owner = await store.read(key: StorageKeys.fcmTokenOwner);
       if (owner == null) return; // لا جلسة قائمة — يُسجَّل عند الدخول.
@@ -188,17 +237,68 @@ class PushService {
     });
   }
 
-  // إشعار يصل والتطبيق مفتوح لا يُظهره النظام، فنُحدّث شارة الجرس على
-  // الأقل بدل أن يبدو الصندوق قديماً.
+  /// معرّف المحادثة المفتوحة أمام المستخدم الآن — لا إشعار لرسائلها.
+  ///
+  /// إشعارٌ برسالة يراها بعينه إزعاجٌ لا خدمة. تضبطه شاشة الدردشة عند
+  /// الفتح وتمسحه عند الخروج.
+  String? _openConversationId;
+
+  void setOpenConversation(String? conversationId) =>
+      _openConversationId = conversationId;
+
+  // إشعار يصل والتطبيق مفتوح لا يُظهره النظام.
   void _listenForForegroundMessages() {
     _foregroundSub?.cancel();
-    _foregroundSub = FirebaseMessaging.onMessage.listen((_) async {
-      final owner =
-          await appSecureStorage.read(key: StorageKeys.fcmTokenOwner);
+    _foregroundSub = FirebaseMessaging.onMessage.listen((message) async {
+      final owner = await appSecureStorage.read(key: StorageKeys.fcmTokenOwner);
       if (owner == null) return;
+
+      // رسالة محادثة: تُعرَض بنمط المحادثة إلا أن تكون مفتوحة أمامه.
+      final conversationId = message.data['referenceId'] as String?;
+      final isMessage =
+          message.notification == null &&
+          conversationId != null &&
+          conversationId.isNotEmpty;
+
+      if (isMessage) {
+        if (!kIsWeb && conversationId != _openConversationId) {
+          await MessageNotifications.showMessage(
+            conversationId: conversationId,
+            senderName: (message.data['title'] as String?) ?? 'رسالة جديدة',
+            body: (message.data['body'] as String?) ?? '',
+          );
+        }
+        return; // الرسائل لا تدخل صندوق الإشعارات، فلا شارة تُحدَّث.
+      }
+
       _ref.invalidate(
-          owner == 'warehouse' ? whUnreadCountProvider : phUnreadCountProvider);
+        owner == 'warehouse' ? whUnreadCountProvider : phUnreadCountProvider,
+      );
     });
+  }
+
+  /// يفتح محادثةً من إشعار رسالة — ويمحو إشعارها من الشريط.
+  void _openConversation(String conversationId, String title) {
+    MessageNotifications.clear(conversationId).ignore();
+    unawaited(_navigateToConversation(conversationId, title));
+  }
+
+  Future<void> _navigateToConversation(
+    String conversationId,
+    String title,
+  ) async {
+    final owner = await appSecureStorage.read(key: StorageKeys.fcmTokenOwner);
+    if (owner == null) return;
+
+    final destination = owner == 'warehouse'
+        ? TRoutes.whConversationDetail(conversationId, title)
+        : TRoutes.phConversationDetail(conversationId, title);
+
+    try {
+      _ref.read(routerProvider).push(destination);
+    } catch (e) {
+      _log.w('[Push] تعذّر فتح المحادثة $conversationId: $e');
+    }
   }
 
   // النقر على إشعار النظام والتطبيق في الخلفية — يُفتح ويُنقل إلى الكيان

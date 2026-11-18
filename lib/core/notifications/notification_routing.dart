@@ -30,9 +30,10 @@ String? notificationDestination({
 
     // رسالة مباشرة — referenceId معرّف المحادثة، والعنوان اسم المُرسِل
     // فيُستعمل عنواناً للشاشة بلا رحلة شبكة إضافية.
-    NotificationType.newDirectMessage => wh
-        ? TRoutes.whConversationDetail(id, title ?? '')
-        : TRoutes.phConversationDetail(id, title ?? ''),
+    NotificationType.newDirectMessage =>
+      wh
+          ? TRoutes.whConversationDetail(id, title ?? '')
+          : TRoutes.phConversationDetail(id, title ?? ''),
 
     // طلب تسعير: الصيدلية تقارن العروض على طلبها، والمستودع يقدّم عرضه.
     NotificationType.quotationRequestAwarded ||
