@@ -485,7 +485,13 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
 
   Widget? _buildActions() {
     final o = _order!;
-    if (o.status.nextAllowed.isEmpty) return null;
+
+    // الشريط يبقى ما دام في الورقة ما يُفعَل — والتواصل مع الصيدلية متاح
+    // دائماً. كان يختفي كلّياً عند الحالات النهائية (مكتمل/ملغى) فيذهب
+    // معه المدخل الوحيد للمحادثة، وهي أحوج ما تكون بعد إغلاق الطلب.
+    final hasAnyAction =
+        o.status.nextAllowed.isNotEmpty || o.pharmacyTenantId != null;
+    if (!hasAnyAction) return null;
 
     final cs = context.colors;
     final tk = context.tokens;

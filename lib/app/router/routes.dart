@@ -130,14 +130,18 @@ abstract final class TRoutes {
   static const String phConversations = '/conversations';
   static const String phConversationDetailPattern =
       '/conversations/:conversationId';
-  static String phConversationDetail(String id, String title) =>
-      '/conversations/$id?title=${Uri.encodeComponent(title)}';
+  /// [draft] نصّ يُعبَّأ في حقل الكتابة ولا يُرسَل — لفتح محادثة بسياقها
+  /// (عرضٌ بعينه مثلاً) بدل صفحة بيضاء يبدأ منها المستخدم من الصفر.
+  static String phConversationDetail(String id, String title, {String? draft}) =>
+      '/conversations/$id?title=${Uri.encodeComponent(title)}'
+      '${draft == null ? '' : '&draft=${Uri.encodeComponent(draft)}'}';
 
   static const String whConversations = '/wh/conversations';
   static const String whConversationDetailPattern =
       '/wh/conversations/:conversationId';
-  static String whConversationDetail(String id, String title) =>
-      '/wh/conversations/$id?title=${Uri.encodeComponent(title)}';
+  static String whConversationDetail(String id, String title, {String? draft}) =>
+      '/wh/conversations/$id?title=${Uri.encodeComponent(title)}'
+      '${draft == null ? '' : '&draft=${Uri.encodeComponent(draft)}'}';
 
   // معرض نظام التصميم (للتطوير)
   static const String devGallery = '/dev/gallery';

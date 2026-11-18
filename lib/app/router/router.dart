@@ -390,6 +390,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => ConversationChatPage(
           conversationId: state.pathParameters['conversationId']!,
           title: state.uri.queryParameters['title'] ?? 'محادثة',
+          draft: state.uri.queryParameters['draft'],
           isWarehouse: false,
         ),
       ),
@@ -400,6 +401,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => ConversationChatPage(
           conversationId: state.pathParameters['conversationId']!,
           title: state.uri.queryParameters['title'] ?? 'محادثة',
+          draft: state.uri.queryParameters['draft'],
           isWarehouse: true,
         ),
       ),

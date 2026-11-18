@@ -17,12 +17,19 @@ class ConversationChatPage extends ConsumerStatefulWidget {
     required this.conversationId,
     required this.title,
     required this.isWarehouse,
+    this.draft,
     super.key,
   });
 
   final String conversationId;
   final String title;
   final bool isWarehouse;
+
+  /// نصّ يُعبَّأ في حقل الكتابة عند الفتح ولا يُرسَل.
+  ///
+  /// لا يُرسَل تلقائياً عمداً: الرسالة تُنسَب إلى المستخدم، فلا يصحّ أن
+  /// يُرسِل التطبيق باسمه شيئاً لم يقرأه. ويبقى تعديله أو حذفه بيده.
+  final String? draft;
 
   @override
   ConsumerState<ConversationChatPage> createState() =>
@@ -47,6 +54,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   @override
   void initState() {
     super.initState();
+    _textCtrl.text = widget.draft ?? '';
     _load();
     _listenLive();
   }

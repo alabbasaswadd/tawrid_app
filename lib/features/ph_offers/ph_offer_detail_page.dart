@@ -8,6 +8,7 @@ import 'package:tawrid_app/core/cart/cart_controller.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/sales_offer_models.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/repositories/sales_offer_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
@@ -40,6 +41,9 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
 
   /// معرّف الصنف الجاري إضافته — يُظهر التحميل على زرّه وحده.
   String? _addingItemId;
+
+  /// فتح المحادثة جارٍ — يمنع فتح محادثتين بضغطتين متتاليتين.
+  bool _contacting = false;
 
   final _scrollCtrl = ScrollController();
 
@@ -141,6 +145,38 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
     }
   }
 
+  /// يفتح محادثة مع مستودع العرض بنصٍّ مبدئي يذكر العرض.
+  ///
+  /// النصّ مسوّدة لا رسالة مُرسَلة: يظهر في حقل الكتابة ليعدّله المستخدم
+  /// أو يمحوه. إرسالٌ تلقائي باسمه لشيء لم يقرأه ليس تسهيلاً.
+  ///
+  /// وفائدته أن المستودع يستقبل سؤالاً يعرف سياقه من أول سطر، بدل
+  /// «السلام عليكم» مجرّدة يتبعها سؤال «أيّ عرض تقصد؟».
+  Future<void> _contactWarehouse() async {
+    final offer = _offer;
+    if (offer == null || _contacting) return;
+
+    setState(() => _contacting = true);
+    try {
+      final conv = await ref
+          .read(phConversationRepositoryProvider)
+          .openConversation(otherPartyId: offer.supplyWarehouseId);
+      if (!mounted) return;
+
+      context.push(
+        TRoutes.phConversationDetail(
+          conv.id,
+          conv.otherPartyName,
+          draft: 'السلام عليكم، بخصوص عرض «${offer.title}»',
+        ),
+      );
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _contacting = false);
+    }
+  }
+
   void _openComments() {
     final repo = ref.read(salesOfferRepositoryProvider);
     ChatSheet.show(
@@ -193,7 +229,11 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
         AppSpacing.x3l,
       ),
       children: [
-        _HeaderCard(offer: offer),
+        _HeaderCard(
+          offer: offer,
+          onContact: _contactWarehouse,
+          contacting: _contacting,
+        ),
         const SizedBox(height: AppSpacing.lg),
         Text('أصناف العرض', style: context.text.titleLarge),
         const SizedBox(height: 2),
@@ -313,8 +353,17 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
 // بطاقة رأس العرض (Figma): العنوان وشارة البونص، ثم أسطر البيانات، ثم
 // شريط بونص العرض الكامل إن وُجد.
 class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.offer});
+  const _HeaderCard({
+    required this.offer,
+    required this.onContact,
+    required this.contacting,
+  });
+
   final SalesOfferDetail offer;
+
+  /// فتح محادثة مع مستودع العرض.
+  final VoidCallback onContact;
+  final bool contacting;
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +386,27 @@ class _HeaderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _MetaLine(icon: AppIcons.warehouse, text: offer.warehouseName),
+          Row(
+            children: [
+              Expanded(
+                child: _MetaLine(
+                  icon: AppIcons.warehouse,
+                  text: offer.warehouseName,
+                ),
+              ),
+              // التواصل بجوار اسم المستودع لا في شريط منفصل: السؤال عن
+              // العرض يخطر وأنت تقرأ مَن يعرضه.
+              AppButton(
+                label: 'تواصل',
+                icon: Icons.chat_bubble_outline,
+                fullWidth: false,
+                compact: true,
+                variant: AppButtonVariant.tonal,
+                loading: contacting,
+                onPressed: onContact,
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
           _MetaLine(
             icon: AppIcons.clock,
