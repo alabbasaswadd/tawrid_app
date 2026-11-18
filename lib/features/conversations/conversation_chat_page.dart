@@ -41,7 +41,6 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   final _scrollCtrl = ScrollController();
   List<ConversationMessage>? _messages;
   bool _loading = true;
-  bool _sending = false;
   String? _error;
 
   StreamSubscription<IncomingMessage>? _liveSub;
@@ -85,9 +84,19 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     if (!mounted) return;
 
     final current = _messages ?? const <ConversationMessage>[];
-    // الرسالة التي أرسلتُها تصل أيضاً عبر القناة (لتظهر على بقية أجهزتي)،
-    // وقد تكون مضافة محلياً من ردّ الإرسال — المعرّف يمنع ازدواجها.
+    // وصلت مرّتين (القناة وردّ الإرسال) — المعرّف يحسمها.
     if (current.any((m) => m.id == message.id)) return;
+
+    // رسالتي تعود إليّ عبر القناة لتظهر على بقية أجهزتي، وفقاعتها
+    // المحلّية ما زالت معلَّقة هنا. تُستبدل في مكانها لا تُضاف تحتها:
+    // الإضافة كانت تُظهرها مرّتين لجزء من ثانية ثم تُحذف إحداهما —
+    // وهو الارتعاش الذي يُرى «اختفت ثم ظهرت».
+    final pendingIndex = _indexOfPendingLike(current, message);
+    if (pendingIndex != -1) {
+      final next = [...current]..[pendingIndex] = message;
+      setState(() => _messages = next);
+      return;
+    }
 
     setState(() => _messages = [...current, message]);
     _scrollToBottom();
@@ -126,35 +135,32 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
 
   /// يُرسل الرسالة — والفقاعة تظهر قبل أن يُلمَس الخادم.
   ///
-  /// الانتظار كان هو سبب البطء لا المنفذ: الفقاعة لم تكن تُرسَم إلا بعد
-  /// عودة الردّ، فكل تأخير شبكة يُرى فراغاً. الآن تُرسَم فوراً بعلامة
-  /// «قيد الإرسال»، ويستبدلها ردّ الخادم بالمؤكَّدة.
-  ///
-  /// والإرسال عبر القناة القائمة: لا مصافحة ولا ترويسات ولا تحليل توكن
-  /// لكل سطر. وREST احتياطٌ لا بديل — حين تكون القناة مغلقة (شبكة
-  /// متعثّرة، أو خادم بلا Hub) تصل الرسالة على كل حال.
+  /// بلا قفل للزرّ ولا دوّارة: كل إرسال مستقلّ بنفسه، فيكتب المستخدم
+  /// رسالتين متتابعتين كما يفعل في أي تطبيق مراسلة. حال كل رسالة
+  /// مكتوبة على فقاعتها لا على الزرّ.
   Future<void> _send() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
 
     final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
-    final optimistic = ConversationMessage.optimistic(
-      localId: localId,
-      content: text,
-      senderName: '',
-    );
-
     _textCtrl.clear();
-    setState(() {
-      _messages = [...(_messages ?? const []), optimistic];
-      _sending = true;
-    });
+
+    setState(
+      () => _messages = [
+        ...(_messages ?? const []),
+        ConversationMessage.optimistic(
+          localId: localId,
+          content: text,
+          senderName: '',
+        ),
+      ],
+    );
     _scrollToBottom();
 
     try {
       final sent = await _deliver(text);
       if (!mounted) return;
-      _replaceLocal(localId, sent);
+      _confirm(localId, sent);
       invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
     } catch (e) {
       if (!mounted) return;
@@ -170,8 +176,6 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
             .toList(),
       );
       AppSnackbar.error(context, ApiException.from(e).message);
-    } finally {
-      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -197,20 +201,42 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     return _repo.sendMessage(widget.conversationId, text);
   }
 
-  /// يستبدل الفقاعة المحلّية بالمؤكَّدة — أو يحذفها إن سبقها البثّ.
-  void _replaceLocal(String localId, ConversationMessage confirmed) {
+  /// يُثبّت الفقاعة المحلّية بنسختها المؤكَّدة — في موضعها نفسه.
+  ///
+  /// الاستبدال في المكان لا حذفٌ ثم إضافة: الثاني يُحرّك القائمة ويُرى
+  /// قفزة. وإن كان البثّ قد ثبّتها قبل عودة الردّ، تُحذف المحلّية فقط.
+  void _confirm(String localId, ConversationMessage confirmed) {
     final current = _messages ?? const <ConversationMessage>[];
+    final index = current.indexWhere((m) => m.id == localId);
+    if (index == -1) return;
 
-    // القناة قد تكون أوصلت المؤكَّدة قبل عودة الردّ (الخادم يبثّ ثم يردّ)
-    // — عندها تُحذف المحلّية فقط بدل أن تتضاعف.
-    final alreadyThere = current.any((m) => m.id == confirmed.id);
+    final alreadyConfirmed = current.any((m) => m.id == confirmed.id);
 
-    setState(
-      () => _messages = [
-        for (final m in current)
-          if (m.id != localId) m else if (!alreadyThere) confirmed,
-      ],
-    );
+    setState(() {
+      final next = [...current];
+      if (alreadyConfirmed) {
+        next.removeAt(index);
+      } else {
+        next[index] = confirmed;
+      }
+      _messages = next;
+    });
+  }
+
+  /// موضع فقاعة معلَّقة تُقابل رسالةً عائدة من الخادم.
+  ///
+  /// المطابقة بالنصّ لأن المعرّف المحلّي لا يعرفه الخادم. ويُبحث من
+  /// الآخر: رسالتان متطابقتان نصّاً تُثبَّت أحدثُهما المعلَّقة أولاً.
+  static int _indexOfPendingLike(
+    List<ConversationMessage> messages,
+    ConversationMessage incoming,
+  ) {
+    if (!incoming.isFromMe) return -1;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      final m = messages[i];
+      if (m.pending && m.content == incoming.content) return i;
+    }
+    return -1;
   }
 
   void _scrollToBottom() {
@@ -276,21 +302,18 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                _sending
-                    ? const SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : IconButton.filled(
-                        icon: const Icon(Icons.send, size: 18),
-                        onPressed: _send,
-                        style: IconButton.styleFrom(
-                          backgroundColor: cs.primary,
-                          foregroundColor: cs.onPrimary,
-                          minimumSize: const Size(36, 36),
-                        ),
-                      ),
+                // الزرّ لا يُقفَل ولا يحمل دوّارة: حال كل رسالة مكتوبة على
+                // فقاعتها. وقفلُه كان يمنع كتابة رسالة ثانية قبل وصول
+                // الأولى — وهو ما لا يفعله أي تطبيق مراسلة.
+                IconButton.filled(
+                  icon: const Icon(Icons.send, size: 18),
+                  onPressed: _send,
+                  style: IconButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    minimumSize: const Size(36, 36),
+                  ),
+                ),
               ],
             ),
           ),
@@ -337,10 +360,7 @@ class _MessageBubble extends StatelessWidget {
     final tk = context.tokens;
     final isMe = message.isFromMe;
 
-    // الفقاعة المعلَّقة أبهت: الفرق يُقرأ قبل قراءة الأيقونة.
-    final bubbleColor = isMe
-        ? (message.pending ? cs.primary.withValues(alpha: 0.72) : cs.primary)
-        : cs.surfaceContainerHighest;
+    final bubbleColor = isMe ? cs.primary : cs.surfaceContainerHighest;
     final textColor = isMe ? cs.onPrimary : cs.onSurface;
     final timeColor = isMe ? cs.onPrimary.withValues(alpha: 0.7) : tk.hint;
 
