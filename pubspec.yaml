@@ -51,7 +51,8 @@ dependencies:
   firebase_messaging: ^17.0.1
   geolocator: ^14.0.2
   signalr_netcore: ^1.4.4
-  flutter_local_notifications: ^23.0.3
+  flutter_local_notifications: 19.3.1
+  image: ">=4.5.0 <4.11.0"
 
 dev_dependencies:
   flutter_test:

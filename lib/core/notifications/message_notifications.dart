@@ -61,7 +61,7 @@ class MessageNotifications {
     if (_ready) return;
 
     await _plugin.initialize(
-      settings: const InitializationSettings(
+      const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       ),
@@ -93,7 +93,7 @@ class MessageNotifications {
           AndroidFlutterLocalNotificationsPlugin
         >();
     for (final id in _legacyChannelIds) {
-      await android?.deleteNotificationChannel(channelId: id);
+      await android?.deleteNotificationChannel(id);
     }
 
     // تُقرأ مرّة واحدة عند الإقلاع وتُحتجَز: الراوتر لا يقوم بعد، فتُستهلك
@@ -140,10 +140,10 @@ class MessageNotifications {
     );
 
     await _plugin.show(
-      id: id,
-      title: senderName,
-      body: body,
-      notificationDetails: NotificationDetails(
+      id,
+      senderName,
+      body,
+      NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
           _channelName,
@@ -176,7 +176,7 @@ class MessageNotifications {
   /// بلا المحو يبقى الإشعار في الشريط لرسائل قرأها المستخدم، ويبني عليها
   /// الإشعار التالي فيعرض ما قُرئ مع ما لم يُقرأ.
   static Future<void> clear(String conversationId) async {
-    await _plugin.cancel(id: conversationId.hashCode & 0x7FFFFFFF);
+    await _plugin.cancel(conversationId.hashCode & 0x7FFFFFFF);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('$_storePrefix$conversationId');
