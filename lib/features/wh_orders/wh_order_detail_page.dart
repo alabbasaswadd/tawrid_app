@@ -506,7 +506,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
         child: AppButton(
-          label: 'خيارات الطلب',
+          label: 'خيارات إضافية',
           icon: Icons.tune_outlined,
           loading: _busy,
           onPressed: _busy ? null : _showActionsSheet,

@@ -59,6 +59,43 @@ class ConversationHub {
 
   bool get isConnected => _connection?.state == HubConnectionState.Connected;
 
+  /// يُرسل رسالة عبر الاتصال القائم ويُعيدها مؤكَّدةً من الخادم.
+  ///
+  /// رسالةٌ على قناة مفتوحة بدل طلب HTTP جديد لكل سطر: لا مصافحة ولا
+  /// ترويسات ولا تحليل توكن من جديد في كل مرة.
+  ///
+  /// يرمي إن كانت القناة مغلقة — ليسقط المُستدعي إلى REST بدل أن تضيع
+  /// الرسالة بصمت. الصلاحية والمُصادِقات تجري في الخادم كما في REST
+  /// تماماً: الـ Hub يُفوّض إلى الأمر نفسه.
+  Future<ConversationMessage> sendMessage(
+    String conversationId,
+    String content,
+  ) async {
+    final connection = _connection;
+    if (connection == null ||
+        connection.state != HubConnectionState.Connected) {
+      throw StateError('القناة غير متصلة');
+    }
+
+    final raw = await connection.invoke(
+      'SendMessage',
+      args: [conversationId, content],
+    );
+
+    if (raw is! Map) throw StateError('ردٌّ غير مفهوم من الخادم');
+    return ConversationMessage.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  /// يُعلّم المحادثة مقروءة عبر القناة — بلا ردّ ينتظره أحد.
+  Future<void> markRead(String conversationId) async {
+    final connection = _connection;
+    if (connection == null ||
+        connection.state != HubConnectionState.Connected) {
+      throw StateError('القناة غير متصلة');
+    }
+    await connection.send('MarkRead', args: [conversationId]);
+  }
+
   /// يفتح القناة لجلسة قائمة. آمن للاستدعاء المتكرّر.
   Future<void> connect({required bool isWarehouse}) async {
     // تبديل الجهة على الجهاز نفسه يستوجب قناة جديدة: المجموعة تُشتقّ من
@@ -145,9 +182,7 @@ class ConversationHub {
       _messages.add(
         IncomingMessage(
           conversationId: conversationId,
-          message: ConversationMessage.fromJson(
-            Map<String, dynamic>.from(raw),
-          ),
+          message: ConversationMessage.fromJson(Map<String, dynamic>.from(raw)),
         ),
       );
     } catch (e) {

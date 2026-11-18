@@ -124,28 +124,75 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     }
   }
 
+  /// يُرسل الرسالة — والفقاعة تظهر قبل أن يُلمَس الخادم.
+  ///
+  /// الانتظار كان هو سبب البطء لا المنفذ: الفقاعة لم تكن تُرسَم إلا بعد
+  /// عودة الردّ، فكل تأخير شبكة يُرى فراغاً. الآن تُرسَم فوراً بعلامة
+  /// «قيد الإرسال»، ويستبدلها ردّ الخادم بالمؤكَّدة.
+  ///
+  /// والإرسال عبر القناة القائمة: لا مصافحة ولا ترويسات ولا تحليل توكن
+  /// لكل سطر. وREST احتياطٌ لا بديل — حين تكون القناة مغلقة (شبكة
+  /// متعثّرة، أو خادم بلا Hub) تصل الرسالة على كل حال.
   Future<void> _send() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
-    setState(() => _sending = true);
+
+    final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final optimistic = ConversationMessage.optimistic(
+      localId: localId,
+      content: text,
+      senderName: '',
+    );
+
     _textCtrl.clear();
+    setState(() {
+      _messages = [...(_messages ?? const []), optimistic];
+      _sending = true;
+    });
+    _scrollToBottom();
+
     try {
-      final msg =
-          await _repo.sendMessage(widget.conversationId, text);
+      final hub = ref.read(conversationHubProvider);
+      final sent = hub.isConnected
+          ? await hub.sendMessage(widget.conversationId, text)
+          : await _repo.sendMessage(widget.conversationId, text);
+
       if (!mounted) return;
-      // الخادم يبثّ الرسالة قبل أن يردّ على هذا الطلب، فقد تكون وصلت عبر
-      // القناة أولاً — المعرّف يحسم الأمر بدل أن تظهر مرّتين.
-      final current = _messages ?? const <ConversationMessage>[];
-      if (!current.any((m) => m.id == msg.id)) {
-        setState(() => _messages = [...current, msg]);
-      }
-      _scrollToBottom();
+      _replaceLocal(localId, sent);
       invalidateUnreadConversations(ref, isWarehouse: widget.isWarehouse);
     } catch (e) {
-      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+      if (!mounted) return;
+      // الفقاعة تبقى معلَّمة بالفشل لا تُمحى: نصٌّ يختفي بعد الضغط يُقرأ
+      // إرسالاً ناجحاً، وهو أسوأ من فشلٍ ظاهر.
+      setState(
+        () => _messages = _messages
+            ?.map(
+              (m) => m.id == localId
+                  ? m.copyWith(pending: false, failed: true)
+                  : m,
+            )
+            .toList(),
+      );
+      AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// يستبدل الفقاعة المحلّية بالمؤكَّدة — أو يحذفها إن سبقها البثّ.
+  void _replaceLocal(String localId, ConversationMessage confirmed) {
+    final current = _messages ?? const <ConversationMessage>[];
+
+    // القناة قد تكون أوصلت المؤكَّدة قبل عودة الردّ (الخادم يبثّ ثم يردّ)
+    // — عندها تُحذف المحلّية فقط بدل أن تتضاعف.
+    final alreadyThere = current.any((m) => m.id == confirmed.id);
+
+    setState(
+      () => _messages = [
+        for (final m in current)
+          if (m.id != localId) m else if (!alreadyThere) confirmed,
+      ],
+    );
   }
 
   void _scrollToBottom() {
@@ -205,8 +252,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide:
-                            BorderSide(color: cs.primary, width: 1.5),
+                        borderSide: BorderSide(color: cs.primary, width: 1.5),
                       ),
                     ),
                   ),
@@ -273,11 +319,12 @@ class _MessageBubble extends StatelessWidget {
     final tk = context.tokens;
     final isMe = message.isFromMe;
 
-    final bubbleColor =
-        isMe ? cs.primary : cs.surfaceContainerHighest;
+    // الفقاعة المعلَّقة أبهت: الفرق يُقرأ قبل قراءة الأيقونة.
+    final bubbleColor = isMe
+        ? (message.pending ? cs.primary.withValues(alpha: 0.72) : cs.primary)
+        : cs.surfaceContainerHighest;
     final textColor = isMe ? cs.onPrimary : cs.onSurface;
-    final timeColor =
-        isMe ? cs.onPrimary.withValues(alpha: 0.7) : tk.hint;
+    final timeColor = isMe ? cs.onPrimary.withValues(alpha: 0.7) : tk.hint;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -295,15 +342,14 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.only(
             topRight: const Radius.circular(16),
             topLeft: const Radius.circular(16),
-            bottomRight:
-                isMe ? Radius.zero : const Radius.circular(16),
-            bottomLeft:
-                isMe ? const Radius.circular(16) : Radius.zero,
+            bottomRight: isMe ? Radius.zero : const Radius.circular(16),
+            bottomLeft: isMe ? const Radius.circular(16) : Radius.zero,
           ),
         ),
         child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!isMe)
@@ -319,16 +365,32 @@ class _MessageBubble extends StatelessWidget {
               ),
             Text(
               message.content,
-              style:
-                  context.text.bodyMedium?.copyWith(color: textColor),
+              style: context.text.bodyMedium?.copyWith(color: textColor),
             ),
             const SizedBox(height: 2),
-            Text(
-              formatSmartTimestamp(message.createdAt),
-              style: context.text.labelSmall?.copyWith(
-                color: timeColor,
-                fontSize: 10,
-              ),
+            // الوقت ومعه حال الرسالة: ساعةٌ ما دامت في الطريق، وعلامةُ
+            // تنبيه إن لم تصل — فيُقرأ المصير من الفقاعة نفسها لا من
+            // شريط عابر يختفي.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (message.pending) ...[
+                  Icon(Icons.schedule, size: 11, color: timeColor),
+                  const SizedBox(width: 3),
+                ] else if (message.failed) ...[
+                  Icon(Icons.error_outline, size: 11, color: tk.danger),
+                  const SizedBox(width: 3),
+                ],
+                Text(
+                  message.failed
+                      ? 'لم تُرسَل'
+                      : formatSmartTimestamp(message.createdAt),
+                  style: context.text.labelSmall?.copyWith(
+                    color: message.failed ? tk.danger : timeColor,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -471,7 +471,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.md),
         child: AppButton(
-          label: 'خيارات الطلبية',
+          label: 'خيارات إضافية',
           icon: Icons.tune_outlined,
           loading: _busy,
           onPressed: _busy ? null : _showActionsSheet,
