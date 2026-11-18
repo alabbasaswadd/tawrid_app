@@ -50,6 +50,13 @@ class ConversationChatPage extends ConsumerStatefulWidget {
 class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   final _textCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+
+  /// تركيز حقل الكتابة — يُعاد طلبه بعد كل إرسال.
+  ///
+  /// زرّ الإرسال يسحب التركيز إليه، وزرّ «إرسال» في لوحة المفاتيح يُغلقها
+  /// بعد onSubmitted. وكلاهما يقطع تتابع الكتابة: من يُرسل رسالة غالباً
+  /// يُرسل تاليتها.
+  final _inputFocus = FocusNode();
   List<ConversationMessage>? _messages;
   bool _loading = true;
   String? _error;
@@ -139,6 +146,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     ref.read(pushServiceProvider).setOpenConversation(null);
     _liveSub?.cancel();
     _reconnectSub?.cancel();
+    _inputFocus.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -233,6 +241,10 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
 
     final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
     _textCtrl.clear();
+
+    // التركيز يُستردّ فوراً لا بعد ردّ الخادم: الإرسال لا ينتظره أصلاً،
+    // وتأخيرُ التركيز يُغلق لوحة المفاتيح لجزء من ثانية ثم يفتحها.
+    _inputFocus.requestFocus();
 
     setState(
       () => _messages = [
@@ -383,8 +395,18 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
                 Expanded(
                   child: TextField(
                     controller: _textCtrl,
+                    focusNode: _inputFocus,
                     textInputAction: TextInputAction.send,
+                    // لوحة المفاتيح تبقى بعد الإرسال: onSubmitted يُغلقها
+                    // افتراضياً، وطلب التركيز داخل _send يُبقيها.
                     onSubmitted: (_) => _send(),
+                    // رسالة طويلة تلتفّ فينمو الحقل إلى خمسة أسطر ثم
+                    // يُمرَّر داخله بدل أن يبتلع الشاشة.
+                    //
+                    // بلا keyboardType: multiline عمداً — يُحوّل مفتاح
+                    // الإدخال إلى سطر جديد فيُفقد زرّ الإرسال من اللوحة.
+                    minLines: 1,
+                    maxLines: 5,
                     decoration: InputDecoration(
                       hintText: 'اكتب رسالة...',
                       isDense: true,

@@ -39,24 +39,32 @@ class _TawridAppState extends ConsumerState<TawridApp>
     super.dispose();
   }
 
-  /// قناة المحادثات تتبع حياة التطبيق.
+  /// قناة المحادثات تتبع حياة التطبيق — بخروجه لا بتواريه.
   ///
-  /// تُغلق متى غادر المقدمة: المقبس المفتوح في الخلفية يستنزف البطارية،
-  /// والنظام يقطعه في وضع الخمول على كل حال — والتنبيه الفوري هو من
-  /// يُعلم المستخدم وقتها. وتُفتح عند العودة فتستأنف البثّ.
+  /// تبقى مفتوحة ما دام التطبيق حيّاً ولو في الخلفية: إغلاقها عند كل
+  /// تواري يعني إعادة مصافحة كاملة عند كل عودة، ويُفقد البثَّ الفوري
+  /// في النافذة التي يسمح فيها النظام بالعمل خلفياً.
+  ///
+  /// وتُغلق عند detached وحدها — وهي خروج التطبيق فعلاً. بقاؤها بعده
+  /// تسريبٌ لمقبس لا صاحب له.
+  ///
+  /// وما يقطعه النظام في وضع الخمول تستردّه إعادة الاتصال التلقائية،
+  /// ويسدّ ما فات التنبيهُ الفوري ثم إعادة الجلب عند العودة.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final hub = ref.read(conversationHubProvider);
 
     switch (state) {
       case AppLifecycleState.resumed:
+        // قد يكون النظام قطع المقبس أثناء الخمول — resume لا تفعل شيئاً
+        // إن كانت القناة قائمة.
         hub.resume();
-      case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-      case AppLifecycleState.hidden:
         hub.suspend();
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
       case AppLifecycleState.inactive:
-        // عابرة: مكالمة واردة أو مُبدّل التطبيقات. لا تُغلق لأجلها.
+        // التطبيق حيّ: القناة تبقى.
         break;
     }
   }
