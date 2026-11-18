@@ -67,9 +67,19 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   /// حجم الدفعة — ما يملأ شاشتين تقريباً، فلا يُطلب التالي فور الفتح.
   static const _pageSize = 25;
 
+  /// مُهلة تجميع «تعليم كمقروء».
+  ///
+  /// كان يُرسَل عند كل رسالة واردة: محادثة نشطة بعشر رسائل عشرة طلبات
+  /// تقول الشيء نفسه. الطلب واحد يشمل ما وصل خلال المهلة.
+  Timer? _markReadTimer;
+  static const _markReadDelay = Duration(seconds: 2);
+
   /// هل بقي أقدم مما حُمّل؟ دفعةٌ أقصر من المطلوب تعني أننا بلغنا البداية.
   bool _hasOlder = true;
   bool _loadingOlder = false;
+
+  /// هل ابتعد القارئ عن الأسفل بما يكفي ليُعرض زرّ العودة؟
+  bool _showJumpToBottom = false;
 
   ConversationRepository get _repo => widget.isWarehouse
       ? ref.read(whConversationRepositoryProvider)
@@ -94,8 +104,15 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   // فلا يرى فراغاً ينتظره.
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
-    if (_scrollCtrl.position.pixels > 200) return;
-    _loadOlder();
+
+    final position = _scrollCtrl.position;
+
+    // ارتفاع شاشة كامل تقريباً: أقلّ منه والقارئ ما زال قرب الأحدث،
+    // فالزرّ يحجب رسالةً بلا داعٍ.
+    final far = position.maxScrollExtent - position.pixels > 600;
+    if (far != _showJumpToBottom) setState(() => _showJumpToBottom = far);
+
+    if (position.pixels <= 200) _loadOlder();
   }
 
   /// يجلب الدفعة الأسبق ويُقدّمها، مع تثبيت موضع القراءة.
@@ -146,6 +163,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     ref.read(pushServiceProvider).setOpenConversation(null);
     _liveSub?.cancel();
     _reconnectSub?.cancel();
+    _markReadTimer?.cancel();
     _inputFocus.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
@@ -191,13 +209,21 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     // والإنقاص محلّي بواحد: العدّاد زاد بواحد لتوّه من الحدث نفسه، فلا
     // داعي لسؤال الخادم عن رقمٍ نعرفه.
     if (!message.isFromMe) {
-      _repo.markRead(widget.conversationId).ignore();
+      _scheduleMarkRead();
       reduceUnreadConversations(
         ref,
         isWarehouse: widget.isWarehouse,
         readCount: 1,
       );
     }
+  }
+
+  void _scheduleMarkRead() {
+    _markReadTimer?.cancel();
+    _markReadTimer = Timer(_markReadDelay, () {
+      if (!mounted) return;
+      _repo.markRead(widget.conversationId).ignore();
+    });
   }
 
   Future<void> _load() async {
@@ -270,6 +296,40 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
         () => _messages = _messages
             ?.map(
               (m) => m.id == localId
+                  ? m.copyWith(pending: false, failed: true)
+                  : m,
+            )
+            .toList(),
+      );
+      AppSnackbar.error(context, ApiException.from(e).message);
+    }
+  }
+
+  /// يُعيد إرسال رسالة فشلت — بنصّها كما هو.
+  ///
+  /// بلا هذا كانت الفقاعة الفاشلة طريقاً مسدوداً: تقول «لم تُرسَل» ولا
+  /// تقبل شيئاً، فيُعيد المستخدم كتابتها من الصفر.
+  Future<void> _retry(ConversationMessage failed) async {
+    setState(
+      () => _messages = _messages
+          ?.map(
+            (m) => m.id == failed.id
+                ? m.copyWith(pending: true, failed: false)
+                : m,
+          )
+          .toList(),
+    );
+
+    try {
+      final sent = await _deliver(failed.content);
+      if (!mounted) return;
+      _confirm(failed.id, sent);
+    } catch (e) {
+      if (!mounted) return;
+      setState(
+        () => _messages = _messages
+            ?.map(
+              (m) => m.id == failed.id
                   ? m.copyWith(pending: false, failed: true)
                   : m,
             )
@@ -378,7 +438,21 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
       ),
       body: Column(
         children: [
-          Expanded(child: _buildMessages()),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: _buildMessages()),
+                // يظهر حين يبتعد القارئ — ومع الترقيم صار الابتعاد أعمق،
+                // فالعودة بالسحب وحدها تُرهق.
+                if (_showJumpToBottom)
+                  PositionedDirectional(
+                    end: AppSpacing.md,
+                    bottom: AppSpacing.md,
+                    child: _JumpToBottomButton(onTap: _scrollToBottom),
+                  ),
+              ],
+            ),
+          ),
           Container(
             decoration: BoxDecoration(
               color: cs.surface,
@@ -464,6 +538,8 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
       );
     }
 
+    final rows = _withDateSeparators(msgs);
+
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(
@@ -471,7 +547,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
         vertical: AppSpacing.sm,
       ),
       // عنصر إضافي في الأعلى حين يجري جلب الأسبق.
-      itemCount: msgs.length + (_loadingOlder ? 1 : 0),
+      itemCount: rows.length + (_loadingOlder ? 1 : 0),
       itemBuilder: (_, i) {
         if (_loadingOlder && i == 0) {
           return const Padding(
@@ -485,17 +561,140 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
             ),
           );
         }
-        return _MessageBubble(message: msgs[i - (_loadingOlder ? 1 : 0)]);
+
+        final row = rows[i - (_loadingOlder ? 1 : 0)];
+        return switch (row) {
+          _DateRow(:final day) => _DateSeparator(day: day),
+          _MessageRow(:final message) => _MessageBubble(
+            message: message,
+            onRetry: message.failed ? () => _retry(message) : null,
+          ),
+        };
       },
+    );
+  }
+
+  /// يُدخل فاصل تاريخ قبل أول رسالة من كل يوم.
+  ///
+  /// بلا الفواصل تبدو مئة رسالة خيطاً واحداً متصلاً: الوقت على الفقاعة
+  /// يقول الساعة ولا يقول أيّ يوم، فرسالة أمس ورسالة اليوم سواء.
+  static List<_ChatRow> _withDateSeparators(List<ConversationMessage> msgs) {
+    final rows = <_ChatRow>[];
+    DateTime? lastDay;
+
+    for (final m in msgs) {
+      final day = DateTime(
+        m.createdAt.year,
+        m.createdAt.month,
+        m.createdAt.day,
+      );
+      if (lastDay == null || day != lastDay) {
+        rows.add(_DateRow(day));
+        lastDay = day;
+      }
+      rows.add(_MessageRow(m));
+    }
+
+    return rows;
+  }
+}
+
+// ── صفوف القائمة ─────────────────────────────────────────────────────────
+sealed class _ChatRow {
+  const _ChatRow();
+}
+
+class _DateRow extends _ChatRow {
+  const _DateRow(this.day);
+  final DateTime day;
+}
+
+class _MessageRow extends _ChatRow {
+  const _MessageRow(this.message);
+  final ConversationMessage message;
+}
+
+// فاصل يوم: «اليوم» و«أمس» بالاسم، وما قبلهما بالتاريخ — الاسم أسرع
+// قراءةً، والتاريخ أدقّ حين يبعد اليوم.
+class _DateSeparator extends StatelessWidget {
+  const _DateSeparator({required this.day});
+
+  final DateTime day;
+
+  static const _months = [
+    'كانون الثاني',
+    'شباط',
+    'آذار',
+    'نيسان',
+    'أيار',
+    'حزيران',
+    'تموز',
+    'آب',
+    'أيلول',
+    'تشرين الأول',
+    'تشرين الثاني',
+    'كانون الأول',
+  ];
+
+  String _label() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(day).inDays;
+
+    if (diff == 0) return 'اليوم';
+    if (diff == 1) return 'أمس';
+    if (diff < 7) return _weekday(day.weekday);
+
+    // السنة تُذكر لما تجاوزها فقط — ذكرها دائماً حشو.
+    final base = '${day.day} ${_months[day.month - 1]}';
+    return day.year == now.year ? base : '$base ${day.year}';
+  }
+
+  static String _weekday(int w) => switch (w) {
+    DateTime.saturday => 'السبت',
+    DateTime.sunday => 'الأحد',
+    DateTime.monday => 'الاثنين',
+    DateTime.tuesday => 'الثلاثاء',
+    DateTime.wednesday => 'الأربعاء',
+    DateTime.thursday => 'الخميس',
+    _ => 'الجمعة',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+          ),
+          child: Text(
+            _label(),
+            style: context.text.labelSmall?.copyWith(color: tk.hint),
+          ),
+        ),
+      ),
     );
   }
 }
 
 // ── فقاعة رسالة ──────────────────────────────────────────────────────────
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
+  const _MessageBubble({required this.message, this.onRetry});
 
   final ConversationMessage message;
+
+  /// يُمرَّر للفقاعة الفاشلة وحدها — الضغط يُعيد إرسالها.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -507,73 +706,116 @@ class _MessageBubble extends StatelessWidget {
     final textColor = isMe ? cs.onPrimary : cs.onSurface;
     final timeColor = isMe ? cs.onPrimary.withValues(alpha: 0.7) : tk.hint;
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.72,
+    final bubble = Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.72,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: bubbleColor,
+        borderRadius: BorderRadius.only(
+          topRight: const Radius.circular(16),
+          topLeft: const Radius.circular(16),
+          bottomRight: isMe ? Radius.zero : const Radius.circular(16),
+          bottomLeft: isMe ? const Radius.circular(16) : Radius.zero,
         ),
-        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.only(
-            topRight: const Radius.circular(16),
-            topLeft: const Radius.circular(16),
-            bottomRight: isMe ? Radius.zero : const Radius.circular(16),
-            bottomLeft: isMe ? const Radius.circular(16) : Radius.zero,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isMe)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  message.senderName,
-                  style: context.text.labelSmall?.copyWith(
-                    color: cs.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
+      ),
+      child: Column(
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isMe)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                message.senderName,
+                style: context.text.labelSmall?.copyWith(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            Text(
-              message.content,
-              style: context.text.bodyMedium?.copyWith(color: textColor),
             ),
-            const SizedBox(height: 2),
-            // الوقت ومعه حال الرسالة: ساعةٌ ما دامت في الطريق، وعلامةُ
-            // تنبيه إن لم تصل — فيُقرأ المصير من الفقاعة نفسها لا من
-            // شريط عابر يختفي.
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (message.pending) ...[
-                  Icon(Icons.schedule, size: 11, color: timeColor),
-                  const SizedBox(width: 3),
-                ] else if (message.failed) ...[
-                  Icon(Icons.error_outline, size: 11, color: tk.danger),
-                  const SizedBox(width: 3),
-                ],
-                Text(
-                  message.failed
-                      ? 'لم تُرسَل'
-                      : formatSmartTimestamp(message.createdAt),
-                  style: context.text.labelSmall?.copyWith(
-                    color: message.failed ? tk.danger : timeColor,
-                    fontSize: 10,
-                  ),
-                ),
+          Text(
+            message.content,
+            style: context.text.bodyMedium?.copyWith(color: textColor),
+          ),
+          const SizedBox(height: 2),
+          // الوقت ومعه حال الرسالة: ساعةٌ ما دامت في الطريق، وعلامةُ
+          // تنبيه إن لم تصل — فيُقرأ المصير من الفقاعة نفسها لا من
+          // شريط عابر يختفي.
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (message.pending) ...[
+                AppIcon(AppIcons.clock, size: 11, color: timeColor),
+                const SizedBox(width: 3),
+              ] else if (message.failed) ...[
+                AppIcon(AppIcons.alertTriangle, size: 11, color: tk.danger),
+                const SizedBox(width: 3),
               ],
+              Text(
+                message.failed
+                    ? 'لم تُرسَل — اضغط للإعادة'
+                    : formatSmartTimestamp(message.createdAt),
+                style: context.text.labelSmall?.copyWith(
+                  color: message.failed ? tk.danger : timeColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      // الفقاعة الفاشلة وحدها تستجيب للضغط: جعلُ كل فقاعة قابلة للضغط
+      // بلا فعلٍ يُربك — أثرُ ضغطٍ لا يتبعه شيء.
+      child: onRetry == null
+          ? bubble
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onRetry,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                child: bubble,
+              ),
             ),
-          ],
+    );
+  }
+}
+
+// زرّ العودة إلى آخر الرسائل.
+class _JumpToBottomButton extends StatelessWidget {
+  const _JumpToBottomButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final tk = context.tokens;
+
+    return Material(
+      color: cs.surface,
+      shape: CircleBorder(side: BorderSide(color: cs.outline)),
+      elevation: 2,
+      shadowColor: tk.hint,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Center(
+            child: AppIcon(AppIcons.chevronDown, size: 20, color: cs.onSurface),
+          ),
         ),
       ),
     );

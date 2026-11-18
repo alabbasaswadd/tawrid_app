@@ -284,7 +284,6 @@ class _ConversationTile extends StatelessWidget {
                     : '${conversation.unreadCount}',
                 style: context.text.labelSmall?.copyWith(
                   color: cs.onPrimary,
-                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
