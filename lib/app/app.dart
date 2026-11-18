@@ -5,16 +5,32 @@ import 'package:tawrid_app/app/router/router.dart';
 import 'package:tawrid_app/app/theme/app_theme.dart';
 import 'package:tawrid_app/app/theme/font_scale_provider.dart';
 import 'package:tawrid_app/app/theme/theme_mode_provider.dart';
+import 'package:tawrid_app/core/notifications/push_service.dart';
 
 /// مفتاح عالمي لـ ScaffoldMessenger — يُستخدم لإظهار SnackBar فوق BottomSheet.
 /// الاستخدام: `appScaffoldMessengerKey.currentState?.showSnackBar(...)`
 final appScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-class TawridApp extends ConsumerWidget {
+class TawridApp extends ConsumerStatefulWidget {
   const TawridApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TawridApp> createState() => _TawridAppState();
+}
+
+class _TawridAppState extends ConsumerState<TawridApp> {
+  @override
+  void initState() {
+    super.initState();
+    // التطبيق أُقلع من نقرة على إشعار: الانتقال يُنفَّذ بعد أول إطار لا
+    // في main()، لأن الراوتر لا يقوم إلا مع runApp.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(pushServiceProvider).consumeLaunchNotification();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     final fontScale = ref.watch(fontScaleProvider);

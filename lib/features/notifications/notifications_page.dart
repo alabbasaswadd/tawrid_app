@@ -5,6 +5,7 @@ import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
+import 'package:tawrid_app/core/notifications/notification_routing.dart';
 import 'package:tawrid_app/models/notification_models.dart';
 import 'package:tawrid_app/repositories/notification_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -97,28 +98,17 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   // الوجهة تُقرأ من النوع + referenceId. ما لا وجهة له (أو لا معرّف معه)
   // يُعلَّم كمقروء فقط — أفضل من فتح شاشة خاطئة.
+  //
+  // الوجهة هي الكيان نفسه لا قائمته: الإشعار يحمل referenceId للطلبية
+  // المعنيّة، وإنزال المستخدم في قائمة ليبحث فيها عمّا أُشعِر به يُهدر
+  // المعلومة التي أرسلها الخادم أصلاً.
   void _openTarget(AppNotification n) {
-    final ref0 = n.referenceId;
-    if (ref0 == null) return;
-
-    final wh = widget.isWarehouse;
-    final destination = switch (n.type) {
-      NotificationType.supplyOrderStatusChanged ||
-      NotificationType.supplyOrderCreated =>
-        wh ? TRoutes.whOrders : TRoutes.phOrders,
-      NotificationType.newSupplyOrder => wh ? TRoutes.whOrders : null,
-      NotificationType.quotationRequestAwarded ||
-      NotificationType.newQuotationRequest =>
-        wh ? TRoutes.whTenders : null,
-      NotificationType.newQuotation => wh ? null : TRoutes.phTenders,
-      NotificationType.newSalesOffer => wh ? TRoutes.whOffers : TRoutes.phOffers,
-      NotificationType.newComment ||
-      NotificationType.general ||
-      NotificationType.unknown =>
-        null,
-    };
-
-    if (destination != null) context.go(destination);
+    final destination = notificationDestination(
+      type: n.type,
+      referenceId: n.referenceId,
+      isWarehouse: widget.isWarehouse,
+    );
+    if (destination != null) context.push(destination);
   }
 
   @override
@@ -228,7 +218,10 @@ class _NotificationTile extends StatelessWidget {
         NotificationType.newQuotationRequest =>
           Icons.request_quote_outlined,
         NotificationType.newSalesOffer => Icons.sell_outlined,
-        NotificationType.newComment => Icons.chat_bubble_outline,
+        NotificationType.warehouseAnnouncement => Icons.campaign_outlined,
+        NotificationType.newComment ||
+        NotificationType.newOrderMessage =>
+          Icons.chat_bubble_outline,
         NotificationType.general || NotificationType.unknown =>
           Icons.notifications_none,
       };

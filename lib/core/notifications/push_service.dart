@@ -5,7 +5,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import 'package:tawrid_app/app/router/router.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
+import 'package:tawrid_app/core/notifications/notification_routing.dart';
 import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'package:tawrid_app/repositories/device_repository.dart';
 import 'package:tawrid_app/repositories/notification_repository.dart';
@@ -58,6 +60,14 @@ class PushService {
   String? _token;
   StreamSubscription<String>? _refreshSub;
   StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedSub;
+
+  /// الإشعار الذي أقلع منه التطبيق وهو مُغلق تماماً.
+  ///
+  /// يُحتجَز ولا يُنفَّذ فوراً: `init()` تسبق `runApp`، فلا راوتر بعد
+  /// يستقبل الوجهة. يستهلكه التطبيق بعد أول إطار عبر
+  /// [consumeLaunchNotification].
+  RemoteMessage? _launchMessage;
 
   bool get isReady => _ready;
   String? get token => _token;
@@ -79,6 +89,11 @@ class PushService {
       _ready = true;
       _listenForTokenRefresh();
       _listenForForegroundMessages();
+      _listenForNotificationTaps();
+
+      // التطبيق كان مُغلقاً وفُتح من إشعار: الرسالة متاحة مرة واحدة فقط،
+      // فتُقرأ الآن وتُحتجز حتى يقوم الراوتر.
+      _launchMessage = await FirebaseMessaging.instance.getInitialMessage();
     } catch (e) {
       // غياب google-services.json أو إعدادات الويب يرمي هنا — وهو وضع
       // متوقَّع قبل ضبط المشروع، لا خطأ يستحق إسقاط التطبيق.
@@ -186,6 +201,42 @@ class PushService {
     });
   }
 
+  // النقر على إشعار النظام والتطبيق في الخلفية — يُفتح ويُنقل إلى الكيان
+  // المعنيّ مباشرة.
+  void _listenForNotificationTaps() {
+    _openedSub?.cancel();
+    _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(_navigateTo);
+  }
+
+  /// ينفّذ انتقال الإشعار الذي أقلع منه التطبيق — يُستدعى بعد أول إطار،
+  /// حين يكون الراوتر جاهزاً. لا أثر له إن لم يُفتح التطبيق من إشعار.
+  Future<void> consumeLaunchNotification() async {
+    final message = _launchMessage;
+    _launchMessage = null;
+    if (message != null) await _navigateTo(message);
+  }
+
+  Future<void> _navigateTo(RemoteMessage message) async {
+    // الجهة لا تأتي في الحمولة: الخادم يرسل الحدث لا هوية المستلم. لكنّ
+    // الجهاز سُجّل لجهة واحدة، وهي المحفوظة مع الرمز.
+    final owner = await appSecureStorage.read(key: StorageKeys.fcmTokenOwner);
+    if (owner == null) return; // لا جلسة — لا شاشة تُفتح.
+
+    final destination = pushDestination(
+      message.data,
+      isWarehouse: owner == 'warehouse',
+    );
+    if (destination == null) return;
+
+    try {
+      _ref.read(routerProvider).push(destination);
+    } catch (e) {
+      // الراوتر غير جاهز أو المسار مرفوض (حارس جلسة مثلاً): يُفتح
+      // التطبيق على حاله بدل أن يسقط عند الإقلاع.
+      _log.w('[Push] تعذّر الانتقال إلى $destination: $e');
+    }
+  }
+
   DevicePlatform get _platform {
     if (kIsWeb) return DevicePlatform.web;
     return defaultTargetPlatform == TargetPlatform.iOS
@@ -211,5 +262,6 @@ class PushService {
   void dispose() {
     _refreshSub?.cancel();
     _foregroundSub?.cancel();
+    _openedSub?.cancel();
   }
 }
