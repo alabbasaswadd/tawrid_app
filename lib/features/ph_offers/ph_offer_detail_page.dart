@@ -199,10 +199,17 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
       appBar: InnerTopBar(
         title: scrolled ? _offer!.title : 'تفاصيل العرض',
         subtitle: scrolled ? _offer!.warehouseName : null,
-        trailing: IconButton(
-          icon: const Icon(Icons.chat_bubble_outline, size: 20),
-          tooltip: 'التعليقات',
+        // نصّ لا أيقونة: فقاعة الحوار تُقرأ «محادثة مع المستودع» وهي
+        // التعليقات العامة على العرض — وزرّ «تواصل» في البطاقة يفتح
+        // المحادثة الخاصّة فعلاً. التسمية تفصل بينهما.
+        trailing: TextButton(
           onPressed: _loading ? null : _openComments,
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            minimumSize: const Size(0, 40),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text('التعليقات'),
         ),
       ),
       body: _buildBody(),

@@ -238,7 +238,12 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
             ),
-            SizedBox(width: 40, height: 40, child: trailing),
+            // حدٌّ أدنى لا عرضٌ ثابت: الخانة توازن زرّ الرجوع حين تفرغ،
+            // وتتّسع حين تحمل نصّاً («التعليقات») بدل أن تقصّه.
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              child: Center(widthFactor: 1, child: trailing),
+            ),
           ],
         ),
       ),
