@@ -153,6 +153,7 @@ class WelcomeTopBar extends StatelessWidget implements PreferredSizeWidget {
 class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
   const InnerTopBar({
     required this.title,
+    this.subtitle,
     this.onBack,
     this.trailing,
     this.showBack = true,
@@ -160,6 +161,10 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   final String title;
+
+  /// سطر ثانٍ خافت تحت العنوان — لسياقٍ يُكمل العنوان ولا يُزاحمه
+  /// (المستودع تحت اسم العرض مثلاً). يُغفَل حين يكون null.
+  final String? subtitle;
 
   // الافتراضي: Navigator.maybePop.
   final VoidCallback? onBack;
@@ -210,12 +215,27 @@ class InnerTopBar extends StatelessWidget implements PreferredSizeWidget {
             else
               const SizedBox(width: 40, height: 40),
             Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: context.text.titleMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: context.text.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty)
+                    Text(
+                      subtitle!,
+                      textAlign: TextAlign.center,
+                      style: context.text.labelSmall?.copyWith(
+                        color: context.tokens.hint,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
               ),
             ),
             SizedBox(width: 40, height: 40, child: trailing),

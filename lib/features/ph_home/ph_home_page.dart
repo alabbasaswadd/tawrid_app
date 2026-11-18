@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -133,21 +135,12 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
         // و«كتالوج الأدوية» تتشابه على من يراها أوّل مرة فلا يُعرف أيّهما
         // يُشترى منه وأيّهما مرجع. والبلاطات بعرض الصفحة لا مثنّاةً في
         // صفّ، ليتّسع السطر لشرحها.
-        _ActionTile(
-          icon: AppIcons.package,
-          label: 'طلبية جديدة',
-          subtitle: 'ابحث عن دواء، قارن أسعار المستودعات، وأضفه إلى السلّة',
-          primary: true,
-          onTap: () => context.push(TRoutes.phPriceSearch),
-        ),
-        const SizedBox(height: AppSpacing.md),
         // كاتالوج المستودعات — سؤالٌ غير سؤال الكتالوج الوطني: ذاك مرجعٌ
         // دوائي، وهذا سوقٌ حيّ يُشترى منه. فله مدخلُه الخاصّ لا تابٌ مطويّ.
         _ActionTile(
           icon: AppIcons.warehouse,
           label: 'كاتالوج المستودعات',
-          subtitle:
-              'ما تعرضه مستودعات منطقتك وعروض البونص — مع الإضافة للسلّة',
+          subtitle: 'ما تعرضه مستودعات منطقتك وعروض البونص — مع الإضافة للسلّة',
           onTap: () => context.push(TRoutes.phWarehouseCatalog),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -156,6 +149,16 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
           label: 'كتالوج الأدوية',
           subtitle: 'مرجعٌ دوائي: الشركة المصنّعة، البدائل، وسعر النشرة',
           onTap: () => context.push(TRoutes.phMedicineSearch),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // «طلبية جديدة» نزلت إلى وسط الصفحة: تبقى الإجراء البارز (primary)
+        // لكنها لم تعد أوّل ما يصطدم به النظر فوق الطيّة مباشرةً.
+        _ActionTile(
+          icon: AppIcons.package,
+          label: 'طلبية جديدة',
+          subtitle: 'ابحث عن دواء، قارن أسعار المستودعات، وأضفه إلى السلّة',
+          primary: true,
+          onTap: () => context.push(TRoutes.phPriceSearch),
         ),
 
         // بلاطة «طلب تسعير» مخفيّة مؤقتاً بطلب العميل — المسار والشاشات
@@ -228,7 +231,6 @@ class _PhHomePageState extends ConsumerState<PhHomePage> {
     return const [];
   }
 }
-
 
 // ── شريط التنبيه ─────────────────────────────────────────────────────────
 enum _AlertTone { brand, info }
@@ -442,19 +444,40 @@ class _AdsBannerState extends State<_AdsBanner> {
     ),
   ];
 
+  /// مهلة بقاء الإعلان الواحد — طويلة بما يكفي لقراءة سطرين، وقصيرة بما
+  /// يكفي لئلّا يبقى إعلانٌ واحد هو كلّ ما يراه من لا يسحب البانر.
+  static const _rotateEvery = Duration(seconds: 5);
+
   late final PageController _pageCtrl;
+  Timer? _rotateTimer;
   int _page = 0;
 
   @override
   void initState() {
     super.initState();
     _pageCtrl = PageController();
+    _startRotation();
   }
 
   @override
   void dispose() {
+    _rotateTimer?.cancel();
     _pageCtrl.dispose();
     super.dispose();
+  }
+
+  void _startRotation() {
+    _rotateTimer?.cancel();
+    if (_demos.length < 2) return;
+    _rotateTimer = Timer.periodic(_rotateEvery, (_) {
+      // hasClients: البانر قد يكون خارج الشجرة (تبويب آخر) والمؤقّت حيّ.
+      if (!mounted || !_pageCtrl.hasClients) return;
+      _pageCtrl.animateToPage(
+        (_page + 1) % _demos.length,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
@@ -463,11 +486,19 @@ class _AdsBannerState extends State<_AdsBanner> {
       children: [
         SizedBox(
           height: 130,
-          child: PageView.builder(
-            controller: _pageCtrl,
-            itemCount: _demos.length,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (_, i) => _AdCard(data: _demos[i]),
+          // السحب اليدوي يُعيد تشغيل المؤقّت من الصفر: مَن تصفّح بنفسه
+          // لا يصحّ أن يُقفَز به بعد جزء من ثانية لأن دورة قديمة حان وقتها.
+          child: NotificationListener<ScrollStartNotification>(
+            onNotification: (n) {
+              if (n.dragDetails != null) _startRotation();
+              return false;
+            },
+            child: PageView.builder(
+              controller: _pageCtrl,
+              itemCount: _demos.length,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (_, i) => _AdCard(data: _demos[i]),
+            ),
           ),
         ),
         // نقاط المؤشر داخل البانر في أسفل اليمين
@@ -483,8 +514,7 @@ class _AdsBannerState extends State<_AdsBanner> {
                 width: active ? 18 : 5,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.white
-                      .withValues(alpha: active ? 0.95 : 0.4),
+                  color: Colors.white.withValues(alpha: active ? 0.95 : 0.4),
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -563,7 +593,10 @@ class _AdCard extends StatelessWidget {
                 // المحتوى
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.md,
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -602,8 +635,9 @@ class _AdCard extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.18),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.full),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.full,
+                                ),
                               ),
                               child: Text(
                                 'إعلان',

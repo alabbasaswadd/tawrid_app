@@ -154,15 +154,15 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    // بعد مرور بطاقة الرأس يحلّ اسم المستودع محلّ العنوان العام: المستخدم
-    // يعرف أنه في «تفاصيل العرض» بمجرّد وصوله، والمفيد بعدها هو مصدر العرض.
-    final barTitle = _headerGone && _offer != null
-        ? _offer!.warehouseName
-        : 'تفاصيل العرض';
+    // بعد مرور بطاقة الرأس يحلّ اسم العرض محلّ العنوان العام، والمستودع
+    // تحته: المستخدم يعرف أنه في «تفاصيل العرض» بمجرّد وصوله، والمفيد
+    // بعدها هو أيّ عرضٍ يتصفّح ومن أين — وهما ما غابا مع البطاقة.
+    final scrolled = _headerGone && _offer != null;
 
     return Scaffold(
       appBar: InnerTopBar(
-        title: barTitle,
+        title: scrolled ? _offer!.title : 'تفاصيل العرض',
+        subtitle: scrolled ? _offer!.warehouseName : null,
         trailing: IconButton(
           icon: const Icon(Icons.chat_bubble_outline, size: 20),
           tooltip: 'التعليقات',
@@ -223,12 +223,9 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
             availableText: item.quantity <= 0
                 ? 'كمية مفتوحة'
                 : 'الكمية المتاحة: ${item.quantity.toStringAsFixed(0)} ${item.unit}',
-          ),
-          // إجراءا الصنف: الإضافة تمرّ بحوار الكمية الواعي بالبونص،
-          // والمقارنة تُخرج إلى بحث الأسعار محصوراً بهذا الصنف.
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
+            // إجراءا الصنف داخل بطاقته: الإضافة تمرّ بحوار الكمية الواعي
+            // بالبونص، والمقارنة تُخرج إلى بحث الأسعار محصوراً بهذا الصنف.
+            actions: [
               AppButton(
                 label: 'أضف للسلة',
                 icon: Icons.add,
@@ -239,7 +236,6 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
                     ? null
                     : () => _addItem(item),
               ),
-              const SizedBox(width: AppSpacing.md),
               if (item.catalogItemId != null)
                 AppButton(
                   label: 'مقارنة الأسعار',
@@ -256,7 +252,7 @@ class _PhOfferDetailPageState extends ConsumerState<PhOfferDetailPage> {
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
         ],
 
         if (offer.bonusMedicineName != null ||
