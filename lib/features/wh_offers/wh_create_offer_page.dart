@@ -782,7 +782,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
   final Set<String> _selected = {};
   List<WarehouseMedicine>? _medicines;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -805,7 +805,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
       });
     } catch (e) {
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -855,7 +855,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
 
   Widget _buildList(ScrollController scrollController) {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final query = _search.text.trim();
     final available = (_medicines ?? [])

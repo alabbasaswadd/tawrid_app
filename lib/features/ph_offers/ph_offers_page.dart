@@ -99,7 +99,7 @@ class PhOffersPage extends ConsumerStatefulWidget {
 class _PhOffersPageState extends ConsumerState<PhOffersPage> {
   List<SalesOfferSummary>? _offers;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   final _searchController = TextEditingController();
   String _search = '';
@@ -153,7 +153,7 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -360,7 +360,7 @@ class _PhOffersPageState extends ConsumerState<PhOffersPage> {
 
   Widget _buildList(List<SalesOfferSummary> offers) {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     if (offers.isEmpty) {
       return ListView(

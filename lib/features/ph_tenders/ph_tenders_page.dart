@@ -71,7 +71,7 @@ class PhTendersPage extends ConsumerStatefulWidget {
 class _PhTendersPageState extends ConsumerState<PhTendersPage> {
   List<TenderSummary>? _requests;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   _RequestsTab _tab = _RequestsTab.open;
 
   @override
@@ -96,7 +96,7 @@ class _PhTendersPageState extends ConsumerState<PhTendersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -141,7 +141,7 @@ class _PhTendersPageState extends ConsumerState<PhTendersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final all = _requests ?? const <TenderSummary>[];
     final shown = all.where(_tab.matches).toList();

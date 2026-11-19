@@ -26,7 +26,7 @@ class ConversationsPage extends ConsumerStatefulWidget {
 class _ConversationsPageState extends ConsumerState<ConversationsPage> {
   List<Conversation> _conversations = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   StreamSubscription<IncomingMessage>? _liveSub;
 
@@ -124,7 +124,7 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -142,7 +142,7 @@ class _ConversationsPageState extends ConsumerState<ConversationsPage> {
     if (_loading) {
       return const AppListSkeleton(variant: SkeletonVariant.row, count: 7);
     }
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
     if (_conversations.isEmpty) {
       return const EmptyState(
         message: 'لا توجد محادثات بعد',

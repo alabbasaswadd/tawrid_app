@@ -27,7 +27,7 @@ class WhUsersPage extends ConsumerStatefulWidget {
 class _WhUsersPageState extends ConsumerState<WhUsersPage> {
   List<WarehouseUser>? _users;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   final Set<String> _busy = {};
 
   /// معرّف المستخدم الحالي — لتمييز «أنت» ولمنع إيقاف النفس قبل الرحلة.
@@ -57,7 +57,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -252,7 +252,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final users = _users ?? const <WarehouseUser>[];
     if (users.isEmpty) {

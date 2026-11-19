@@ -37,7 +37,7 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
   Set<String> _addedCatalogIds = {};
   final Set<String> _addingNow = {};
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   String? _manufacturer; // الشركة المختارة (null = كل الشركات)
   List<String>? _manufacturers; // قائمة الشركات (تُحمّل عند أول فتح للفلتر)
@@ -68,7 +68,7 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
       await _runSearch(reset: true);
     } catch (e) {
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -121,7 +121,7 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
         _loadingMore = false;
       });
@@ -272,7 +272,7 @@ class _WhMedicineCatalogPageState extends ConsumerState<WhMedicineCatalogPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: () => _runSearch(reset: true));
+    if (_error != null) return ErrorState.of(_error!, onRetry: () => _runSearch(reset: true));
 
     if (_results.isEmpty) {
       return const EmptyState(message: 'لا توجد نتائج', icon: Icons.search_off_outlined);

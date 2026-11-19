@@ -57,7 +57,7 @@ class _PhWarehouseCatalogPageState
   bool _hasMore = true;
   bool _loadingMore = false;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   String _manufacturer = '';
   String? _warehouseId;
@@ -160,7 +160,7 @@ class _PhWarehouseCatalogPageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
         _loadingMore = false;
       });
@@ -383,8 +383,8 @@ class _PhWarehouseCatalogPageState
       return const AppListSkeleton(variant: SkeletonVariant.row);
     }
     if (_error != null) {
-      return ErrorState(
-        message: _error!,
+      return ErrorState.of(
+        _error!,
         onRetry: () => _runSearch(reset: true),
       );
     }

@@ -38,7 +38,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
   List<StatusHistoryItem> _history = const [];
   bool _loading = true;
   bool _busy = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -70,7 +70,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -209,7 +209,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final o = _order!;
     final cs = context.colors;

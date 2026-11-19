@@ -20,7 +20,7 @@ class PhReportsPage extends ConsumerStatefulWidget {
 class _PhReportsPageState extends ConsumerState<PhReportsPage> {
   List<SupplyOrderSummary> _orders = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -45,7 +45,7 @@ class _PhReportsPageState extends ConsumerState<PhReportsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -62,7 +62,7 @@ class _PhReportsPageState extends ConsumerState<PhReportsPage> {
         child: _loading
             ? const AppDetailSkeleton()
             : _error != null
-                ? ErrorState(message: _error!, onRetry: _load)
+                ? ErrorState.of(_error!, onRetry: _load)
                 : _buildBody(),
       ),
     );

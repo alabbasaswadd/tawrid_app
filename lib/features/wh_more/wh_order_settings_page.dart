@@ -29,7 +29,7 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
 
   bool _loading = true;
   bool _saving = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -64,7 +64,7 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -117,7 +117,7 @@ class _WhOrderSettingsPageState extends ConsumerState<WhOrderSettingsPage> {
       body: _loading
           ? const AppDetailSkeleton()
           : _error != null
-          ? ErrorState(message: _error!, onRetry: _load)
+          ? ErrorState.of(_error!, onRetry: _load)
           : ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.page,

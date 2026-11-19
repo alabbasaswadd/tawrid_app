@@ -72,7 +72,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = true;
-  String? _error;
+  ApiException? _error;
 
   /// معرّف النتيجة الجاري إضافتها — يُظهر التحميل على بطاقتها وحدها.
   String? _adding;
@@ -149,7 +149,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       setState(() {
         // ترتيب «الأقرب» بلا موقع مسجَّل يردّه الخادم برسالة صريحة؛
         // نعرضها ونعود إلى الترتيب الافتراضي بدل ترك الشاشة عالقة عليه.
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
         _loadingMore = false;
       });
@@ -459,7 +459,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     // بدل دوّارة لا تقول شيئاً.
     if (_loading) return const AppListSkeleton(count: 4);
     if (_error != null && _results.isEmpty) {
-      return ErrorState(message: _error!, onRetry: () => _run(reset: true));
+      return ErrorState.of(_error!, onRetry: () => _run(reset: true));
     }
 
     if (_results.isEmpty) {

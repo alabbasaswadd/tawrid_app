@@ -59,7 +59,7 @@ class _ChatSheetState extends State<ChatSheet> {
   List<OfferComment>? _messages;
   bool _loading = true;
   bool _sending = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -90,7 +90,7 @@ class _ChatSheetState extends State<ChatSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -236,7 +236,7 @@ class _ChatSheetState extends State<ChatSheet> {
     if (_loading) {
       return const AppListSkeleton(variant: SkeletonVariant.row, count: 5);
     }
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final msgs = _messages ?? [];
     if (msgs.isEmpty) {

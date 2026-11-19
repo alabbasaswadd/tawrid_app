@@ -28,7 +28,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   bool _loading = true;
   bool _busy = false;
   bool _unreadOnly = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -57,7 +57,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -164,7 +164,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final items = _items ?? const <AppNotification>[];
 

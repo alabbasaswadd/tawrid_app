@@ -43,7 +43,7 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
   bool _catalogHasMore = true;
   bool _catalogLoadingMore = false;
   bool _catalogLoading = true;
-  String? _catalogError;
+  ApiException? _catalogError;
   String? _catalogManufacturer;
   DosageForm? _catalogDosageForm;
 
@@ -121,7 +121,7 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _catalogError = ApiException.from(e).message;
+        _catalogError = ApiException.from(e);
         _catalogLoading = false;
         _catalogLoadingMore = false;
       });
@@ -248,8 +248,8 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
       return const AppListSkeleton(variant: SkeletonVariant.row);
     }
     if (_catalogError != null) {
-      return ErrorState(
-        message: _catalogError!,
+      return ErrorState.of(
+        _catalogError!,
         onRetry: () => _runCatalogSearch(reset: true),
       );
     }

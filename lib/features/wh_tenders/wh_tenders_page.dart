@@ -91,7 +91,7 @@ class WhTendersPage extends ConsumerStatefulWidget {
 class _WhTendersPageState extends ConsumerState<WhTendersPage> {
   List<_BoardEntry>? _entries;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   _BoardTab _tab = _BoardTab.all;
 
   @override
@@ -128,7 +128,7 @@ class _WhTendersPageState extends ConsumerState<WhTendersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -156,7 +156,7 @@ class _WhTendersPageState extends ConsumerState<WhTendersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final all = _entries ?? const <_BoardEntry>[];
     final shown = all.where(_tab.matches).toList();

@@ -511,7 +511,7 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
 
   List<MedicineCatalogItem> _results = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -562,7 +562,7 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -616,7 +616,7 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
               child: _loading
                   ? const AppListSkeleton(variant: SkeletonVariant.row)
                   : _error != null
-                      ? ErrorState(message: _error!, onRetry: _run)
+                      ? ErrorState.of(_error!, onRetry: _run)
                       : _results.isEmpty
                           ? const UiEmpty(
                               appIcon: AppIcons.pill,

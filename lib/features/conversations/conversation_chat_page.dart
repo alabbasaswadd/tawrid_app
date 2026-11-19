@@ -60,10 +60,23 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
   final _inputFocus = FocusNode();
   List<ConversationMessage>? _messages;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   StreamSubscription<IncomingMessage>? _liveSub;
   StreamSubscription<void>? _reconnectSub;
+  StreamSubscription<ConversationReadEvent>? _readSub;
+
+  /// لحظة آخر إعلان قراءة من الطرف الآخر.
+  ///
+  /// علامةٌ مائية لا تعديلٌ على الرسائل: حدث `conversationRead` يقول «قرأ
+  /// كل ما وصله» ولا يُسمّي رسالة، وتعديل كل فقاعة عنده يُعيد بناء
+  /// القائمة كلّها عند كل حدث.
+  ///
+  /// وهي أصمدُ من العلَم القادم من الخادم: فقاعتي المتفائلة تُستبدل بعد
+  /// لحظات بنسخة الخادم و`isReadByOther` فيها `false` — لأنها صِيغت قبل
+  /// أن يقرأها أحد — فكانت العلامة تظهر ثم تختفي. والعلامة المائية تبقى
+  /// فوق الاستبدال، فتُقرأ الحالة من زمن الرسالة لا من حقلٍ عتيق.
+  DateTime? _readWatermark;
 
   /// حجم الدفعة — ما يملأ شاشتين تقريباً، فلا يُطلب التالي فور الفتح.
   static const _pageSize = 25;
@@ -167,6 +180,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     ref.read(pushServiceProvider).setOpenConversation(null);
     _liveSub?.cancel();
     _reconnectSub?.cancel();
+    _readSub?.cancel();
     _markReadTimer?.cancel();
     _inputFocus.dispose();
     _textCtrl.dispose();
@@ -185,6 +199,25 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     });
 
     _reconnectSub = hub.onReconnected.listen((_) => _load());
+
+    _readSub = hub.reads.listen((event) {
+      if (event.conversationId != widget.conversationId) return;
+      if (!mounted) return;
+      // الآن لا زمن الحدث: الخادم لا يُرسل طابعاً، وساعة الجهاز هي
+      // المرجع نفسه الذي تُختم به الفقاعة المتفائلة — فالمقارنة بينهما
+      // متّسقة ولو انحرفت الساعتان عن بعضهما.
+      setState(() => _readWatermark = DateTime.now());
+    });
+  }
+
+  /// هل قُرئت هذه الرسالة؟
+  ///
+  /// علَم الخادم أولاً — فهو الحقيقة لما حُمّل من التاريخ — ثم العلامة
+  /// المائية لما جدّ في هذه الجلسة.
+  bool _isRead(ConversationMessage message) {
+    if (message.isReadByOther) return true;
+    final mark = _readWatermark;
+    return mark != null && !message.createdAt.isAfter(mark);
   }
 
   void _appendLive(ConversationMessage message) {
@@ -269,7 +302,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -582,7 +615,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
     if (_loading) {
       return const AppListSkeleton(variant: SkeletonVariant.row, count: 5);
     }
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final msgs = _messages ?? [];
     if (msgs.isEmpty) {
@@ -621,6 +654,7 @@ class _ConversationChatPageState extends ConsumerState<ConversationChatPage> {
           _DateRow(:final day) => _DateSeparator(day: day),
           _MessageRow(:final message) => _MessageBubble(
             message: message,
+            read: _isRead(message),
             onRetry: message.failed ? () => _retry(message) : null,
             // المعلَّقة لا رَدَّ عليها: لا معرّف لها في الخادم بعد.
             onReply: message.pending || message.failed
@@ -750,12 +784,17 @@ class _DateSeparator extends StatelessWidget {
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
+    required this.read,
     this.onRetry,
     this.onReply,
     this.onLongPress,
   });
 
   final ConversationMessage message;
+
+  /// محسوبةٌ في الشاشة لا هنا: تجمع علَم الخادم مع ما جدّ في الجلسة،
+  /// والفقاعة لا ترى إلا النتيجة.
+  final bool read;
 
   /// يُمرَّر للفقاعة الفاشلة وحدها — الضغط يُعيد إرسالها.
   final VoidCallback? onRetry;
@@ -845,7 +884,7 @@ class _MessageBubble extends StatelessWidget {
               // تقول «قرأتُها» — وهو يعرف ذلك ولا ينتظر إخباري به.
               if (isMe && !message.pending && !message.failed) ...[
                 const SizedBox(width: 4),
-                _ReadTicks(read: message.isReadByOther, color: timeColor),
+                _ReadTicks(read: read, color: timeColor),
               ],
             ],
           ),

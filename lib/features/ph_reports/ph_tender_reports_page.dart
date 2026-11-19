@@ -22,7 +22,7 @@ class PhTenderReportsPage extends ConsumerStatefulWidget {
 class _PhTenderReportsPageState extends ConsumerState<PhTenderReportsPage> {
   List<TenderSummary> _tenders = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -47,7 +47,7 @@ class _PhTenderReportsPageState extends ConsumerState<PhTenderReportsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -62,7 +62,7 @@ class _PhTenderReportsPageState extends ConsumerState<PhTenderReportsPage> {
         child: _loading
             ? const AppDetailSkeleton()
             : _error != null
-                ? ErrorState(message: _error!, onRetry: _load)
+                ? ErrorState.of(_error!, onRetry: _load)
                 : _buildBody(),
       ),
     );

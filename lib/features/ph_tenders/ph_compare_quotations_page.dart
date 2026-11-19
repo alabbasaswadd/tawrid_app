@@ -79,7 +79,7 @@ class _PhCompareQuotationsPageState
   TenderDetail? _request;
   bool _loading = true;
   bool _busy = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -102,7 +102,7 @@ class _PhCompareQuotationsPageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -235,7 +235,7 @@ class _PhCompareQuotationsPageState
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final t = _request!;
     final tk = context.tokens;

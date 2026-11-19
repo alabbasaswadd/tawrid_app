@@ -183,7 +183,13 @@
       "PowerShell(node -e \"require\\('C:/Temp/imgproc/node_modules/sharp'\\); console.log\\('sharp ready'\\)\" 2>&1)",
       "PowerShell(node \"C:\\\\Temp\\\\imgproc\\\\process.js\" 2>&1)",
       "Bash(xargs sed -i \"s|logo\\\\.jpg|logo.png|g\")",
-      "PowerShell(node \"C:\\\\Temp\\\\imgproc\\\\process.js\")"
+      "PowerShell(node \"C:\\\\Temp\\\\imgproc\\\\process.js\")",
+      "Bash(git commit *)",
+      "Bash(dotnet test *)",
+      "Bash(rm -f /tmp/flutter_run.log)",
+      "Bash(nohup flutter run -d web-server --web-port=8711 --web-hostname=127.0.0.1)",
+      "Read(//tmp/**)",
+      "Bash(break)"
     ]
   }
 }

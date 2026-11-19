@@ -37,7 +37,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
   List<SalesOfferSummary> _offers = const [];
 
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -73,7 +73,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -125,7 +125,7 @@ class _WhHomePageState extends ConsumerState<WhHomePage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final newOrders =
         _orders.where((o) => o.status == SupplyOrderStatus.pending).toList();

@@ -33,7 +33,7 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
 
   List<PhListingSummary>? _items;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   String _search = '';
   PhListingReason? _filterReason;
 
@@ -77,7 +77,7 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -163,7 +163,7 @@ class _PhListingsBrowsePageState extends ConsumerState<PhListingsBrowsePage> {
     if (_error != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: ErrorState(message: _error!, onRetry: _load),
+        child: ErrorState.of(_error!, onRetry: _load),
       );
     }
 

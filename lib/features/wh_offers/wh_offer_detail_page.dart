@@ -33,7 +33,7 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
   SalesOfferDetail? _offer;
   bool _loading = true;
   bool _busy = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -56,7 +56,7 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -141,7 +141,7 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final o = _offer!;
     final tk = context.tokens;

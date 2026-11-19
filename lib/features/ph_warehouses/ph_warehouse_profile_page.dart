@@ -38,7 +38,7 @@ class _PhWarehouseProfilePageState
   List<SalesOfferSummary> _offers = const [];
   WarehouseAnnouncement? _announcement;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   /// كم منطقة تُعرَض قبل الطيّ. مستودعٌ يغطّي محافظةً كاملة قد يُدرج ١٨٦
   /// موضعاً، فعرضُها كلها جدارُ شرائح يدفن ما تحته.
@@ -76,7 +76,7 @@ class _PhWarehouseProfilePageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -116,7 +116,7 @@ class _PhWarehouseProfilePageState
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final p = _profile!;
     final tk = context.tokens;

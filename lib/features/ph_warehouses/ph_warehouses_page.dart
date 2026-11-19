@@ -28,7 +28,7 @@ class PhWarehousesPage extends ConsumerStatefulWidget {
 class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
   List<WarehousePicker> _warehouses = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   final _searchController = TextEditingController();
   String _search = '';
@@ -62,7 +62,7 @@ class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -95,7 +95,7 @@ class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     if (_warehouses.isEmpty) {
       return ListView(

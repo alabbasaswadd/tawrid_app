@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
 import 'package:tawrid_app/core/session/pharmacy_session.dart';
+import 'package:tawrid_app/core/network/connectivity_state.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 
 // خادم Tawrid.api التطويري المشترك (Development فقط — بيئة مؤقتة، سيُعلن
@@ -41,6 +43,7 @@ class ApiClient {
       ),
     );
 
+    dio.interceptors.add(_ReachabilityInterceptor());
     dio.interceptors.add(_AuthInterceptor(ref));
     dio.interceptors.add(_LogInterceptor());
 
@@ -108,6 +111,28 @@ class ApiClient {
       return data['totalCount'] as int;
     }
     return itemsOf(data).length;
+  }
+}
+
+/// يرصد انقطاع الوصول إلى الخادم ليُعلنه شريطٌ واحد في أعلى التطبيق.
+///
+/// موضعه أول السلسلة: يرى كل ردٍّ وكل عطل مهما فعل ما بعده بهما، فلا
+/// يفوته نجاحٌ يرفع الشريط ولا فشلٌ ينزله.
+class _ReachabilityInterceptor extends Interceptor {
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    ServerReachability.reportReachable();
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    if (ApiException.fromDio(err).isNetwork) {
+      ServerReachability.reportUnreachable();
+    } else {
+      ServerReachability.reportReachable();
+    }
+    handler.next(err);
   }
 }
 

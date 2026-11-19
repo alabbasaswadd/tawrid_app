@@ -67,7 +67,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
   List<SalesOfferSummary>? _offers;
   bool _loading = true;
   bool _busy = false;
-  String? _error;
+  ApiException? _error;
   _OffersTab _tab = _OffersTab.all;
   _KindTab _kind = _KindTab.all;
 
@@ -93,7 +93,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -210,7 +210,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final all = _offers ?? const <SalesOfferSummary>[];
     final shown = all

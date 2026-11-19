@@ -6,6 +6,7 @@ import 'package:tawrid_app/app/theme/app_theme.dart';
 import 'package:tawrid_app/app/theme/font_scale_provider.dart';
 import 'package:tawrid_app/app/theme/theme_mode_provider.dart';
 import 'package:tawrid_app/core/notifications/push_service.dart';
+import 'package:tawrid_app/shared/widgets/offline_banner.dart';
 import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 
 /// مفتاح عالمي لـ ScaffoldMessenger — يُستخدم لإظهار SnackBar فوق BottomSheet.
@@ -92,7 +93,9 @@ class _TawridAppState extends ConsumerState<TawridApp>
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context)
             .copyWith(textScaler: TextScaler.linear(fontScale.factor)),
-        child: child!,
+        // شريط الانقطاع هنا وحده: الموجِّه تحته، فيبقى معروضاً عبر كل
+        // انتقال بين الشاشات بلا أن تحمله كل شاشة.
+        child: OfflineBanner(child: child!),
       ),
     );
   }

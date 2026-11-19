@@ -68,7 +68,7 @@ class PhOrdersPage extends ConsumerStatefulWidget {
 class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
   List<SupplyOrderSummary>? _orders;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   _OrdersTab _tab = _OrdersTab.active;
 
   @override
@@ -95,7 +95,7 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -169,7 +169,7 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final all = _orders ?? const <SupplyOrderSummary>[];
     final shown = all.where((o) => _tab.matches(o.status)).toList()
