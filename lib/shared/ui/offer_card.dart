@@ -31,19 +31,12 @@ class OfferCard extends StatelessWidget {
   });
 
   final String title;
-
-  // معاينة الأصناف: «أموكسيسيلين ٥٠٠ · سيفترياكسون ١غ · +٣ أصناف».
   final String itemsPreview;
   final String warehouse;
   final String expiryText;
-
-  // «٥ أصناف · الحد الأدنى: ٢٠ عبوة لكل صنف».
   final String minOrderText;
   final String totalPrice;
   final OfferCardStatus status;
-
-  // نص الشارة العلوية: بونص «بونص ١٠ + ٢» / «ينتهي قريباً» / «غير متوفر
-  // حالياً» / «متوقف». عند إغفاله تُستخدم النصوص الافتراضية.
   final String? statusLabel;
   final String totalLabel;
   final String addLabel;
@@ -61,7 +54,7 @@ class OfferCard extends StatelessWidget {
     final card = Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: 14,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
         color: cs.surface,
@@ -74,7 +67,7 @@ class OfferCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // الرأس: العنوان في بداية القراءة + شارة الحالة في الطرف المقابل.
+          // ── الرأس: العنوان + شارة الحالة ──────────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -82,109 +75,117 @@ class OfferCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: context.text.titleMedium),
+                    Text(
+                      title,
+                      style: context.text.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 2),
-                    Text(itemsPreview, style: context.text.bodySmall),
+                    Text(
+                      itemsPreview,
+                      style: context.text.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
-              ?_headerBadge(context),
+              if (_headerBadge(context) case final badge?)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: AppSpacing.sm,
+                  ),
+                  child: badge,
+                ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
 
-          // بيانات: المستودع ثم الانتهاء (١٢ ثانوي، أيقونات ١٤).
+          // ── بيانات: المستودع + تاريخ الانتهاء ──────────────────────────
           Row(
             children: [
-              _Meta(icon: AppIcons.warehouse, text: warehouse),
+              Flexible(
+                child: _Meta(icon: AppIcons.warehouse, text: warehouse),
+              ),
               const SizedBox(width: AppSpacing.md),
-              _Meta(
-                icon: AppIcons.clock,
-                text: expiryText,
-                color: status == OfferCardStatus.expiring ? t.warning : null,
+              Flexible(
+                child: _Meta(
+                  icon: AppIcons.clock,
+                  text: expiryText,
+                  color: status == OfferCardStatus.expiring ? t.warning : null,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(minOrderText, style: context.text.labelSmall),
-          const SizedBox(height: 10),
-          Divider(color: cs.outline),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.xs),
 
-          // التذييل: السعر في بداية القراءة، والإجراءات في الطرف المقابل.
+          // ── التغطية ────────────────────────────────────────────────────
+          Text(
+            minOrderText,
+            style: context.text.labelSmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Divider(color: cs.outline),
+          const SizedBox(height: AppSpacing.sm),
+
+          // ── الإجمالي ───────────────────────────────────────────────────
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(totalLabel, style: context.text.labelSmall),
-                    Text(totalPrice, style: context.priceBrandStyle),
-                  ],
-                ),
-              ),
-              if (onAdd != null) ...[
-                _AddButton(
-                  label: addLabel,
-                  onTap: unavailable || paused ? null : onAdd,
-                  dimmed: unavailable,
+              Text(totalLabel, style: context.text.labelSmall),
+              Text(totalPrice, style: context.priceBrandStyle),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          // ── الإجراءات ──────────────────────────────────────────────────
+          if (onAdd != null)
+            Row(
+              children: [
+                Expanded(
+                  child: _AddButton(
+                    label: addLabel,
+                    onTap: unavailable || paused ? null : onAdd,
+                    dimmed: unavailable,
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                InkWell(
-                  onTap: onDetails,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        detailsLabel,
-                        style: context.text.bodySmall?.copyWith(color: cs.primary),
-                      ),
-                      const SizedBox(width: 2),
-                      AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
-                    ],
-                  ),
-                ),
-              ] else
-                // بدون زر الإضافة: تفاصيل العرض زرٌّ أساسي بارز
-                Material(
-                  color: t.brandSurface,
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    onTap: onDetails,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            detailsLabel,
-                            style: context.text.bodySmall?.copyWith(color: cs.primary),
-                          ),
-                          const SizedBox(width: 4),
-                          AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+                _DetailsLink(label: detailsLabel, onTap: onDetails),
+              ],
+            )
+          else
+            _DetailsButtonFull(label: detailsLabel, onTap: onDetails),
         ],
       ),
     );
 
-    return paused ? Opacity(opacity: 0.6, child: card) : card;
+    // البطاقة كلها مدخلٌ إلى التفاصيل — هدفٌ أوسع بكثير من رابط نصّي في
+    // زاويتها. الزرّ يبقى لأنه يُسمّي الوجهة لمن لا يخمّن أن البطاقة تُضغط.
+    final tappable = onDetails == null
+        ? card
+        : Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onDetails,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: card,
+            ),
+          );
+
+    return paused ? Opacity(opacity: 0.6, child: tappable) : tappable;
   }
 
   Widget? _headerBadge(BuildContext context) {
     final t = context.tokens;
     return switch (status) {
       OfferCardStatus.normal => null,
-      OfferCardStatus.bonus => BonusBadge(
-        label: statusLabel ?? 'بونص',
-        compact: true,
+      // شارة البونص قابلة للنقر → تفاصيل العرض
+      OfferCardStatus.bonus => GestureDetector(
+        onTap: onDetails,
+        child: BonusBadge(label: statusLabel ?? 'بونص', compact: true),
       ),
       OfferCardStatus.expiring => _Pill(
         label: statusLabel ?? 'ينتهي قريباً',
@@ -206,7 +207,7 @@ class OfferCard extends StatelessWidget {
   }
 }
 
-// شارة رأس البطاقة: pill صغيرة (نص ١١).
+// شارة رأس البطاقة: pill صغيرة.
 class _Pill extends StatelessWidget {
   const _Pill({
     required this.label,
@@ -229,11 +230,17 @@ class _Pill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.full),
         border: bordered ? Border.all(color: context.colors.outline) : null,
       ),
-      child: Text(label, style: context.text.labelSmall?.copyWith(color: fg)),
+      child: Text(
+        label,
+        style: context.text.labelSmall?.copyWith(color: fg),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }
 
+// صف بيانات ثانوية: أيقونة + نص مع حماية الفيض.
 class _Meta extends StatelessWidget {
   const _Meta({required this.icon, required this.text, this.color});
 
@@ -249,13 +256,20 @@ class _Meta extends StatelessWidget {
       children: [
         AppIcon(icon, size: 14, color: c),
         const SizedBox(width: 4),
-        Text(text, style: context.text.bodySmall?.copyWith(color: c)),
+        Flexible(
+          child: Text(
+            text,
+            style: context.text.bodySmall?.copyWith(color: c),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
 }
 
-// زر «إضافة للطلبية» المصغّر داخل البطاقة (Figma: زاوية ١٠، نص ١٢ أبيض).
+// زر «إضافة للطلبية» — يمتد بالكامل داخل Expanded.
 class _AddButton extends StatelessWidget {
   const _AddButton({
     required this.label,
@@ -274,23 +288,106 @@ class _AddButton extends StatelessWidget {
       opacity: dimmed ? 0.45 : 1,
       child: Material(
         color: cs.primary,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 9,
+            ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  label,
-                  style: context.text.bodySmall?.copyWith(color: cs.onPrimary),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: context.text.bodySmall?.copyWith(
+                      color: cs.onPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const SizedBox(width: 4),
                 AppIcon(AppIcons.plus, size: 14, color: cs.onPrimary),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// رابط «تفاصيل العرض» — حجمه يتناسب مع محتواه.
+class _DetailsLink extends StatelessWidget {
+  const _DetailsLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: 9,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: context.text.bodySmall?.copyWith(color: cs.primary),
+              maxLines: 1,
+            ),
+            const SizedBox(width: 2),
+            AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// زر «تفاصيل العرض» حين لا يوجد زر إضافة — يأخذ كامل العرض.
+class _DetailsButtonFull extends StatelessWidget {
+  const _DetailsButtonFull({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    final t = context.tokens;
+    return Material(
+      color: t.brandSurface,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 9,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: context.text.bodySmall?.copyWith(color: cs.primary),
+              ),
+              const SizedBox(width: 4),
+              AppIcon(AppIcons.chevronForwardRtl, size: 14, color: cs.primary),
+            ],
           ),
         ),
       ),

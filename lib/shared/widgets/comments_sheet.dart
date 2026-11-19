@@ -44,7 +44,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
   List<OfferComment>? _comments;
   bool _loading = true;
   bool _sending = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -71,7 +71,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
       });
     } catch (e) {
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -144,7 +144,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
     if (_loading) {
       return const AppListSkeleton(variant: SkeletonVariant.row, count: 4);
     }
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final comments = _comments ?? [];
     if (comments.isEmpty) {

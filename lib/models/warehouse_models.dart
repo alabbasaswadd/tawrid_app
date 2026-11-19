@@ -18,6 +18,24 @@ class WarehousePicker {
   /// مستودع إدلبي يَرِد بالدولار ولو كانت الصيدلية بالليرة.
   final String pricingCurrency;
 
+  /// متوسط أيام القبول — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgAcceptanceDays;
+
+  /// متوسط أيام التسليم — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgDeliveryDays;
+
+  /// الحد الأدنى لأيام القبول (نطاق يحدّده المستودع).
+  final double? minAcceptanceDays;
+
+  /// الحد الأقصى لأيام القبول (نطاق يحدّده المستودع).
+  final double? maxAcceptanceDays;
+
+  /// الحد الأدنى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? minDeliveryDays;
+
+  /// الحد الأقصى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? maxDeliveryDays;
+
   WarehousePicker({
     required this.id,
     required this.name,
@@ -28,6 +46,12 @@ class WarehousePicker {
     this.serviceAreaCount = 0,
     this.servesAllAreas = false,
     this.pricingCurrency = 'SYP',
+    this.avgAcceptanceDays,
+    this.avgDeliveryDays,
+    this.minAcceptanceDays,
+    this.maxAcceptanceDays,
+    this.minDeliveryDays,
+    this.maxDeliveryDays,
   });
 
   factory WarehousePicker.fromJson(Map<String, dynamic> j) => WarehousePicker(
@@ -42,6 +66,12 @@ class WarehousePicker {
         serviceAreaCount: j['serviceAreaCount'] as int? ?? 0,
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
         pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
+        avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
+        minAcceptanceDays: (j['minAcceptanceDays'] as num?)?.toDouble(),
+        maxAcceptanceDays: (j['maxAcceptanceDays'] as num?)?.toDouble(),
+        minDeliveryDays: (j['minDeliveryDays'] as num?)?.toDouble(),
+        maxDeliveryDays: (j['maxDeliveryDays'] as num?)?.toDouble(),
       );
 }
 
@@ -69,6 +99,24 @@ class WarehouseProfile {
   /// مستودع إدلبي يَرِد بالدولار ولو كانت الصيدلية بالليرة.
   final String pricingCurrency;
 
+  /// متوسط أيام القبول — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgAcceptanceDays;
+
+  /// متوسط أيام التسليم — قد يكون null إذا لم يرسله الخادم بعد.
+  final double? avgDeliveryDays;
+
+  /// الحد الأدنى لأيام القبول (نطاق يحدّده المستودع).
+  final double? minAcceptanceDays;
+
+  /// الحد الأقصى لأيام القبول (نطاق يحدّده المستودع).
+  final double? maxAcceptanceDays;
+
+  /// الحد الأدنى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? minDeliveryDays;
+
+  /// الحد الأقصى لأيام التسليم (نطاق يحدّده المستودع).
+  final double? maxDeliveryDays;
+
   const WarehouseProfile({
     required this.id,
     required this.name,
@@ -82,6 +130,12 @@ class WarehouseProfile {
     required this.servesAllAreas,
     required this.activeOffersCount,
     this.pricingCurrency = 'SYP',
+    this.avgAcceptanceDays,
+    this.avgDeliveryDays,
+    this.minAcceptanceDays,
+    this.maxAcceptanceDays,
+    this.minDeliveryDays,
+    this.maxDeliveryDays,
   });
 
   factory WarehouseProfile.fromJson(Map<String, dynamic> j) => WarehouseProfile(
@@ -98,5 +152,11 @@ class WarehouseProfile {
         servesAllAreas: j['servesAllAreas'] as bool? ?? false,
         activeOffersCount: j['activeOffersCount'] as int? ?? 0,
         pricingCurrency: j['pricingCurrency'] as String? ?? 'SYP',
+        avgAcceptanceDays: (j['avgAcceptanceDays'] as num?)?.toDouble(),
+        avgDeliveryDays: (j['avgDeliveryDays'] as num?)?.toDouble(),
+        minAcceptanceDays: (j['minAcceptanceDays'] as num?)?.toDouble(),
+        maxAcceptanceDays: (j['maxAcceptanceDays'] as num?)?.toDouble(),
+        minDeliveryDays: (j['minDeliveryDays'] as num?)?.toDouble(),
+        maxDeliveryDays: (j['maxDeliveryDays'] as num?)?.toDouble(),
       );
 }

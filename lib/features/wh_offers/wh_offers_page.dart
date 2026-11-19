@@ -12,7 +12,7 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/offer_summary_card.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-import 'package:tawrid_app/shared/widgets/comments_sheet.dart';
+import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
 
 // شرائح عروض المستودع (Figma): الكل، منشور، مسودة، متوقف، منتهٍ.
 enum _OffersTab {
@@ -67,7 +67,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
   List<SalesOfferSummary>? _offers;
   bool _loading = true;
   bool _busy = false;
-  String? _error;
+  ApiException? _error;
   _OffersTab _tab = _OffersTab.all;
   _KindTab _kind = _KindTab.all;
 
@@ -93,7 +93,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -115,8 +115,21 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     try {
       await ref.read(salesOfferRepositoryProvider).publishOffer(offer.id);
       if (!mounted) return;
-      AppSnackbar.success(context, 'نُشر العرض');
       await _load(silent: true);
+      if (!mounted) return;
+      final updated = (_offers ?? []).where((o) => o.id == offer.id).firstOrNull;
+      if (updated?.status == SalesOfferStatus.draft) {
+        final tk = context.tokens;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('تم حفظ العرض كمسودة وليس منشوراً بعد',
+              style: TextStyle(color: Colors.white)),
+          backgroundColor: tk.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ));
+      } else {
+        AppSnackbar.success(context, 'نُشر العرض');
+      }
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     } finally {
@@ -160,10 +173,12 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
 
   Future<void> _openComments(SalesOfferSummary offer) {
     final repo = ref.read(salesOfferRepositoryProvider);
-    return CommentsSheet.show(
+    return ChatSheet.show(
       context,
-      loadComments: () => repo.getWarehouseComments(offer.id),
-      addComment: (text) => repo.addWarehouseComment(offer.id, text),
+      title: 'دردشة مع الصيدليات',
+      currentUserType: 'warehouse',
+      loadMessages: () => repo.getWarehouseComments(offer.id),
+      sendMessage: (text) => repo.addWarehouseComment(offer.id, text),
     );
   }
 
@@ -195,7 +210,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final all = _offers ?? const <SalesOfferSummary>[];
     final shown = all
@@ -207,7 +222,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
     return Column(
       children: [
         SizedBox(
-          height: 34,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
@@ -226,7 +241,7 @@ class _WhOffersPageState extends ConsumerState<WhOffersPage> {
 
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
-          height: 34,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),

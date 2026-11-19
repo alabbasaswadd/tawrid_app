@@ -49,6 +49,14 @@ enum _OrdersTab {
       };
 }
 
+enum _SortMode {
+  createdAt('حسب تاريخ إنشاء الطلبية'),
+  updatedAt('حسب آخر تحديث للحالة');
+
+  const _SortMode(this.label);
+  final String label;
+}
+
 // طلبات التوريد عند الصيدلي (Figma: الصيدلي / الطلبات).
 class PhOrdersPage extends ConsumerStatefulWidget {
   const PhOrdersPage({super.key});
@@ -60,7 +68,7 @@ class PhOrdersPage extends ConsumerStatefulWidget {
 class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
   List<SupplyOrderSummary>? _orders;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   _OrdersTab _tab = _OrdersTab.active;
 
   @override
@@ -87,7 +95,7 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -100,12 +108,54 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
     if (mounted) await _load(silent: true);
   }
 
+  _SortMode _sortMode = _SortMode.createdAt;
+
+  void _showSortSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ترتيب الطلبيات', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.lg),
+              for (final mode in _SortMode.values)
+                RadioListTile<_SortMode>(
+                  value: mode,
+                  groupValue: _sortMode,
+                  title: Text(mode.label, style: context.text.bodyMedium),
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _sortMode = v);
+                      Navigator.pop(ctx);
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('طلبات التوريد'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.sort),
+            tooltip: 'ترتيب',
+            onPressed: _showSortSheet,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'تحديث',
@@ -114,24 +164,23 @@ class _PhOrdersPageState extends ConsumerState<PhOrdersPage> {
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
-      // الطلبية لا تُنشأ بإدخال أصناف يدوياً: تُبنى من البحث عن دواء ←
-      // السلّة ← الإتمام. فشاشة «طلبية جديدة» أُلغيت، والزرّ يقود إلى بداية
-      // المسار الصحيح لا إلى مسارٍ ثانٍ يتجاوز السلّة وحرّاسها.
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'ph_orders_fab',
-        onPressed: () => context.push(TRoutes.phPriceSearch),
-        icon: const Icon(Icons.search),
-        label: const Text('ابحث عن دواء'),
-      ),
     );
   }
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final all = _orders ?? const <SupplyOrderSummary>[];
-    final shown = all.where((o) => _tab.matches(o.status)).toList();
+    final shown = all.where((o) => _tab.matches(o.status)).toList()
+      ..sort((a, b) {
+        return switch (_sortMode) {
+          _SortMode.createdAt => b.createdOn.compareTo(a.createdOn),
+          _SortMode.updatedAt =>
+            (b.expectedDeliveryDate ?? b.createdOn)
+                .compareTo(a.expectedDeliveryDate ?? a.createdOn),
+        };
+      });
     final tk = context.tokens;
 
     return Column(

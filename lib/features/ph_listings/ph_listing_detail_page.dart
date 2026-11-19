@@ -30,7 +30,7 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
   List<PhListingComment> _comments = const [];
   bool _loading = true;
   bool _sending = false;
-  String? _error;
+  ApiException? _error;
   String? _actionError;
 
   final _commentCtrl = TextEditingController();
@@ -68,7 +68,7 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -164,7 +164,7 @@ class _PhListingDetailPageState extends ConsumerState<PhListingDetailPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final l = _listing!;
     final isOwner = _isOwner(l);

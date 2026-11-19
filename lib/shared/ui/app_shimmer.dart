@@ -110,18 +110,21 @@ class AppListSkeleton extends StatelessWidget {
     this.variant = SkeletonVariant.card,
     this.count = 6,
     this.padding,
+    this.shrinkWrap = false,
     super.key,
   });
 
   final SkeletonVariant variant;
   final int count;
   final EdgeInsets? padding;
+  final bool shrinkWrap;
 
   @override
   Widget build(BuildContext context) {
     final isRow = variant == SkeletonVariant.row;
     return AppShimmer(
       child: ListView.builder(
+        shrinkWrap: shrinkWrap,
         physics: const NeverScrollableScrollPhysics(),
         padding: padding ??
             const EdgeInsets.fromLTRB(

@@ -25,7 +25,7 @@ class _NotificationSettingsPageState
     extends ConsumerState<NotificationSettingsPage> {
   List<NotificationSetting>? _settings;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   final Set<int> _saving = {};
 
   @override
@@ -50,7 +50,7 @@ class _NotificationSettingsPageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -82,7 +82,7 @@ class _NotificationSettingsPageState
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final settings = _settings ?? const <NotificationSetting>[];
     if (settings.isEmpty) {

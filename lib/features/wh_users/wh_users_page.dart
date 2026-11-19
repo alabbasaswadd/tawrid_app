@@ -6,6 +6,7 @@ import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/core/session/session_state.dart';
 import 'package:tawrid_app/core/session/warehouse_session.dart';
 import 'package:tawrid_app/models/enums.dart';
+import 'package:tawrid_app/repositories/warehouse_profile_repository.dart';
 import 'package:tawrid_app/models/warehouse_user_models.dart';
 import 'package:tawrid_app/repositories/warehouse_user_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
@@ -26,7 +27,7 @@ class WhUsersPage extends ConsumerStatefulWidget {
 class _WhUsersPageState extends ConsumerState<WhUsersPage> {
   List<WarehouseUser>? _users;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   final Set<String> _busy = {};
 
   /// معرّف المستخدم الحالي — لتمييز «أنت» ولمنع إيقاف النفس قبل الرحلة.
@@ -56,7 +57,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -214,6 +215,20 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final me = ref.watch(warehouseMeProvider).value;
+    final isAdmin = me?.role == WarehouseUserRole.admin;
+
+    if (me != null && !isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('موظّفو المستودع')),
+        body: const UiEmpty(
+          message: 'لا تملك صلاحية الوصول لهذه الصفحة',
+          description: 'هذه الصفحة متاحة للمدير فقط',
+          appIcon: AppIcons.alertTriangle,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('موظّفو المستودع'),
@@ -237,7 +252,7 @@ class _WhUsersPageState extends ConsumerState<WhUsersPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final users = _users ?? const <WarehouseUser>[];
     if (users.isEmpty) {

@@ -1,17 +1,23 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:tawrid_app/app/theme/app_spacing.dart';
 import 'package:tawrid_app/app/theme/app_tokens_ext.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
 import 'package:tawrid_app/core/network/api_exception.dart';
 import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/utils/contact_launcher.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
-
 import 'wh_orders_page.dart' show whOrderTone;
 
 // تفاصيل الطلب الوارد عند المستودع (Figma: المستودع / تفاصيل الطلب).
@@ -32,7 +38,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
   List<StatusHistoryItem> _history = const [];
   bool _loading = true;
   bool _busy = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -64,7 +70,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -131,32 +137,70 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     }
   }
 
-  Future<void> _contactPharmacy() async {
-    final phone = _order?.pharmacyPhone;
-    final opened = await openWhatsApp(
-      phone,
-      message: 'مرحباً، بخصوص طلب التوريد رقم ${_order!.orderNumber}',
+  void _showExportSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('تصدير الطلب', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.lg),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('تصدير إلى PDF', style: context.text.bodyMedium),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportPdf();
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('تصدير إلى Excel', style: context.text.bodyMedium),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackbar.show(context, 'جاري تطوير تصدير Excel');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-    if (!opened && mounted) {
-      AppSnackbar.error(context, 'تعذّر فتح واتساب — تحقّق من رقم الصيدلية');
+  }
+
+  Future<void> _exportPdf() async {
+    final order = _order;
+    if (order == null) return;
+    try {
+      AppSnackbar.show(context, 'جاري إنشاء PDF...');
+      final bytes = await _whBuildOrderPdf(order, _history, _itemsTotal, _freeUnits);
+      await Printing.sharePdf(
+          bytes: bytes, filename: 'طلبية-${order.orderNumber}.pdf');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, 'تعذّر إنشاء PDF');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canContact =
-        _order != null && whatsAppNumber(_order!.pharmacyPhone) != null;
-
     return Scaffold(
-      appBar: InnerTopBar(
-        title: 'تفاصيل الطلب',
-        trailing: canContact
-            ? IconButton(
-                tooltip: 'تواصل مع الصيدلية',
-                icon: const Icon(Icons.chat, size: 20),
-                onPressed: _contactPharmacy,
-              )
-            : null,
+      appBar: AppBar(
+        title: const Text('تفاصيل الطلب'),
+        actions: [
+          if (_order != null)
+            TextButton(
+              onPressed: _showExportSheet,
+              child: const Text('تصدير'),
+            ),
+        ],
       ),
       body: _buildBody(),
       bottomNavigationBar: _order == null ? null : _buildActions(),
@@ -165,7 +209,7 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final o = _order!;
     final cs = context.colors;
@@ -331,20 +375,131 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
     );
   }
 
-  // الإجراءات تُبنى من `nextAllowed` — نفس انتقالات الخادم، فلا يظهر زرّ
-  // يُرفض. لا يوجد «تعديل الكميات» في التصميم هنا لأن الخادم لا يتيحه:
-  // يُعدَّل الطلب بالتفاهم مع الصيدلية ثم يُرفض ويُعاد إنشاؤه.
-  Widget? _buildActions() {
+  Future<void> _contactPharmacy() async {
+    final order = _order!;
+    if (order.pharmacyTenantId == null) return;
+    setState(() => _busy = true);
+    try {
+      final conv = await ref
+          .read(whConversationRepositoryProvider)
+          .openConversation(otherPartyId: order.pharmacyTenantId!);
+      if (!mounted) return;
+      context.push(TRoutes.whConversationDetail(
+        conv.id,
+        conv.otherPartyName,
+        partyId: conv.otherPartyId,
+        partyType: conv.otherPartyType,
+      ));
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showActionsSheet() {
     final o = _order!;
     final next = o.status.nextAllowed;
-    if (next.isEmpty) return null;
-
-    final cs = context.colors;
-    final tk = context.tokens;
     final forward =
         next.where((s) => s != SupplyOrderStatus.cancelled).toList();
     final canReject = next.contains(SupplyOrderStatus.cancelled);
+    final cs = context.colors;
 
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('خيارات الطلب', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              if (o.pharmacyTenantId != null) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.chat_outlined),
+                  title: const Text('تواصل مع الصيدلية'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _contactPharmacy();
+                  },
+                ),
+                if (forward.isNotEmpty || canReject) const Divider(height: 1),
+              ],
+              for (final s in forward) ...[
+                if (s != forward.first) const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle_outline),
+                  title: Text(switch (s) {
+                    SupplyOrderStatus.confirmed => 'قبول الطلب',
+                    SupplyOrderStatus.processing => 'بدء التجهيز',
+                    SupplyOrderStatus.shipped => 'تأكيد الشحن',
+                    SupplyOrderStatus.delivered => 'تأكيد التسليم',
+                    SupplyOrderStatus.completed => 'إغلاق الطلب',
+                    _ => s.label,
+                  }),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _move(s,
+                        confirmText: switch (s) {
+                          SupplyOrderStatus.confirmed =>
+                            'هل تريد قبول هذا الطلب والالتزام بتجهيزه؟',
+                          SupplyOrderStatus.processing =>
+                            'هل تريد بدء تجهيز هذا الطلب؟',
+                          SupplyOrderStatus.shipped =>
+                            'هل تريد تأكيد شحن هذا الطلب؟',
+                          SupplyOrderStatus.delivered =>
+                            'هل تريد تأكيد تسليم الطلب للصيدلية؟',
+                          SupplyOrderStatus.completed =>
+                            'هل تريد إغلاق هذا الطلب نهائياً؟',
+                          _ =>
+                            'هل تريد تغيير حالة الطلب إلى «${s.label}»؟',
+                        });
+                  },
+                ),
+              ],
+              if (canReject) ...[
+                if (forward.isNotEmpty) const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.cancel_outlined, color: cs.error),
+                  title:
+                      Text('رفض الطلب', style: TextStyle(color: cs.error)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _move(SupplyOrderStatus.cancelled,
+                        confirmText:
+                            'سيُبلَّغ الصيدلية برفض الطلب، ولا يمكن التراجع عنه.');
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildActions() {
+    final o = _order!;
+
+    // الشريط يبقى ما دام في الورقة ما يُفعَل — والتواصل مع الصيدلية متاح
+    // دائماً. كان يختفي كلّياً عند الحالات النهائية (مكتمل/ملغى) فيذهب
+    // معه المدخل الوحيد للمحادثة، وهي أحوج ما تكون بعد إغلاق الطلب.
+    final hasAnyAction =
+        o.status.nextAllowed.isNotEmpty || o.pharmacyTenantId != null;
+    if (!hasAnyAction) return null;
+
+    final cs = context.colors;
+    final tk = context.tokens;
     return SafeArea(
       top: false,
       child: Container(
@@ -355,35 +510,11 @@ class _WhOrderDetailPageState extends ConsumerState<WhOrderDetailPage> {
         ),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
-        child: Row(
-          children: [
-            if (canReject)
-              TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => _move(SupplyOrderStatus.cancelled,
-                        confirmText:
-                            'سيُبلَّغ الصيدلية برفض الطلب، ولا يمكن التراجع عنه.'),
-                style: TextButton.styleFrom(foregroundColor: cs.error),
-                child: const Text('رفض'),
-              ),
-            if (canReject) const SizedBox(width: AppSpacing.sm),
-            if (forward.isNotEmpty)
-              Expanded(
-                child: AppButton(
-                  label: switch (forward.first) {
-                    SupplyOrderStatus.confirmed => 'قبول الطلب',
-                    SupplyOrderStatus.processing => 'بدء التجهيز',
-                    SupplyOrderStatus.shipped => 'تأكيد الشحن',
-                    SupplyOrderStatus.delivered => 'تأكيد التسليم',
-                    SupplyOrderStatus.completed => 'إغلاق الطلب',
-                    _ => forward.first.label,
-                  },
-                  loading: _busy,
-                  onPressed: _busy ? null : () => _move(forward.first),
-                ),
-              ),
-          ],
+        child: AppButton(
+          label: 'خيارات إضافية',
+          icon: Icons.tune_outlined,
+          loading: _busy,
+          onPressed: _busy ? null : _showActionsSheet,
         ),
       ),
     );
@@ -434,4 +565,407 @@ class _Line extends StatelessWidget {
       ],
     );
   }
+}
+
+// ── توليد PDF فاتورة توريد رسمية (من منظور المستودع) ─────────────────────
+double _whFreeUnitsOf(SupplyOrderItem i) => i.freeQuantity > 0
+    ? i.freeQuantity
+    : i.quantity * ((i.bonusPercentage ?? 0) / 100);
+
+Future<Uint8List> _whBuildOrderPdf(
+  SupplyOrderDetail order,
+  List<StatusHistoryItem> history,
+  double total,
+  double freeUnits,
+) async {
+  final base = await PdfGoogleFonts.cairoRegular();
+  final bold = await PdfGoogleFonts.cairoBold();
+  final doc = pw.Document();
+
+  const brand = PdfColor.fromInt(0xFF042623);
+  const brandLight = PdfColor.fromInt(0xFFE2EDEB);
+  const rowAlt = PdfColor.fromInt(0xFFF4F7F7);
+  const grey = PdfColors.grey700;
+
+  final currency = order.currency;
+  final currencyTag = currencySymbol(currency);
+  final dateStr = order.createdOn.toLocal().toString().split(' ').first;
+
+  double totalBonus = 0;
+  for (final i in order.items) {
+    if (i.agreedUnitPrice == null) continue;
+    totalBonus += _whFreeUnitsOf(i) * i.agreedUnitPrice!;
+  }
+  final netAmount = total - totalBonus;
+
+  doc.addPage(
+    pw.MultiPage(
+      textDirection: pw.TextDirection.rtl,
+      theme: pw.ThemeData.withFont(base: base, bold: bold),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+      footer: (ctx) => pw.Align(
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          'صفحة ${ctx.pageNumber} من ${ctx.pagesCount}',
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        ),
+      ),
+      build: (ctx) => [
+        // ── رأس الفاتورة ──────────────────────────────────────────────────
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(order.warehouseName,
+                      style: pw.TextStyle(
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold,
+                          color: brand)),
+                  pw.SizedBox(height: 2),
+                  pw.Text('فاتورة توريد رسمية',
+                      style: pw.TextStyle(fontSize: 13, color: brand)),
+                  if (order.warehouseCity.isNotEmpty) ...[
+                    pw.SizedBox(height: 2),
+                    pw.Text('مدينة ${order.warehouseCity}',
+                        style: const pw.TextStyle(fontSize: 11, color: grey)),
+                  ],
+                  if (order.warehousePhone.isNotEmpty) ...[
+                    pw.SizedBox(height: 2),
+                    pw.Text(order.warehousePhone,
+                        style: const pw.TextStyle(fontSize: 11, color: grey)),
+                  ],
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 16),
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: pw.BoxDecoration(
+                color: brand,
+                borderRadius:
+                    const pw.BorderRadius.all(pw.Radius.circular(10)),
+              ),
+              child: pw.Text('توريد',
+                  style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 10),
+        pw.Divider(color: brand, thickness: 1.5),
+        pw.SizedBox(height: 8),
+
+        // ── بيانات الطلبية والعميل ────────────────────────────────────────
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _whPdfMeta('العميل', order.pharmacyName ?? '—', base, bold),
+                  pw.SizedBox(height: 4),
+                  if ((order.pharmacyCity ?? '').isNotEmpty)
+                    _whPdfMeta('المدينة', order.pharmacyCity!, base, bold),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 24),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                _whPdfMeta('رقم الطلبية', order.orderNumber, base, bold),
+                pw.SizedBox(height: 4),
+                _whPdfMeta('التاريخ', dateStr, base, bold),
+                pw.SizedBox(height: 4),
+                _whPdfMeta('العملة', currencyTag, base, bold),
+              ],
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 14),
+
+        // ── جدول الأصناف ─────────────────────────────────────────────────
+        pw.TableHelper.fromTextArray(
+          headers: [
+            '#',
+            'الصنف',
+            'السعر ($currencyTag)',
+            'العدد',
+            'الإجمالي ($currencyTag)',
+            'البونص ($currencyTag)',
+          ],
+          data: order.items.asMap().entries.map((e) {
+            final idx = e.key + 1;
+            final i = e.value;
+            final lineTotal = (i.agreedUnitPrice ?? 0) * i.quantity;
+            final bonusVal = i.agreedUnitPrice == null
+                ? 0.0
+                : _whFreeUnitsOf(i) * i.agreedUnitPrice!;
+            return [
+              '$idx',
+              i.medicineName,
+              i.agreedUnitPrice == null
+                  ? '—'
+                  : formatAmount(i.agreedUnitPrice!, currency),
+              formatQuantity(i.quantity),
+              i.agreedUnitPrice == null ? '—' : formatAmount(lineTotal, currency),
+              bonusVal > 0 ? formatAmount(bonusVal, currency) : '0',
+            ];
+          }).toList(),
+          headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              fontSize: 10),
+          headerDecoration: const pw.BoxDecoration(color: brand),
+          cellAlignment: pw.Alignment.center,
+          cellStyle: const pw.TextStyle(fontSize: 10),
+          oddRowDecoration: const pw.BoxDecoration(color: rowAlt),
+          border: pw.TableBorder.all(color: brandLight, width: 0.5),
+          columnWidths: {
+            0: const pw.FixedColumnWidth(28),
+            1: const pw.FlexColumnWidth(3),
+            2: const pw.FlexColumnWidth(1.4),
+            3: const pw.FixedColumnWidth(38),
+            4: const pw.FlexColumnWidth(1.4),
+            5: const pw.FlexColumnWidth(1.2),
+          },
+        ),
+
+        // صف المجموع الكلي
+        pw.Container(
+          decoration: const pw.BoxDecoration(color: brandLight),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: pw.Row(
+            children: [
+              pw.Expanded(
+                flex: 5,
+                child: pw.Text('المجموع الكلي',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    textAlign: pw.TextAlign.right),
+              ),
+              pw.SizedBox(width: 4),
+              pw.Expanded(
+                flex: 1,
+                child: pw.Text(formatAmount(total, currency),
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    textAlign: pw.TextAlign.center),
+              ),
+              pw.Expanded(
+                flex: 1,
+                child: pw.Text(
+                    totalBonus > 0 ? formatAmount(totalBonus, currency) : '0',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    textAlign: pw.TextAlign.center),
+              ),
+            ],
+          ),
+        ),
+
+        pw.SizedBox(height: 14),
+
+        // ── ملخص المبالغ + ملاحظات ────────────────────────────────────────
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              flex: 5,
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: brandLight, width: 1),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('ملاحظات:',
+                        style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                    pw.SizedBox(height: 6),
+                    pw.Text('- الأسعار شاملة الضريبة.',
+                        style: const pw.TextStyle(fontSize: 10, color: grey)),
+                    pw.Text('- يُمنع إعادة الصرف إلا بموافقة خطية.',
+                        style: const pw.TextStyle(fontSize: 10, color: grey)),
+                    pw.Text(
+                        '- يُرجى التأكد من مطابقة الأصناف عند الاستلام.',
+                        style: const pw.TextStyle(fontSize: 10, color: grey)),
+                    if (order.notes != null && order.notes!.isNotEmpty)
+                      pw.Text('- ${order.notes}',
+                          style: const pw.TextStyle(fontSize: 10, color: grey)),
+                  ],
+                ),
+              ),
+            ),
+            pw.SizedBox(width: 12),
+            pw.Expanded(
+              flex: 4,
+              child: pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: brandLight, width: 1),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Column(
+                  children: [
+                    _whSummaryRow('إجمالي الأصناف',
+                        formatMoneyWith(total, currency), base, bold),
+                    pw.Divider(color: brandLight, thickness: 0.5),
+                    _whSummaryRow('إجمالي الحسم', '0', base, bold),
+                    pw.Divider(color: brandLight, thickness: 0.5),
+                    _whSummaryRow(
+                        'إجمالي البونص',
+                        totalBonus > 0
+                            ? formatMoneyWith(totalBonus, currency)
+                            : '0',
+                        base,
+                        bold),
+                    pw.Divider(color: brand, thickness: 1),
+                    _whSummaryRow('المبلغ المستحق',
+                        formatMoneyWith(netAmount, currency), base, bold,
+                        isHeader: true),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 18),
+
+        // ── سجل حالات الطلبية ────────────────────────────────────────────
+        if (history.isNotEmpty) ...[
+          pw.Text('سجل حالات الطلبية',
+              style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: brand)),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: ['الحالة السابقة', 'الحالة الجديدة', 'بواسطة', 'التاريخ'],
+            data: history
+                .map((h) => [
+                      h.oldStatus.label,
+                      h.newStatus.label,
+                      h.changedByName,
+                      h.changedAt.toLocal().toString().substring(0, 16),
+                    ])
+                .toList(),
+            headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+                fontSize: 9),
+            headerDecoration: const pw.BoxDecoration(color: brand),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignment: pw.Alignment.center,
+            border: pw.TableBorder.all(color: brandLight, width: 0.5),
+          ),
+          pw.SizedBox(height: 18),
+        ],
+
+        // ── توقيعات ───────────────────────────────────────────────────────
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('مستلم الصيدلية',
+                    style: const pw.TextStyle(fontSize: 11, color: grey)),
+                pw.SizedBox(height: 20),
+                pw.Container(width: 100, height: 1, color: grey),
+              ],
+            ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text('مندوب التسليم',
+                    style: const pw.TextStyle(fontSize: 11, color: grey)),
+                pw.SizedBox(height: 20),
+                pw.Container(width: 100, height: 1, color: grey),
+              ],
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 20),
+
+        // ── تذييل ─────────────────────────────────────────────────────────
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            color: brandLight,
+            borderRadius:
+                const pw.BorderRadius.all(pw.Radius.circular(8)),
+          ),
+          padding:
+              const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Text(
+                'تم عبر منصة توريد الإلكترونية',
+                style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: brand),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return doc.save();
+}
+
+pw.Widget _whPdfMeta(
+    String label, String value, pw.Font base, pw.Font bold) {
+  return pw.RichText(
+    text: pw.TextSpan(children: [
+      pw.TextSpan(
+          text: '$label:  ',
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+      pw.TextSpan(text: value, style: const pw.TextStyle(fontSize: 11)),
+    ]),
+  );
+}
+
+pw.Widget _whSummaryRow(String label, String value, pw.Font base, pw.Font bold,
+    {bool isHeader = false}) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label,
+            style: pw.TextStyle(
+              fontSize: isHeader ? 11 : 10,
+              fontWeight:
+                  isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isHeader
+                  ? const PdfColor.fromInt(0xFF042623)
+                  : PdfColors.grey700,
+            )),
+        pw.Text(value,
+            style: pw.TextStyle(
+              fontSize: isHeader ? 12 : 10,
+              fontWeight:
+                  isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+            )),
+      ],
+    ),
+  );
 }

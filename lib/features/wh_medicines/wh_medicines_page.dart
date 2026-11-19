@@ -29,7 +29,7 @@ class WhMedicinesPage extends ConsumerStatefulWidget {
 class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
   List<WarehouseMedicine>? _items;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   String _query = '';
   Timer? _debounce;
 
@@ -62,7 +62,7 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -282,7 +282,7 @@ class _WhMedicinesPageState extends ConsumerState<WhMedicinesPage> {
 
   Widget _buildList(List<WarehouseMedicine> items) {
     if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     if (items.isEmpty) {
       return ListView(

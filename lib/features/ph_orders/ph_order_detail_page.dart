@@ -14,10 +14,12 @@ import 'package:tawrid_app/models/enums.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 import 'package:tawrid_app/repositories/supply_order_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
-import 'package:tawrid_app/shared/utils/contact_launcher.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tawrid_app/app/router/routes.dart';
+import 'package:tawrid_app/repositories/conversation_repository.dart';
 
 import 'ph_orders_page.dart' show orderTone;
 
@@ -58,7 +60,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
   bool _loading = true;
   bool _busy = false;
   bool _sharing = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -90,7 +92,7 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -195,29 +197,77 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
     }
   }
 
+  void _showExportSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('تصدير الطلب', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.lg),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('تصدير إلى Excel', style: context.text.bodyMedium),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('جاري تطوير التصدير إلى Excel')),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('تصدير إلى PDF', style: context.text.bodyMedium),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _sharePdf();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: InnerTopBar(
-        title: 'تفاصيل الطلب',
-        trailing: IconButton(
-          tooltip: 'مشاركة كملف PDF',
-          onPressed: _loading || _sharing ? null : _sharePdf,
-          icon: _sharing
-              ? const SizedBox(
-                  width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.ios_share, size: 20),
-        ),
+      appBar: AppBar(
+        title: const Text('تفاصيل الطلب'),
+        actions: [
+          if (_sharing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Center(
+                child: SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _loading ? null : _showExportSheet,
+              child: const Text('تصدير'),
+            ),
+        ],
       ),
-      body: _buildBody(),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
       bottomNavigationBar: _order == null ? null : _buildBottomBar(),
     );
   }
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final order = _order!;
     final tk = context.tokens;
@@ -236,79 +286,22 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final item in order.items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.medicineName,
-                              style: context.text.bodyMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            // الكمية وسعر الوحدة سطرٌ مستقلّ كما في السلّة:
-                            // كانا محشورَين بين قوسين في الاسم فيُقرأ السطر
-                            // جملةً واحدة لا بيانات.
-                            Text(
-                              '${formatQuantity(item.quantity)} ${item.unit}'
-                              '${item.agreedUnitPrice == null ? '' : ' · سعر الوحدة '
-                                  '${formatMoneyWith(item.agreedUnitPrice!, _currency)}'}',
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: context.tokens.hint),
-                            ),
-                            if (item.manufacturerName != null &&
-                                item.manufacturerName!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                item.manufacturerName!,
-                                style: context.text.labelSmall
-                                    ?.copyWith(color: context.tokens.hint),
-                              ),
-                            ],
-                            // البونص شارةٌ ذهبية كما في السلّة لا نصّاً
-                            // داخل الاسم — وهو ما يُحضَّر مع الطلبية، فحقّه
-                            // أن يُرى لا أن يُستخرَج من بين قوسين.
-                            if (_freeUnitsOf(item) > 0) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              BonusBadge(
-                                label:
-                                    '+${formatQuantity(_freeUnitsOf(item))} ${item.unit} مجاناً',
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'الإجمالي',
-                            style: context.text.labelSmall
-                                ?.copyWith(color: context.tokens.hint),
-                          ),
-                          Text(
-                            item.agreedUnitPrice == null
-                                ? '—'
-                                : formatMoneyWith(
-                                    item.agreedUnitPrice! * item.quantity,
-                                    _currency),
-                            style: context.text.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ],
+              for (int idx = 0; idx < order.items.length; idx++) ...[
+                if (idx > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Divider(height: 1, color: context.colors.outline),
                   ),
+                _OrderItemRow(
+                  item: order.items[idx],
+                  currency: _currency,
+                  freeUnits: _freeUnitsOf(order.items[idx]),
                 ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
               if (_freeUnits > 0) ...[
                 Divider(color: context.colors.outline),
+                const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
                     Expanded(
@@ -319,8 +312,8 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
                             ?.copyWith(color: tk.goldStrong)),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.xs),
               ],
-              const SizedBox(height: AppSpacing.xs),
               Divider(color: context.colors.outline),
               const SizedBox(height: AppSpacing.xs),
               Row(
@@ -368,25 +361,110 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
 
   Future<void> _contactWarehouse() async {
     final order = _order!;
-    final opened = await openWhatsApp(
-      order.warehousePhone,
-      message: 'مرحباً، بخصوص طلبية التوريد رقم ${order.orderNumber}',
-    );
-    if (!opened && mounted) {
-      AppSnackbar.error(context, 'تعذّر فتح واتساب — تحقّق من رقم المستودع');
+    setState(() => _busy = true);
+    try {
+      final conv = await ref
+          .read(phConversationRepositoryProvider)
+          .openConversation(otherPartyId: order.supplyWarehouseId);
+      if (!mounted) return;
+      context.push(TRoutes.phConversationDetail(
+        conv.id,
+        conv.otherPartyName,
+        partyId: conv.otherPartyId,
+        partyType: conv.otherPartyType,
+      ));
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Widget _buildBottomBar() {
-    final cs = context.colors;
-    final tk = context.tokens;
+  void _showActionsSheet() {
     final order = _order!;
     final canCancel = order.status == SupplyOrderStatus.pending;
     final canEdit = order.status == SupplyOrderStatus.pending;
     final canInvoice =
         order.status == SupplyOrderStatus.completed && !order.invoiceCreated;
-    final canContact = whatsAppNumber(order.warehousePhone) != null;
+    final cs = context.colors;
 
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('خيارات الطلبية', style: context.text.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.chat_outlined),
+                title: const Text('تواصل مع المستودع'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _contactWarehouse();
+                },
+              ),
+              if (canEdit) ...[
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('تعديل الطلبية'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _editOrder();
+                  },
+                ),
+              ],
+              if (canCancel) ...[
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.cancel_outlined, color: cs.error),
+                  title: Text('إلغاء الطلبية',
+                      style: TextStyle(color: cs.error)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _cancel();
+                  },
+                ),
+              ],
+              if (order.status == SupplyOrderStatus.completed) ...[
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.receipt_outlined),
+                  title: Text(order.invoiceCreated
+                      ? 'الفاتورة مُولَّدة'
+                      : 'فاتورة الشراء'),
+                  enabled: canInvoice && !_busy,
+                  onTap: canInvoice && !_busy
+                      ? () {
+                          Navigator.pop(ctx);
+                          _generateInvoice();
+                        }
+                      : null,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    final cs = context.colors;
+    final tk = context.tokens;
     return SafeArea(
       top: false,
       child: Container(
@@ -397,50 +475,11 @@ class _PhOrderDetailPageState extends ConsumerState<PhOrderDetailPage> {
         ),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // زر التعديل — يظهر فقط بانتظار التأكيد
-            if (canEdit) ...[
-              AppButton(
-                label: 'تعديل الطلبية',
-                variant: AppButtonVariant.outline,
-                icon: Icons.edit_outlined,
-                onPressed: _busy ? null : _editOrder,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: 'تواصل مع المستودع',
-                    icon: Icons.chat,
-                    onPressed: canContact ? _contactWarehouse : null,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: canCancel
-                      ? AppButton(
-                          label: 'إلغاء الطلبية',
-                          variant: AppButtonVariant.danger,
-                          loading: _busy,
-                          onPressed: _busy ? null : _cancel,
-                        )
-                      : AppButton(
-                          label: order.invoiceCreated
-                              ? 'الفاتورة مُولَّدة'
-                              : 'فاتورة الشراء',
-                          variant: AppButtonVariant.outline,
-                          loading: _busy && canInvoice,
-                          onPressed:
-                              canInvoice && !_busy ? _generateInvoice : null,
-                        ),
-                ),
-              ],
-            ),
-          ],
+        child: AppButton(
+          label: 'خيارات إضافية',
+          icon: Icons.tune_outlined,
+          loading: _busy,
+          onPressed: _busy ? null : _showActionsSheet,
         ),
       ),
     );
@@ -662,6 +701,70 @@ class _MetaLine extends StatelessWidget {
   }
 }
 
+// صنف واحد في قائمة أصناف الطلبية — اسم + تفاصيل + بونص + إجمالي السطر.
+class _OrderItemRow extends StatelessWidget {
+  const _OrderItemRow({
+    required this.item,
+    required this.currency,
+    required this.freeUnits,
+  });
+
+  final SupplyOrderItem item;
+  final String currency;
+  final double freeUnits;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.medicineName,
+                style: context.text.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${formatQuantity(item.quantity)} ${item.unit}'
+                '${item.agreedUnitPrice == null ? '' : '  ·  سعر الوحدة '
+                    '${formatMoneyWith(item.agreedUnitPrice!, currency)}'}',
+                style: context.text.bodySmall?.copyWith(color: tk.hint),
+              ),
+              if (item.manufacturerName != null &&
+                  item.manufacturerName!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  item.manufacturerName!,
+                  style: context.text.labelSmall?.copyWith(color: tk.hint),
+                ),
+              ],
+              if (freeUnits > 0) ...[
+                const SizedBox(height: AppSpacing.xs),
+                BonusBadge(
+                  label: '+${formatQuantity(freeUnits)} ${item.unit} مجاناً',
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          item.agreedUnitPrice == null
+              ? '—'
+              : formatMoneyWith(item.agreedUnitPrice! * item.quantity, currency),
+          style: context.priceBrandStyle,
+        ),
+      ],
+    );
+  }
+}
+
 // ── توليد PDF للطلبية (تصميم فاتورة رسمية RTL بخط Cairo) ───────────────
 /// الكمية المجانية لصنف طلبية: المحسوبة من الخادم إن وُجدت، وإلا
 /// المشتقّة من النسبة القديمة. تعريفٌ واحد تستعمله الشاشة والفاتورة معاً.
@@ -706,6 +809,13 @@ Future<Uint8List> _buildOrderPdf(
       theme: pw.ThemeData.withFont(base: base, bold: bold),
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+      footer: (ctx) => pw.Align(
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          'صفحة ${ctx.pageNumber} من ${ctx.pagesCount}',
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        ),
+      ),
       build: (ctx) => [
         // ── رأس الفاتورة ──────────────────────────────────────────────────
         pw.Row(
@@ -969,6 +1079,28 @@ Future<Uint8List> _buildOrderPdf(
         ),
 
         pw.SizedBox(height: 20),
+
+        // ── سجل حالات الطلبية ─────────────────────────────────────────────
+        if (history.isNotEmpty) ...[
+          pw.Text('سجل حالات الطلبية',
+              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brand)),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: ['الحالة السابقة', 'الحالة الجديدة', 'بواسطة', 'التاريخ'],
+            data: history.map((h) => [
+              h.oldStatus.label,
+              h.newStatus.label,
+              h.changedByName,
+              h.changedAt.toLocal().toString().substring(0, 16),
+            ]).toList(),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
+            headerDecoration: const pw.BoxDecoration(color: brand),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignment: pw.Alignment.center,
+            border: pw.TableBorder.all(color: brandLight, width: 0.5),
+          ),
+          pw.SizedBox(height: 20),
+        ],
 
         // ── تذييل ─────────────────────────────────────────────────────────
         pw.Container(

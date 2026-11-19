@@ -436,7 +436,7 @@ class _PickItemsSheet extends ConsumerStatefulWidget {
 class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
   List<MedicineCatalogItem> _results = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   Timer? _debounce;
 
   /// معرّف صنف الكتالوج ← الكمية المطلوبة.
@@ -482,7 +482,7 @@ class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -570,7 +570,7 @@ class _PickItemsSheetState extends ConsumerState<_PickItemsSheet> {
             child: _loading
                 ? const AppListSkeleton(variant: SkeletonVariant.row)
                 : _error != null
-                    ? ErrorState(message: _error!, onRetry: () => _search(''))
+                    ? ErrorState.of(_error!, onRetry: () => _search(''))
                     : _results.isEmpty
                         ? const EmptyState(
                             icon: Icons.medication_outlined,

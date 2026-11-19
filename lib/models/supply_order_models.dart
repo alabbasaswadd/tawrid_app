@@ -149,6 +149,7 @@ class SupplyOrderDetail {
   final List<SupplyOrderItem> items;
 
   /// الصيدلية الطالبة — تصل في عرض المستودع فقط.
+  final String? pharmacyTenantId;
   final String? pharmacyName;
   final String? pharmacyPhone;
   final String? pharmacyCity;
@@ -172,6 +173,7 @@ class SupplyOrderDetail {
     this.generatedPurchaseId,
     required this.createdOn,
     required this.items,
+    this.pharmacyTenantId,
     this.pharmacyName,
     this.pharmacyPhone,
     this.pharmacyCity,
@@ -185,9 +187,9 @@ class SupplyOrderDetail {
         status: SupplyOrderStatus.fromCode(j['status'] as int),
         supplyWarehouseId: j['supplyWarehouseId'] as String,
         warehouseName: j['warehouseName'] as String,
-        warehousePhone: j['warehousePhone'] as String,
-        warehouseCity: j['warehouseCity'] as String,
-        warehouseGovernorate: j['warehouseGovernorate'] as String,
+        warehousePhone: j['warehousePhone'] as String? ?? '',
+        warehouseCity: j['warehouseCity'] as String? ?? '',
+        warehouseGovernorate: j['warehouseGovernorate'] as String? ?? '',
         notes: j['notes'] as String?,
         currency: j['currency'] as String? ?? 'SYP',
         expectedDeliveryDate: j['expectedDeliveryDate'] != null
@@ -201,6 +203,7 @@ class SupplyOrderDetail {
         items: ((j['items'] as List?) ?? [])
             .map((e) => SupplyOrderItem.fromJson(e as Map<String, dynamic>))
             .toList(),
+        pharmacyTenantId: j['pharmacyTenantId'] as String?,
         pharmacyName: j['pharmacyName'] as String?,
         pharmacyPhone: j['pharmacyPhone'] as String?,
         pharmacyCity: j['pharmacyCity'] as String?,

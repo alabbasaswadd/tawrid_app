@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tawrid_app/core/constants/storage_keys.dart';
+import 'package:tawrid_app/core/realtime/conversation_hub.dart';
 import 'package:tawrid_app/core/notifications/push_service.dart';
 import 'package:tawrid_app/core/storage/app_secure_storage.dart';
 
@@ -34,6 +35,11 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
     );
     final mustChange =
         await _store.read(key: StorageKeys.warehouseMustChangePassword) == 'true';
+    // جلسة مُستعادة بعد إقلاع جديد: establish لا تُستدعى هنا، فلولا
+    // هذا السطر لبقيت القناة مغلقة حتى تسجيل دخول جديد.
+    unawaited(
+        ref.read(conversationHubProvider).connect(isWarehouse: true));
+
     return WarehouseSessionAuthenticated(
       token: token,
       warehouseUserId: userId,
@@ -84,6 +90,11 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
     // نعرف قبلها لأي جهة نُسجّل. لا ننتظره حتى لا يؤخّر دخول المستخدم.
     unawaited(
         ref.read(pushServiceProvider).registerForSession(isWarehouse: true));
+
+    // قناة الأحداث الفورية تُفتح مع الجلسة: مجموعتها تُشتقّ من التوكن،
+    // فلا معنى لفتحها قبله. وهي إضافة لا شرط — تعثّرها لا يُعطّل الدخول.
+    unawaited(
+        ref.read(conversationHubProvider).connect(isWarehouse: true));
   }
 
   // تحديث حالة الحساب فقط (من /warehouse/auth/me) دون المساس بالتوكن.
@@ -126,6 +137,7 @@ class WarehouseSessionNotifier extends AsyncNotifier<WarehouseSessionState> {
 
   Future<void> clear() async {
     // إلغاء تسجيل الجهاز قبل محو التوكن — بعده يصبح الطلب بلا مصادقة.
+    await ref.read(conversationHubProvider).disconnect();
     await ref.read(pushServiceProvider).unregisterForSession(isWarehouse: true);
 
     const store = appSecureStorage;

@@ -23,7 +23,7 @@ class _PhProfilePageState extends ConsumerState<PhProfilePage> {
   bool _loading = true;
   bool _editing = false;
   bool _saving = false;
-  String? _error;
+  ApiException? _error;
 
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -58,7 +58,7 @@ class _PhProfilePageState extends ConsumerState<PhProfilePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -123,7 +123,7 @@ class _PhProfilePageState extends ConsumerState<PhProfilePage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final me = _me!;
     final cs = context.colors;

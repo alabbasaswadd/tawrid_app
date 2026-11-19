@@ -31,7 +31,7 @@ class _WhProfilePageState extends ConsumerState<WhProfilePage> {
   bool _editing = false;
   bool _saving = false;
   bool _savingProfile = false;
-  String? _error;
+  ApiException? _error;
 
   final _phone = TextEditingController();
 
@@ -73,7 +73,7 @@ class _WhProfilePageState extends ConsumerState<WhProfilePage> {
       });
     } catch (e) {
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -202,7 +202,7 @@ class _WhProfilePageState extends ConsumerState<WhProfilePage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final me = _me!;
     final cs = context.colors;

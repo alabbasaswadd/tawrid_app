@@ -72,7 +72,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = true;
-  String? _error;
+  ApiException? _error;
 
   /// معرّف النتيجة الجاري إضافتها — يُظهر التحميل على بطاقتها وحدها.
   String? _adding;
@@ -96,7 +96,10 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
   void _onSearchChanged(String _) {
     _debounce?.cancel();
     // نصف ثانية: كتابة اسم دواء عربي لا تستحق رحلة شبكة لكل حرف.
-    _debounce = Timer(const Duration(milliseconds: 450), () => _run(reset: true));
+    _debounce = Timer(
+      const Duration(milliseconds: 450),
+      () => _run(reset: true),
+    );
   }
 
   void _onScroll() {
@@ -117,20 +120,22 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     }
 
     try {
-      final page = await ref.read(medicineSearchRepositoryProvider).search(
-        // صنف محدَّد بمعرّفه لا يحتاج فلتر الاسم أيضاً — نصّه فقط للسياق في
-        // الحقل، وتفعيله معاً قد يُسقط صنفاً اسمه الحرّ (من عرض) لا يطابق
-        // نصياً اسم الكتالوج الذي يحمل معرّفه نفسه.
-        name: widget.catalogItemId != null ? null : _searchController.text,
-        catalogItemId: widget.catalogItemId,
-        warehouseId: widget.warehouseId,
-        manufacturer: _manufacturer.isEmpty ? null : _manufacturer,
-        source: _source,
-        sort: _sort,
-        includeAlternatives: widget.includeAlternatives,
-        limit: _pageSize,
-        offset: reset ? 0 : _results.length,
-      );
+      final page = await ref
+          .read(medicineSearchRepositoryProvider)
+          .search(
+            // صنف محدَّد بمعرّفه لا يحتاج فلتر الاسم أيضاً — نصّه فقط للسياق في
+            // الحقل، وتفعيله معاً قد يُسقط صنفاً اسمه الحرّ (من عرض) لا يطابق
+            // نصياً اسم الكتالوج الذي يحمل معرّفه نفسه.
+            name: widget.catalogItemId != null ? null : _searchController.text,
+            catalogItemId: widget.catalogItemId,
+            warehouseId: widget.warehouseId,
+            manufacturer: _manufacturer.isEmpty ? null : _manufacturer,
+            source: _source,
+            sort: _sort,
+            includeAlternatives: widget.includeAlternatives,
+            limit: _pageSize,
+            offset: reset ? 0 : _results.length,
+          );
       if (!mounted) return;
       setState(() {
         if (reset) _results.clear();
@@ -144,7 +149,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       setState(() {
         // ترتيب «الأقرب» بلا موقع مسجَّل يردّه الخادم برسالة صريحة؛
         // نعرضها ونعود إلى الترتيب الافتراضي بدل ترك الشاشة عالقة عليه.
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
         _loadingMore = false;
       });
@@ -225,7 +230,10 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       if (r.isOffer) {
         await notifier.addOfferItem(r.salesOfferItemId!, quantity: qty);
       } else {
-        await notifier.addWarehouseMedicine(r.warehouseMedicineId!, quantity: qty);
+        await notifier.addWarehouseMedicine(
+          r.warehouseMedicineId!,
+          quantity: qty,
+        );
       }
       if (!mounted) return;
       AppSnackbar.success(context, 'أُضيف «${r.medicineName}» إلى السلّة');
@@ -235,6 +243,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       if (mounted) setState(() => _adding = null);
     }
   }
+
   /// الكمية الافتراضية بلا سلّم بونص: الكمية المعلنة في العرض إن وُجدت،
   /// وإلا واحد. ومع السلّم يتولّاها الحوار.
   static int _defaultQuantity(MedicineSearchResult r) {
@@ -243,9 +252,8 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     return declared.round().clamp(1, 9999);
   }
 
-  static String _keyOf(MedicineSearchResult r) => r.isOffer
-      ? 'offer:${r.salesOfferItemId}'
-      : 'wh:${r.warehouseMedicineId}';
+  static String _keyOf(MedicineSearchResult r) =>
+      r.isOffer ? 'offer:${r.salesOfferItemId}' : 'wh:${r.warehouseMedicineId}';
 
   /// عدد الفلاتر المختلفة عن الافتراضي — شارة زرّ الفلاتر.
   int get _activeFilters =>
@@ -263,8 +271,8 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
         title: widget.includeAlternatives
             ? 'توفّره في المستودعات'
             : scoped
-                ? 'البحث في المستودع'
-                : 'بحث الأسعار',
+            ? 'البحث في المستودع'
+            : 'بحث الأسعار',
         // زر السلّة في الطرف المقابل لزر الرجوع (Figma).
         trailing: CartButton(
           count: cartCount,
@@ -436,7 +444,8 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
         if (same.isNotEmpty) const SizedBox(height: AppSpacing.lg),
         const AppSectionHeader(
           title: 'بدائل بالتركيب العلمي نفسه',
-          subtitle: 'المادة الفعّالة ذاتها بشركة أو شكل دوائي مختلف — '
+          subtitle:
+              'المادة الفعّالة ذاتها بشركة أو شكل دوائي مختلف — '
               'راجِع الجرعة قبل الاستبدال.',
         ),
         const SizedBox(height: AppSpacing.md),
@@ -450,7 +459,7 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
     // بدل دوّارة لا تقول شيئاً.
     if (_loading) return const AppListSkeleton(count: 4);
     if (_error != null && _results.isEmpty) {
-      return ErrorState(message: _error!, onRetry: () => _run(reset: true));
+      return ErrorState.of(_error!, onRetry: () => _run(reset: true));
     }
 
     if (_results.isEmpty) {
@@ -529,10 +538,12 @@ class _PhPriceSearchPageState extends ConsumerState<PhPriceSearchPage> {
       // صفحة المقارنة نفسها محصورة بصنف واحد أصلاً — لا حاجة للزرّ فيها.
       onComparePrices: widget.catalogItemId != null
           ? null
-          : () => context.push(TRoutes.phPriceCompareItem(
+          : () => context.push(
+              TRoutes.phPriceCompareItem(
                 catalogItemId: r.catalogItemId,
                 name: r.medicineName,
-              )),
+              ),
+            ),
     ),
   );
 }
@@ -568,7 +579,7 @@ class _PriceResultCard extends StatelessWidget {
     final r = result;
     final hasBonus = r.hasBonus;
 
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: 14,
@@ -599,7 +610,9 @@ class _PriceResultCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         r.specLine,
-                        style: context.text.labelSmall?.copyWith(color: tk.hint),
+                        style: context.text.labelSmall?.copyWith(
+                          color: tk.hint,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -608,7 +621,9 @@ class _PriceResultCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         'الشركة المصنعة: ${r.manufacturerName}',
-                        style: context.text.labelSmall?.copyWith(color: tk.hint),
+                        style: context.text.labelSmall?.copyWith(
+                          color: tk.hint,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -631,6 +646,10 @@ class _PriceResultCard extends StatelessWidget {
                 // الصيدلي كميته قبل الإضافة لا بعدها.
                 BonusBadge(label: r.bonusLabel!),
               ],
+              // أيقونة المعلومات في نهاية القراءة (يسار): تفصيل الدواء
+              // الكامل عند الطلب بدل حشره في البطاقة لكل نتيجة.
+              const SizedBox(width: AppSpacing.xs),
+              _InfoDot(result: r),
             ],
           ),
 
@@ -665,6 +684,32 @@ class _PriceResultCard extends StatelessWidget {
             ),
           ],
 
+          // السعر فوق الخط مع بقية وصف الصنف: هو معلومة لا إجراء، ومكانه
+          // تحت الفاصل كان يزاحم الأزرار على السطر نفسه.
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                // السعر المشتقّ سعرٌ يُشترى به، لكن تسميته تقول مصدره:
+                // قد يعدّله المستودع متى أدخل سعره يدوياً.
+                r.isDerivedPrice ? 'سعر تقديري' : 'سعر الوحدة',
+                style: context.text.bodySmall?.copyWith(color: tk.hint),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              if (r.isUnpriced)
+                Text(
+                  r.unpricedReason,
+                  style: context.text.bodyMedium?.copyWith(color: tk.hint),
+                )
+              else
+                Text(
+                  formatMoneyWith(r.netUnitPrice!, r.currency),
+                  style: context.priceStyle,
+                ),
+            ],
+          ),
+
           const SizedBox(height: 10),
           Divider(color: cs.outline, height: 1),
           const SizedBox(height: 10),
@@ -672,8 +717,8 @@ class _PriceResultCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // مجموعة الأزرار في مساحة مرنة تلتفّ بسطر ثانٍ عند الازدحام
-              // (ثلاثة أزرار محتملة + رابط التفاصيل) بدل أن تفيض عن البطاقة.
+              // السطر الأخير للإجراءات وحدها: الإضافة والمقارنة. رابط
+              // «تفاصيل العرض» زال — البطاقة كلها صارت قابلة للضغط إليه.
               Expanded(
                 child: Wrap(
                   spacing: AppSpacing.md,
@@ -710,56 +755,25 @@ class _PriceResultCard extends StatelessWidget {
                         variant: AppButtonVariant.tonal,
                         onPressed: onComparePrices,
                       ),
-                    if (onOfferDetails != null)
-                      InkWell(
-                        onTap: onOfferDetails,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppIcon(
-                              AppIcons.chevronForwardRtl,
-                              size: 14,
-                              color: cs.primary,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              'تفاصيل العرض',
-                              style: context.text.bodySmall?.copyWith(
-                                color: cs.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                   ],
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    // السعر المشتقّ سعرٌ يُشترى به، لكن تسميته تقول مصدره:
-                    // قد يعدّله المستودع متى أدخل سعره يدوياً.
-                    r.isDerivedPrice ? 'سعر تقديري' : 'سعر الوحدة',
-                    style: context.text.bodySmall?.copyWith(color: tk.hint),
-                  ),
-                  if (r.isUnpriced)
-                    Text(
-                      r.unpricedReason,
-                      style: context.text.bodyMedium?.copyWith(color: tk.hint),
-                    )
-                  else
-                    Text(
-                      formatMoneyWith(r.netUnitPrice!, r.currency),
-                      style: context.priceStyle,
-                    ),
-                ],
               ),
             ],
           ),
         ],
+      ),
+    );
+
+    // البطاقة كلها مدخلٌ إلى تفاصيل العرض حين يكون لها عرض — أوسع هدفاً
+    // من رابط نصّي، ويُحرّر السطر الأخير للإجراءات.
+    if (onOfferDetails == null) return card;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onOfferDetails,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: card,
       ),
     );
   }
@@ -773,6 +787,128 @@ class _PriceResultCard extends StatelessWidget {
         const SizedBox(width: 4),
         Text(text, style: context.text.labelSmall?.copyWith(color: tk.hint)),
       ],
+    );
+  }
+}
+
+// أيقونة معلومات داخل بطاقة النتيجة — تفتح بطاقة تعريف الدواء.
+//
+// الضغط يُوقَف هنا عن الوصول إلى البطاقة (البطاقة كلها تفتح تفاصيل العرض):
+// ضغطةٌ على ⓘ يُفترض أن تشرح الصنف لا أن تُغادر الشاشة.
+class _InfoDot extends StatelessWidget {
+  const _InfoDot({required this.result});
+
+  final MedicineSearchResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    return InkWell(
+      onTap: () => _MedicineInfoSheet.show(context, result),
+      customBorder: const CircleBorder(),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        child: AppIcon(AppIcons.info, size: 18, color: tk.hint),
+      ),
+    );
+  }
+}
+
+// بطاقة تعريف الدواء: ما يحتاجه الصيدلي ليتأكّد أنه الصنف الصحيح قبل
+// الإضافة — المادة الفعالة خاصّةً، وهي أصدق مُميِّز من الاسم التجاري.
+class _MedicineInfoSheet extends StatelessWidget {
+  const _MedicineInfoSheet({required this.result});
+
+  final MedicineSearchResult result;
+
+  static Future<void> show(BuildContext context, MedicineSearchResult result) =>
+      showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.lg),
+          ),
+        ),
+        builder: (_) => _MedicineInfoSheet(result: result),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final r = result;
+    final tk = context.tokens;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          AppSpacing.lg,
+          AppSpacing.page,
+          AppSpacing.x2l,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                AppIcon(AppIcons.pill, size: 20, color: context.colors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(r.medicineName, style: context.text.titleMedium),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+
+            _row(context, 'المادة الفعالة', r.genericName),
+            _row(context, 'الاسم التجاري', r.brandName),
+            _row(context, 'الشكل الدوائي', _dosageText(r)),
+            _row(context, 'الشركة المصنعة', r.manufacturerName),
+            _row(context, 'المستودع', r.warehouseLabel),
+            if (r.isOffer && r.salesOfferTitle != null)
+              _row(context, 'ضمن عرض', r.salesOfferTitle!),
+            if (r.hasBonus) _row(context, 'البونص', r.bonusLabel!),
+
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'البيانات الدوائية من كتالوج الأدوية المعتمد.',
+              style: context.text.labelSmall?.copyWith(color: tk.hint),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _dosageText(MedicineSearchResult r) {
+    if (r.dosageForm == null) return '';
+    final strength = r.strength;
+    return strength != null && strength > 0
+        ? '${r.dosageForm!.label} ${strength.toStringAsFixed(0)}'
+        : r.dosageForm!.label;
+  }
+
+  // الحقل الفارغ يُحذف لا يُعرض فارغاً: سطرٌ بلا قيمة يوهم نقص البيانات
+  // بينما هي ببساطة غير مسجَّلة لهذا الصنف.
+  Widget _row(BuildContext context, String label, String value) {
+    if (value.isEmpty) return const SizedBox.shrink();
+    final tk = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 108,
+            child: Text(
+              label,
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+            ),
+          ),
+          Expanded(child: Text(value, style: context.text.bodyMedium)),
+        ],
+      ),
     );
   }
 }
@@ -814,7 +950,10 @@ class _FiltersButton extends StatelessWidget {
             child: Container(
               width: 18,
               height: 18,
-              decoration: BoxDecoration(color: tk.brandDeep, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: tk.brandDeep,
+                shape: BoxShape.circle,
+              ),
               child: Center(
                 child: Text(
                   '$count',
@@ -876,8 +1015,9 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
 
   late MedicineSearchSource _source = widget.source;
   late MedicineSearchSort _sort = widget.sort;
-  late String? _pickedMfr =
-      widget.manufacturer.isEmpty ? null : widget.manufacturer;
+  late String? _pickedMfr = widget.manufacturer.isEmpty
+      ? null
+      : widget.manufacturer;
 
   final _mfrSearchCtrl = TextEditingController();
 
@@ -903,9 +1043,11 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
       final warehouseId = widget.warehouseId;
       final list = warehouseId != null
           ? await ref
-              .read(medicineSearchRepositoryProvider)
-              .getWarehouseManufacturers(warehouseId)
-          : await ref.read(medicineCatalogRepositoryProvider).getManufacturers();
+                .read(medicineSearchRepositoryProvider)
+                .getWarehouseManufacturers(warehouseId)
+          : await ref
+                .read(medicineCatalogRepositoryProvider)
+                .getManufacturers();
       if (!mounted) return;
       setState(() {
         _manufacturers = list;
@@ -957,13 +1099,14 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
             const SizedBox(height: AppSpacing.lg),
 
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
               child: Row(
                 children: [
                   Expanded(
-                    child:
-                        Text('فلاتر البحث', style: context.text.headlineSmall),
+                    child: Text(
+                      'فلاتر البحث',
+                      style: context.text.headlineSmall,
+                    ),
                   ),
                   TextButton(
                     onPressed: () {
@@ -1120,8 +1263,8 @@ class _PriceFiltersSheetState extends ConsumerState<_PriceFiltersSheet> {
             icon: AppIcons.package,
             title: name,
             selected: _pickedMfr == name,
-            onTap: () => setState(
-                () => _pickedMfr = _pickedMfr == name ? null : name),
+            onTap: () =>
+                setState(() => _pickedMfr = _pickedMfr == name ? null : name),
           ),
         ],
 

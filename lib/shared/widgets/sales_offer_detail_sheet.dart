@@ -50,7 +50,7 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
   SalesOfferDetail? _offer;
   bool _loading = true;
   bool _sharing = false;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -71,7 +71,7 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
       });
     } catch (e) {
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -109,7 +109,7 @@ class _SalesOfferDetailSheetState extends State<SalesOfferDetailSheet> {
         }
         if (_error != null) {
           return SafeArea(
-            child: Padding(padding: const EdgeInsets.all(AppSpacing.lg), child: ErrorState(message: _error!, onRetry: _load)),
+            child: Padding(padding: const EdgeInsets.all(AppSpacing.lg), child: ErrorState.of(_error!, onRetry: _load)),
           );
         }
         final offer = _offer!;

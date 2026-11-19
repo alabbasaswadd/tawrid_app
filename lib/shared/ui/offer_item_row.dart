@@ -26,6 +26,7 @@ class OfferItemRow extends StatelessWidget {
     this.onDelete,
     this.selected = false,
     this.onSelectedChanged,
+    this.actions = const [],
     super.key,
   });
 
@@ -49,6 +50,12 @@ class OfferItemRow extends StatelessWidget {
   // لسياق «اختيار» فقط.
   final bool selected;
   final ValueChanged<bool>? onSelectedChanged;
+
+  /// إجراءات الصنف — تُرسَم داخل البطاقة أسفل بياناته بعد فاصل.
+  ///
+  /// داخلها لا تحتها: زرٌّ طافٍ تحت البطاقة يُقرأ منفصلاً عنها، فلا يَبين
+  /// أيّ صنف يخصّ حين تتتابع البطاقات.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +138,19 @@ class OfferItemRow extends StatelessWidget {
                 ),
             ],
           ),
+
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Divider(height: 1, color: cs.outline),
+            const SizedBox(height: AppSpacing.sm),
+            // Wrap لا Row: زرّان بنصّ عربي طويل يفيضان على شاشة ضيّقة،
+            // وهنا ينزلان سطراً ثانياً بدل أن يُقصّا.
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: actions,
+            ),
+          ],
         ],
       ),
     );

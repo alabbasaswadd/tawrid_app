@@ -37,9 +37,9 @@ abstract final class AppSizes {
   static const double buttonHeight = 48.0;
   static const double buttonPaddingX = 24.0;
 
-  /// زرّ داخل بطاقة: ارتفاع ٣٢ بحشو أفقي ١٢. الحشو الأوسع كان يمدّ الزرّ
+  /// زرّ داخل بطاقة: ارتفاع ٣٦ بحشو أفقي ١٢. الحشو الأوسع كان يمدّ الزرّ
   /// عرضاً أكثر مما يرتفع فيبدو شريطاً مسطّحاً لا زرّاً.
-  static const double buttonHeightCompact = 32.0;
+  static const double buttonHeightCompact = 36.0;
   static const double buttonPaddingXCompact = 12.0;
 
   /// الأزرار الدائرية في الأشرطة العلوية.

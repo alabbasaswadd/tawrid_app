@@ -317,7 +317,7 @@ class _CatalogPickerSheet extends ConsumerStatefulWidget {
 class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
   List<MedicineCatalogItem> _results = const [];
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
   Timer? _debounce;
 
   late final Map<String, int> _selected = {
@@ -363,7 +363,7 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -436,8 +436,8 @@ class _CatalogPickerSheetState extends ConsumerState<_CatalogPickerSheet> {
             child: _loading
                 ? const AppListSkeleton(variant: SkeletonVariant.row)
                 : _error != null
-                    ? ErrorState(
-                        message: _error!, onRetry: () => _search(''))
+                    ? ErrorState.of(
+                        _error!, onRetry: () => _search(''))
                     : _results.isEmpty
                         ? const EmptyState(
                             icon: Icons.medication_outlined,

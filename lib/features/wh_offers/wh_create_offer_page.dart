@@ -68,6 +68,7 @@ class _OfferItemDraft {
   final TextEditingController quantity;
   final TextEditingController unitPrice;
   final TextEditingController discount;
+  bool isOpenQuantity = false;
 
   /// سلّم البونص لهذا الصنف — «(10+5) (5+2) (3+1)». فارغ = لا بونص.
   final List<_BonusTierDraft> bonusTiers = [];
@@ -258,7 +259,7 @@ class _WhCreateOfferPageState extends ConsumerState<WhCreateOfferPage> {
                 id: '',
                 medicineName: d.medicine.displayName,
                 catalogItemId: d.medicine.catalogItemId,
-                quantity: double.tryParse(d.quantity.text.trim()) ?? 1,
+                quantity: d.isOpenQuantity ? 0 : (double.tryParse(d.quantity.text.trim()) ?? 1),
                 unit: d.unit.text.trim(),
                 unitPrice: double.tryParse(d.unitPrice.text) ?? 0,
                 discountPercentage:
@@ -573,13 +574,19 @@ class _DatePickerField extends StatelessWidget {
   }
 }
 
-class _OfferItemCard extends StatelessWidget {
+class _OfferItemCard extends StatefulWidget {
   const _OfferItemCard({required this.draft, required this.onRemove});
   final _OfferItemDraft draft;
   final VoidCallback onRemove;
 
   @override
+  State<_OfferItemCard> createState() => _OfferItemCardState();
+}
+
+class _OfferItemCardState extends State<_OfferItemCard> {
+  @override
   Widget build(BuildContext context) {
+    final draft = widget.draft;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Padding(
@@ -595,9 +602,26 @@ class _OfferItemCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.error),
-                  onPressed: onRemove,
+                  onPressed: widget.onRemove,
                 ),
               ],
+            ),
+            InkWell(
+              onTap: () => setState(() => draft.isOpenQuantity = !draft.isOpenQuantity),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: draft.isOpenQuantity,
+                    onChanged: (v) =>
+                        setState(() => draft.isOpenQuantity = v ?? false),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  Text('كمية مفتوحة / غير محددة',
+                      style: context.text.bodySmall),
+                ],
+              ),
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,13 +629,13 @@ class _OfferItemCard extends StatelessWidget {
                 Expanded(
                   child: TextFormField(
                     controller: draft.quantity,
+                    enabled: !draft.isOpenQuantity,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                         labelText: 'الكمية المتاحة', isDense: true),
                     validator: (v) {
+                      if (draft.isOpenQuantity) return null;
                       final q = double.tryParse((v ?? '').trim());
-                      // الخادم يشترط Quantity > 0، فنمنع الرفض هنا بدل
-                      // ترك المستخدم يصطدم بـ400 بعد ملء النموذج كاملاً.
                       if (q == null || q <= 0) return 'كمية غير صالحة';
                       return null;
                     },
@@ -758,7 +782,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
   final Set<String> _selected = {};
   List<WarehouseMedicine>? _medicines;
   bool _loading = true;
-  String? _error;
+  ApiException? _error;
 
   @override
   void initState() {
@@ -781,7 +805,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
       });
     } catch (e) {
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
@@ -831,7 +855,7 @@ class _MedicinePickerSheetState extends ConsumerState<_MedicinePickerSheet> {
 
   Widget _buildList(ScrollController scrollController) {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final query = _search.text.trim();
     final available = (_medicines ?? [])

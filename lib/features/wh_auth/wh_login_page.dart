@@ -77,17 +77,12 @@ class _WhLoginPageState extends ConsumerState<WhLoginPage> {
                   const SizedBox(height: AppSpacing.xl),
                   Column(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        child: Image.asset(
-                          'assets/images/logo.jpg',
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                        ),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        width: 60,
+                        fit: BoxFit.fitWidth,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text('توريد', style: context.text.displayMedium),
+                      const SizedBox(height: AppSpacing.sm),
                       Text('بوابة المستودع', style: context.text.bodySmall),
                     ],
                   ),

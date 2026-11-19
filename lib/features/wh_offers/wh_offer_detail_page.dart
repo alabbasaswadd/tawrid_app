@@ -10,6 +10,7 @@ import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/utils/money.dart';
 import 'package:tawrid_app/shared/utils/relative_time.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
+import 'package:tawrid_app/shared/widgets/chat_sheet.dart';
 
 double _netUnitPrice(SalesOfferItem i) =>
     i.unitPrice * (1 - (i.discountPercentage ?? 0) / 100);
@@ -30,22 +31,14 @@ class WhOfferDetailPage extends ConsumerStatefulWidget {
 
 class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
   SalesOfferDetail? _offer;
-  List<OfferComment> _comments = const [];
   bool _loading = true;
   bool _busy = false;
-  String? _error;
-  final _reply = TextEditingController();
+  ApiException? _error;
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _reply.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -54,28 +47,30 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
       _error = null;
     });
     try {
-      final repo = ref.read(salesOfferRepositoryProvider);
-      final offer = await repo.getWarehouseOfferById(widget.offerId);
-      // التعليقات تفصيل مكمّل: فشلها لا يمنع عرض العرض نفسه.
-      List<OfferComment> comments;
-      try {
-        comments = await repo.getWarehouseComments(widget.offerId);
-      } catch (_) {
-        comments = const [];
-      }
+      final offer = await ref.read(salesOfferRepositoryProvider).getWarehouseOfferById(widget.offerId);
       if (!mounted) return;
       setState(() {
         _offer = offer;
-        _comments = comments;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiException.from(e).message;
+        _error = ApiException.from(e);
         _loading = false;
       });
     }
+  }
+
+  void _openChat() {
+    final repo = ref.read(salesOfferRepositoryProvider);
+    ChatSheet.show(
+      context,
+      title: 'تعليقات العرض',
+      currentUserType: 'warehouse',
+      loadMessages: () => repo.getWarehouseComments(widget.offerId),
+      sendMessage: (text) => repo.addWarehouseComment(widget.offerId, text),
+    );
   }
 
   Future<void> _publish() async {
@@ -126,34 +121,19 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
     }
   }
 
-  Future<void> _sendReply() async {
-    final text = _reply.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(salesOfferRepositoryProvider)
-          .addWarehouseComment(widget.offerId, text);
-      _reply.clear();
-      if (!mounted) return;
-      await _load();
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// سؤال بلا ردّ: آخر تعليق من صيدلية ولم يردّ المستودع بعده.
-  bool get _awaitingReply =>
-      _comments.isNotEmpty &&
-      _comments.last.authorType == CommentAuthorType.pharmacy;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const InnerTopBar(title: 'تفاصيل العرض'),
+      appBar: InnerTopBar(
+        title: 'تفاصيل العرض',
+        trailing: _offer == null
+            ? null
+            : IconButton(
+                tooltip: 'التعليقات',
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                onPressed: _openChat,
+              ),
+      ),
       body: _buildBody(),
       bottomNavigationBar: _offer == null ? null : _buildActions(),
     );
@@ -161,10 +141,9 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
 
   Widget _buildBody() {
     if (_loading) return const AppDetailSkeleton();
-    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
+    if (_error != null) return ErrorState.of(_error!, onRetry: _load);
 
     final o = _offer!;
-    final cs = context.colors;
     final tk = context.tokens;
 
     final (label, tone) = switch (o.status) {
@@ -307,8 +286,10 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
                   Row(
                     children: [
                       Text(
-                        'الكمية في العرض: '
-                        '${item.quantity.toStringAsFixed(0)} ${item.unit}',
+                        item.quantity <= 0
+                            ? 'الكمية في العرض: مفتوحة'
+                            : 'الكمية في العرض: '
+                                '${item.quantity.toStringAsFixed(0)} ${item.unit}',
                         style:
                             context.text.labelSmall?.copyWith(color: tk.hint),
                       ),
@@ -352,48 +333,6 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
           ),
         ],
 
-        const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            Expanded(
-              child: Text('تعليقات الصيدليات (${_comments.length})',
-                  style: context.text.titleLarge),
-            ),
-            // سؤال بلا ردّ إشارة عمل لا زينة: الصيدلية تنتظر جواباً.
-            if (_awaitingReply)
-              const StatusBadge(
-                  label: 'سؤال بانتظار ردك', tone: StatusTone.warning),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-
-        if (_comments.isEmpty)
-          Text('لا تعليقات على هذا العرض بعد.',
-              style: context.text.bodySmall?.copyWith(color: tk.hint))
-        else
-          for (final c in _comments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _CommentBubble(comment: c),
-            ),
-
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: AppTextField(
-                controller: _reply,
-                hint: 'اكتب رداً على الصيدليات…',
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            IconButton.filled(
-              onPressed: _busy ? null : _sendReply,
-              icon: const Icon(Icons.send, size: 18),
-              style: IconButton.styleFrom(backgroundColor: cs.primary),
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -444,47 +383,6 @@ class _WhOfferDetailPageState extends ConsumerState<WhOfferDetailPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _CommentBubble extends StatelessWidget {
-  const _CommentBubble({required this.comment});
-  final OfferComment comment;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-    final mine = comment.authorType == CommentAuthorType.warehouse;
-
-    return AppCard(
-      color: mine ? tk.brandSurface : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                mine ? Icons.warehouse_outlined : Icons.local_pharmacy_outlined,
-                size: 15,
-                color: cs.primary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(comment.authorName,
-                    style: context.text.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              Text(formatSmartTimestamp(comment.createdOn),
-                  style: context.text.labelSmall?.copyWith(color: tk.hint)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(comment.content, style: context.text.bodySmall),
-        ],
       ),
     );
   }

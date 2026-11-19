@@ -115,6 +115,11 @@ class SalesOfferItem {
   final String id;
   final String medicineName;
   final String? catalogItemId;
+
+  /// الشركة الصانعة من الكتالوج — فارغة للأصناف المُدخَلة يدوياً.
+  /// خاصية الصنف لا العرض: عرض واحد قد يجمع شركات شتّى.
+  final String? manufacturerName;
+
   final double quantity;
   final String unit;
   final double unitPrice;
@@ -131,6 +136,7 @@ class SalesOfferItem {
     required this.id,
     required this.medicineName,
     this.catalogItemId,
+    this.manufacturerName,
     required this.quantity,
     required this.unit,
     required this.unitPrice,
@@ -143,6 +149,7 @@ class SalesOfferItem {
         id: j['id'] as String,
         medicineName: j['medicineName'] as String,
         catalogItemId: j['catalogItemId'] as String?,
+        manufacturerName: j['manufacturerName'] as String?,
         quantity: (j['quantity'] as num).toDouble(),
         unit: j['unit'] as String,
         unitPrice: (j['unitPrice'] as num).toDouble(),

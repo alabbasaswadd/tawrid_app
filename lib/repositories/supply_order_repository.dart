@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tawrid_app/core/network/api_client.dart';
 import 'package:tawrid_app/core/network/api_endpoints.dart';
 import 'package:tawrid_app/models/enums.dart';
+import 'package:tawrid_app/models/sales_offer_models.dart';
 import 'package:tawrid_app/models/supply_order_models.dart';
 
 final supplyOrderRepositoryProvider = Provider<SupplyOrderRepository>((ref) {
@@ -103,4 +104,38 @@ class SupplyOrderRepository {
       'comment': comment,
     });
   }
+
+  // ── رسائل الطلبية ─────────────────────────────────────────────────────────
+  Future<List<OfferComment>> getPharmacyOrderMessages(String id) async {
+    final raw = await _api.get(ApiEndpoints.phOrderMessages(id));
+    final data = ApiClient.itemsOf(raw);
+    return data.map((e) => _msgToComment(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<OfferComment> addPharmacyOrderMessage(String id, String content) async {
+    final data = await _api.post(ApiEndpoints.phOrderMessages(id),
+        data: {'content': content}) as Map<String, dynamic>;
+    return _msgToComment(data);
+  }
+
+  Future<List<OfferComment>> getWarehouseOrderMessages(String id) async {
+    final raw = await _api.get(ApiEndpoints.whOrderMessages(id));
+    final data = ApiClient.itemsOf(raw);
+    return data.map((e) => _msgToComment(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<OfferComment> addWarehouseOrderMessage(String id, String content) async {
+    final data = await _api.post(ApiEndpoints.whOrderMessages(id),
+        data: {'content': content}) as Map<String, dynamic>;
+    return _msgToComment(data);
+  }
+
+  static OfferComment _msgToComment(Map<String, dynamic> j) => OfferComment(
+        id: j['id'] as String,
+        authorType: CommentAuthorType.fromCode(j['authorType'] as int),
+        authorId: '',
+        authorName: j['authorName'] as String,
+        content: j['content'] as String,
+        createdOn: DateTime.parse(j['createdOn'] as String),
+      );
 }

@@ -51,6 +51,9 @@ import 'package:tawrid_app/features/wh_offers/wh_offer_detail_page.dart';
 import 'package:tawrid_app/features/wh_offers/wh_offers_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_order_detail_page.dart';
 import 'package:tawrid_app/features/wh_orders/wh_orders_page.dart';
+import 'package:tawrid_app/features/conversations/conversation_chat_page.dart';
+import 'package:tawrid_app/features/conversations/conversations_page.dart';
+import 'package:tawrid_app/features/wh_announcements/wh_announcements_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_submit_tender_offer_page.dart';
 import 'package:tawrid_app/features/wh_tenders/wh_tenders_page.dart';
 import 'package:tawrid_app/features/wh_users/wh_users_page.dart';
@@ -116,7 +119,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // فارغةً ورسائلَ رفضٍ متكرّرة.
       final phMustChange =
           phState is SessionAuthenticated && phState.mustChangePassword;
-      final whMustChange = whState is WarehouseSessionAuthenticated &&
+      final whMustChange =
+          whState is WarehouseSessionAuthenticated &&
           whState.mustChangePassword;
       if (phMustChange || whMustChange) {
         return loc == TRoutes.forcePasswordChange
@@ -162,15 +166,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phProfile,
         TRoutes.phReports,
         TRoutes.phTenderReports,
+        TRoutes.phConversations,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
-      final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
+      final isPhDetailRoute =
+          (loc.startsWith('/warehouses/') ||
               loc.startsWith('/offers/') ||
               loc.startsWith('/orders/') ||
               loc.startsWith('/tenders/')) &&
           loc.split('/').length == 3;
       final isPhListingRoute = loc.startsWith('/listings/');
-      if ((phRoutes.contains(loc) || isPhDetailRoute || isPhListingRoute) &&
+      final isPhConversationRoute = loc.startsWith('/conversations/');
+      if ((phRoutes.contains(loc) ||
+              isPhDetailRoute ||
+              isPhListingRoute ||
+              isPhConversationRoute) &&
           !phAuth) {
         return TRoutes.phLogin;
       }
@@ -191,6 +201,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.whOrderSettings,
         TRoutes.whNotifications,
         TRoutes.whNotificationSettings,
+        TRoutes.whConversations,
       };
       final isSubmitOfferRoute =
           loc.startsWith('/wh/tenders/') && loc.endsWith('/submit-offer');
@@ -280,9 +291,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: TRoutes.phListingDetailPattern,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, state) => PhListingDetailPage(
-          listingId: state.pathParameters['listingId']!,
-        ),
+        builder: (_, state) =>
+            PhListingDetailPage(listingId: state.pathParameters['listingId']!),
       ),
 
       // Warehouse listings — top-level, pushes over the shell (no nav bar)
@@ -366,6 +376,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const WhUsersPage(),
       ),
 
+      // إعلانات الخصم — يُنشئها المستودع ويراها الصيدليون في ملفه
+      GoRoute(
+        path: TRoutes.whAnnouncements,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhAnnouncementsPage(),
+      ),
+
+      // ── المحادثات المباشرة ───────────────────────────────────────────────
+      // phConversations صارت branch في الشيل (index 2) — لا مسار مستقل لها.
+      GoRoute(
+        path: TRoutes.phConversationDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => ConversationChatPage(
+          conversationId: state.pathParameters['conversationId']!,
+          title: state.uri.queryParameters['title'] ?? 'محادثة',
+          draft: state.uri.queryParameters['draft'],
+          otherPartyId: state.uri.queryParameters['partyId'],
+          otherPartyType: state.uri.queryParameters['partyType'],
+          isWarehouse: false,
+        ),
+      ),
+      // whConversations صارت branch في الشيل (index 2) — لا مسار مستقل لها.
+      GoRoute(
+        path: TRoutes.whConversationDetailPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => ConversationChatPage(
+          conversationId: state.pathParameters['conversationId']!,
+          title: state.uri.queryParameters['title'] ?? 'محادثة',
+          draft: state.uri.queryParameters['draft'],
+          otherPartyId: state.uri.queryParameters['partyId'],
+          otherPartyType: state.uri.queryParameters['partyType'],
+          isWarehouse: true,
+        ),
+      ),
+
       // البحث عن دواء (الصيدلي) — يُفتح من الرئيسية
       GoRoute(
         path: TRoutes.phMedicineSearch,
@@ -384,9 +429,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       // كاتالوج المستودعات — «من يبيعه الآن وبكم؟»، يُفتح من الرئيسية
       // ومن الكتالوج الوطني معاً.
       GoRoute(
+        path: TRoutes.phWarehouseCatalogOfPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => PhWarehouseCatalogPage(
+          initialWarehouseId: state.pathParameters['warehouseId'],
+          initialWarehouseName: state.uri.queryParameters['name'],
+        ),
+      ),
+      // المدخل يفتح المستودعات لا الأدوية: سؤال الصيدلي الأول «من
+      // يخدمني؟»، وكتالوج كلٍّ منها خلف بطاقته.
+      GoRoute(
         path: TRoutes.phWarehouseCatalog,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const PhWarehouseCatalogPage(),
+        builder: (_, _) => const PhWarehousesPage(),
       ),
 
       // بحث الأسعار المقارن — عروض وتسعير مباشر معاً، ومنه تُبنى السلّة.
@@ -399,8 +454,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           warehouseId: state.uri.queryParameters['warehouseId'],
           warehouseName: state.uri.queryParameters['warehouseName'],
           catalogItemId: state.uri.queryParameters['catalogItemId'],
-          includeAlternatives:
-              state.uri.queryParameters['alternatives'] == '1',
+          includeAlternatives: state.uri.queryParameters['alternatives'] == '1',
         ),
       ),
 
@@ -457,7 +511,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-
       // تفاصيل طلبية التوريد — المسار والأصناف والفاتورة ومشاركة PDF
       GoRoute(
         path: TRoutes.phOrderDetailPattern,
@@ -484,6 +537,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PhTendersPage(),
       ),
 
+      // قائمة المستودعات — أُزيلت من شريط التنقل لكنّها تظل متاحة
+      // من الرئيسية وملفات العروض والمحادثات.
+      GoRoute(
+        path: TRoutes.phWarehouses,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PhWarehousesPage(),
+      ),
+
       // Pharmacy shell
       StatefulShellRoute.indexedStack(
         builder: (context, _, shell) => PhShell(navigationShell: shell),
@@ -507,8 +568,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.phWarehouses,
-                builder: (_, _) => const PhWarehousesPage(),
+                path: TRoutes.phConversations,
+                builder: (_, _) => const ConversationsPage(isWarehouse: false),
               ),
             ],
           ),
@@ -531,7 +592,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Warehouse shell
+      // عروض المستودع — أُزيلت من شريط التنقل لكنّها تظل متاحة من الرئيسية.
+      GoRoute(
+        path: TRoutes.whOffers,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const WhOffersPage(),
+      ),
+
+      // Warehouse shell — الرئيسية، الطلبات، الرسائل، أدويتي، حسابي.
       StatefulShellRoute.indexedStack(
         builder: (context, _, shell) => WhShell(navigationShell: shell),
         branches: [
@@ -543,21 +611,19 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // ترتيب الفروع يحدّد ترتيب التبويبات، فيطابق شريط التنقل:
-          // الرئيسية، العروض، الطلبات، أدويتي، حسابي.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.whOffers,
-                builder: (_, _) => const WhOffersPage(),
+                path: TRoutes.whOrders,
+                builder: (_, _) => const WhOrdersPage(),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: TRoutes.whOrders,
-                builder: (_, _) => const WhOrdersPage(),
+                path: TRoutes.whConversations,
+                builder: (_, _) => const ConversationsPage(isWarehouse: true),
               ),
             ],
           ),

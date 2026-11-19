@@ -62,6 +62,7 @@ class FiltersBtn extends StatelessWidget {
     );
   }
 }
+
 class FilterChipCloseable extends StatelessWidget {
   const FilterChipCloseable({required this.label, required this.onRemove});
   final String label;
@@ -100,6 +101,7 @@ class FilterChipCloseable extends StatelessWidget {
     );
   }
 }
+
 // ── سطر خيار موحّد في ورقة الفلاتر ──────────────────────────────────────
 class FilterOptionRow extends StatelessWidget {
   const FilterOptionRow({
