@@ -93,7 +93,9 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
       });
     }
     try {
-      var list = await ref.read(medicineCatalogRepositoryProvider).search(
+      var list = await ref
+          .read(medicineCatalogRepositoryProvider)
+          .search(
             name: query.isEmpty ? null : query,
             manufacturer: _catalogManufacturer,
             limit: _catalogPageSize,
@@ -141,16 +143,18 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
   }
 
   Future<void> _openFilters() async {
-    final result = await showModalBottomSheet<
-        ({String? manufacturer, DosageForm? dosageForm})>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CatalogFilterSheet(
-        manufacturer: _catalogManufacturer,
-        dosageForm: _catalogDosageForm,
-      ),
-    );
+    final result =
+        await showModalBottomSheet<
+          ({String? manufacturer, DosageForm? dosageForm})
+        >(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _CatalogFilterSheet(
+            manufacturer: _catalogManufacturer,
+            dosageForm: _catalogDosageForm,
+          ),
+        );
     if (result == null || !mounted) return;
     if (result.manufacturer == _catalogManufacturer &&
         result.dosageForm == _catalogDosageForm) {
@@ -180,10 +184,7 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
     return Scaffold(
       appBar: InnerTopBar(
         title: 'كتالوج الأدوية',
-        trailing: FiltersBtn(
-          count: _activeFilterCount,
-          onTap: _openFilters,
-        ),
+        trailing: FiltersBtn(count: _activeFilterCount, onTap: _openFilters),
       ),
       body: Column(
         children: [
@@ -310,9 +311,7 @@ class _PhMedicineSearchPageState extends ConsumerState<PhMedicineSearchPage> {
       },
     );
   }
-
 }
-
 
 // ── شريط الفلاتر النشطة ──────────────────────────────────────────────────
 class _ActiveFiltersRow extends StatelessWidget {
@@ -347,8 +346,6 @@ class _ActiveFiltersRow extends StatelessWidget {
     );
   }
 }
-
-
 
 // ── ورقة فلاتر الكاتالوج الوطني ──────────────────────────────────────────
 class _CatalogFilterSheet extends ConsumerStatefulWidget {
@@ -386,8 +383,9 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
 
   Future<void> _loadManufacturers() async {
     try {
-      final list =
-          await ref.read(medicineCatalogRepositoryProvider).getManufacturers();
+      final list = await ref
+          .read(medicineCatalogRepositoryProvider)
+          .getManufacturers();
       if (!mounted) return;
       setState(() {
         _manufacturers = list;
@@ -539,10 +537,10 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
               ),
               child: AppButton(
                 label: 'تطبيق',
-                onPressed: () => Navigator.pop(
-                  context,
-                  (manufacturer: _pickedMfr, dosageForm: _pickedForm),
-                ),
+                onPressed: () => Navigator.pop(context, (
+                  manufacturer: _pickedMfr,
+                  dosageForm: _pickedForm,
+                )),
               ),
             ),
           ],
@@ -551,14 +549,6 @@ class _CatalogFilterSheetState extends ConsumerState<_CatalogFilterSheet> {
     );
   }
 }
-
-
-
-
-
-
-
-
 
 // ── ورقة تفاصيل الدواء ───────────────────────────────────────────────────
 class _MedicineDetailSheet extends StatelessWidget {
@@ -570,8 +560,9 @@ class _MedicineDetailSheet extends StatelessWidget {
     final cs = context.colors;
     final tk = context.tokens;
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -620,19 +611,24 @@ class _MedicineDetailSheet extends StatelessWidget {
             Divider(color: cs.outline),
             const SizedBox(height: AppSpacing.sm),
             _priceRow(
-                context, 'سعر الصيدلي', item.pricePharmacist, item.currency),
-            _priceRow(
-                context, 'سعر الجمهور', item.pricePublic, item.currency),
+              context,
+              'سعر الصيدلي',
+              item.pricePharmacist,
+              item.currency,
+            ),
+            _priceRow(context, 'سعر الجمهور', item.pricePublic, item.currency),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
               label: 'ابحث عنه في المستودعات',
               onPressed: () {
                 final router = GoRouter.of(context);
                 Navigator.of(context).pop();
-                router.push(TRoutes.phMedicineInWarehouses(
-                  catalogItemId: item.id,
-                  name: item.displayName,
-                ));
+                router.push(
+                  TRoutes.phMedicineInWarehouses(
+                    catalogItemId: item.id,
+                    name: item.displayName,
+                  ),
+                );
               },
             ),
           ],
@@ -652,8 +648,9 @@ class _MedicineDetailSheet extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: context.text.bodySmall
-                  ?.copyWith(color: context.tokens.hint),
+              style: context.text.bodySmall?.copyWith(
+                color: context.tokens.hint,
+              ),
             ),
           ),
           Expanded(child: Text(value, style: context.text.bodyMedium)),
@@ -676,17 +673,14 @@ class _MedicineDetailSheet extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: context.text.bodySmall
-                  ?.copyWith(color: context.tokens.hint),
+              style: context.text.bodySmall?.copyWith(
+                color: context.tokens.hint,
+              ),
             ),
           ),
-          Text(
-            formatMoneyWith(value, currency),
-            style: context.priceStyle,
-          ),
+          Text(formatMoneyWith(value, currency), style: context.priceStyle),
         ],
       ),
     );
   }
 }
-

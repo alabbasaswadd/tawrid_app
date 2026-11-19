@@ -40,6 +40,12 @@ abstract final class TRoutes {
   /// عن الكتالوج الوطني: سؤالٌ آخر ومجموعةُ فلاترٍ أخرى.
   static const String phWarehouseCatalog = '/medicines/warehouse-catalog';
 
+  /// كتالوج مستودع بعينه — يُفتح من بطاقته في قائمة المستودعات.
+  static const String phWarehouseCatalogOfPattern =
+      '/medicines/warehouse-catalog/:warehouseId';
+  static String phWarehouseCatalogOf(String id, String name) =>
+      '/medicines/warehouse-catalog/$id?name=${Uri.encodeComponent(name)}';
+
   /// بحث الأسعار محصوراً بمستودع واحد — يُفتح من ملف المستودع.
   /// الاسم يُمرَّر للعنوان فقط؛ الخادم يفلتر بالمعرّف.
   static String phPriceSearchInWarehouse(String warehouseId, String name) =>
@@ -49,11 +55,16 @@ abstract final class TRoutes {
   /// مقارنة سعر دواء بعينه عبر كل مستودعات الصيدلية — من بطاقة نتيجة بحث.
   /// catalogItemId إن وُجد يحصر المطابقة بصنف الكتالوج بعينه؛ وإلا تُستخدم
   /// اسم الدواء نصاً فقط.
-  static String phPriceCompareItem({String? catalogItemId, required String name}) {
+  static String phPriceCompareItem({
+    String? catalogItemId,
+    required String name,
+  }) {
     final q = 'q=${Uri.encodeComponent(name)}';
-    if (catalogItemId == null || catalogItemId.isEmpty) return '$phPriceSearch?$q';
+    if (catalogItemId == null || catalogItemId.isEmpty)
+      return '$phPriceSearch?$q';
     return '$phPriceSearch?catalogItemId=$catalogItemId&$q';
   }
+
   /// توفّر دواءٍ من الكتالوج في المستودعات: مطابقاته + البدائل التي تحمل
   /// تركيبه العلمي نفسه. يحتاج معرّف صنف الكتالوج ليعرف الخادم أيّ تركيب
   /// يقصد — من دونه لا بدائل، فيبقى بحثاً عادياً بالاسم.
@@ -130,6 +141,7 @@ abstract final class TRoutes {
   static const String phConversations = '/conversations';
   static const String phConversationDetailPattern =
       '/conversations/:conversationId';
+
   /// [draft] نصّ يُعبَّأ في حقل الكتابة ولا يُرسَل — لفتح محادثة بسياقها
   /// (عرضٌ بعينه مثلاً) بدل صفحة بيضاء يبدأ منها المستخدم من الصفر.
   /// [partyId] و[partyType] يجعلان العنوان مدخلاً إلى ملف الطرف الآخر.

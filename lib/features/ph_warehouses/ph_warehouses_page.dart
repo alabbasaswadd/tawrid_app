@@ -10,17 +10,14 @@ import 'package:tawrid_app/repositories/warehouse_repository.dart';
 import 'package:tawrid_app/shared/ui/ui.dart';
 import 'package:tawrid_app/shared/widgets/app_states.dart';
 
-enum _SortMode { none, fastestAccept, fastestDelivery, fastestTotal }
-
-extension _SortModeLabel on _SortMode {
-  String get label => switch (this) {
-        _SortMode.none => 'الافتراضي',
-        _SortMode.fastestAccept => 'أسرع قبولاً',
-        _SortMode.fastestDelivery => 'أسرع تسليماً',
-        _SortMode.fastestTotal => 'الأسرع إجمالاً',
-      };
-}
-
+// كاتالوج المستودعات — المستودعات التي تخدم منطقتك، بطاقةً لكلٍّ منها.
+//
+// كانت الشاشة تفتح على قائمة أدوية مدموجة من كل المستودعات، فيبحث
+// الصيدلي في سوقٍ بلا بائعين. وسؤاله الأول «من يخدمني؟» لا «ما الأصناف
+// المتاحة؟» — فصارت المستودعات أولاً، وكتالوج كلٍّ منها خلف بطاقته.
+//
+// والتصفية بالتغطية من الخادم لا هنا: GetActiveServingPharmacyAsync
+// يقرأ مناطق خدمة كل مستودع مقابل مدينة الصيدلية.
 class PhWarehousesPage extends ConsumerStatefulWidget {
   const PhWarehousesPage({super.key});
 
@@ -29,16 +26,23 @@ class PhWarehousesPage extends ConsumerStatefulWidget {
 }
 
 class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
-  List<WarehousePicker>? _items;
+  List<WarehousePicker> _warehouses = const [];
   bool _loading = true;
   String? _error;
-  String _query = '';
-  _SortMode _sortMode = _SortMode.none;
+
+  final _searchController = TextEditingController();
+  String _search = '';
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -47,10 +51,12 @@ class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
       _error = null;
     });
     try {
-      final list = await ref.read(warehouseRepositoryProvider).getActiveWarehouses();
+      final list = await ref
+          .read(warehouseRepositoryProvider)
+          .getActiveWarehouses();
       if (!mounted) return;
       setState(() {
-        _items = list;
+        _warehouses = list;
         _loading = false;
       });
     } catch (e) {
@@ -62,313 +68,288 @@ class _PhWarehousesPageState extends ConsumerState<PhWarehousesPage> {
     }
   }
 
-  List<WarehousePicker> get _filtered {
-    final all = _items ?? const <WarehousePicker>[];
-    final q = _query.trim().toLowerCase();
-    var result = q.isEmpty
-        ? all
-        : all
-            .where((w) =>
-                w.name.toLowerCase().contains(q) ||
-                w.code.toLowerCase().contains(q) ||
-                w.city.toLowerCase().contains(q) ||
-                w.governorate.toLowerCase().contains(q))
-            .toList();
-
-    if (_sortMode == _SortMode.none) return result;
-
-    result = List.of(result);
-    const big = 9999.0; // قيمة كبيرة للمستودعات التي لا تملك بيانات
-    result.sort((a, b) {
-      final double aVal;
-      final double bVal;
-      switch (_sortMode) {
-        case _SortMode.fastestAccept:
-          aVal = a.avgAcceptanceDays ?? big;
-          bVal = b.avgAcceptanceDays ?? big;
-        case _SortMode.fastestDelivery:
-          aVal = a.avgDeliveryDays ?? big;
-          bVal = b.avgDeliveryDays ?? big;
-        case _SortMode.fastestTotal:
-          aVal = (a.avgAcceptanceDays ?? big) + (a.avgDeliveryDays ?? big);
-          bVal = (b.avgAcceptanceDays ?? big) + (b.avgDeliveryDays ?? big);
-        case _SortMode.none:
-          return 0;
-      }
-      return aVal.compareTo(bVal);
-    });
-    return result;
+  /// التصفية محلّية: القائمة قصيرة (مستودعات مدينة واحدة) وتصل كاملةً،
+  /// فرحلة شبكة لكل حرف لا تشتري شيئاً.
+  List<WarehousePicker> get _visible {
+    if (_search.isEmpty) return _warehouses;
+    final q = _search.toLowerCase();
+    return _warehouses
+        .where(
+          (w) =>
+              w.name.toLowerCase().contains(q) ||
+              w.city.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
-  void _showSortSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.page, vertical: AppSpacing.xs),
-                child: Text('ترتيب المستودعات',
-                    style: Theme.of(ctx).textTheme.titleMedium),
-              ),
-              for (final mode in _SortMode.values)
-                ListTile(
-                  title: Text(mode.label),
-                  trailing: _sortMode == mode
-                      ? Icon(Icons.check,
-                          color: Theme.of(ctx).colorScheme.primary, size: 20)
-                      : null,
-                  onTap: () {
-                    setState(() => _sortMode = mode);
-                    Navigator.of(ctx).pop();
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  void _openCatalog(WarehousePicker warehouse) =>
+      context.push(TRoutes.phWarehouseCatalogOf(warehouse.id, warehouse.name));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('المستودعات'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            tooltip: 'ترتيب',
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AppIcon(AppIcons.sliders, size: 22),
-                if (_sortMode != _SortMode.none)
-                  Positioned(
-                    top: -2,
-                    left: -2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            onPressed: _showSortSheet,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // شريط البحث ثابت في الأعلى
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.xs),
-            child: AppSearchBar(
-              hint: 'ابحث باسم المستودع أو الكود أو المدينة',
-              onChanged: (v) => setState(() => _query = v),
-            ),
-          ),
-          // القائمة قابلة للتمرير
-          Expanded(child: _buildList()),
-        ],
-      ),
+      appBar: const InnerTopBar(title: 'كاتالوج المستودعات'),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }
 
-  Widget _buildList() {
-    if (_loading) return const AppListSkeleton(variant: SkeletonVariant.row);
+  Widget _buildBody() {
+    if (_loading) return const AppListSkeleton();
     if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
-    final shown = _filtered;
-
-    if (shown.isEmpty) {
-      return UiEmpty(
-        appIcon: AppIcons.warehouse,
-        message: _query.isEmpty
-            ? 'لا مستودعات نشطة حالياً'
-            : 'لا مستودع يطابق بحثك',
+    if (_warehouses.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: AppSpacing.x3l),
+          EmptyState(
+            icon: Icons.warehouse_outlined,
+            message:
+                'لا مستودعات تخدم مدينتك حالياً — تواصل مع الدعم لإضافة '
+                'مستودعات لمنطقتك',
+          ),
+        ],
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page, AppSpacing.sm, AppSpacing.page, AppSpacing.x3l),
-        itemCount: shown.length,
-        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-        itemBuilder: (_, i) => _WarehouseCard(warehouse: shown[i]),
-      ),
-    );
-  }
-}
+    final visible = _visible;
 
-/// نص نطاق الأيام: «2 - 3 يوم» إذا توفّر min وmax، أو «3 يوم» إذا توفّر
-/// avg فقط. يُرجع null إذا لم تتوفّر أي قيمة.
-String? _daysRangeText(double? min, double? max, double? avg) {
-  final lo = min ?? avg;
-  final hi = max ?? avg;
-  if (lo == null) return null;
-  final loInt = lo.ceil();
-  final hiInt = hi?.ceil() ?? loInt;
-  if (loInt == hiInt) return '$loInt يوم';
-  return '$loInt - $hiInt يوم';
-}
-
-// كارد المستودع — مستطيل أفقي، خلفية بيضاء، بدون أيقونة كبيرة وبدون تذييل
-class _WarehouseCard extends StatelessWidget {
-  const _WarehouseCard({required this.warehouse});
-  final WarehousePicker warehouse;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.colors;
-    final tk = context.tokens;
-    final w = warehouse;
-
-    const radius = BorderRadius.all(Radius.circular(AppRadius.md));
-
-    final hasStats = w.avgAcceptanceDays != null || w.minAcceptanceDays != null
-        || w.avgDeliveryDays != null || w.minDeliveryDays != null;
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: radius,
-      child: InkWell(
-        borderRadius: radius,
-        onTap: () => context.push(TRoutes.phWarehouseProfile(w.id)),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: radius,
-            border: Border.all(color: cs.outline),
-            boxShadow: tk.cardShadow,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page,
+            AppSpacing.sm,
+            AppSpacing.page,
+            AppSpacing.sm,
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // المعلومات
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        w.name,
-                        style: context.text.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        w.code,
-                        style: context.text.labelSmall?.copyWith(color: tk.hint),
-                      ),
-                      if (w.city.isNotEmpty || w.governorate.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            AppIcon(AppIcons.mapPin, size: 12, color: tk.hint),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                w.city.isEmpty
-                                    ? w.governorate
-                                    : '${w.city}، ${w.governorate}',
-                                style: context.text.bodySmall
-                                    ?.copyWith(color: tk.hint),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (hasStats) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            if (_daysRangeText(w.minAcceptanceDays, w.maxAcceptanceDays, w.avgAcceptanceDays) != null)
-                              _StatChip(
-                                icon: AppIcons.clock,
-                                label: 'متوسط القبول',
-                                value: _daysRangeText(w.minAcceptanceDays, w.maxAcceptanceDays, w.avgAcceptanceDays)!,
-                              ),
-                            if (_daysRangeText(w.minAcceptanceDays, w.maxAcceptanceDays, w.avgAcceptanceDays) != null
-                                && _daysRangeText(w.minDeliveryDays, w.maxDeliveryDays, w.avgDeliveryDays) != null)
-                              const SizedBox(width: AppSpacing.sm),
-                            if (_daysRangeText(w.minDeliveryDays, w.maxDeliveryDays, w.avgDeliveryDays) != null)
-                              _StatChip(
-                                icon: AppIcons.truck,
-                                label: 'التسليم',
-                                value: _daysRangeText(w.minDeliveryDays, w.maxDeliveryDays, w.avgDeliveryDays)!,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                // السهم في المنتصف
-                AppIcon(AppIcons.chevronForwardRtl, size: 16, color: tk.hint),
-              ],
-            ),
+          child: AppSearchBar(
+            controller: _searchController,
+            hint: 'ابحث عن مستودع…',
+            onChanged: (v) => setState(() => _search = v.trim()),
+            onClearTap: () {
+              _searchController.clear();
+              setState(() => _search = '');
+            },
           ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${visible.length} '
+                  '${visible.length == 1 ? 'مستودع يخدم' : 'مستودعاً يخدم'} منطقتك',
+                  style: context.text.bodySmall?.copyWith(
+                    color: context.tokens.hint,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: visible.isEmpty
+              ? ListView(
+                  children: const [
+                    SizedBox(height: AppSpacing.x2l),
+                    EmptyState(
+                      icon: Icons.search_off,
+                      message: 'لا مستودع يطابق بحثك',
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    0,
+                    AppSpacing.page,
+                    AppSpacing.x3l,
+                  ),
+                  itemCount: visible.length,
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: _WarehouseCard(
+                      warehouse: visible[i],
+                      onTap: () => _openCatalog(visible[i]),
+                      onProfile: () => context.push(
+                        TRoutes.phWarehouseProfile(visible[i].id),
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }
 
-// شريحة صغيرة تعرض أيقونة + تسمية + قيمة (مثل «⏱ متوسط القبول: 2-3 يوم»)
-class _StatChip extends StatelessWidget {
-  const _StatChip({
-    required this.icon,
-    required this.label,
-    required this.value,
+// بطاقة مستودع — مُركَّبة من AppCard لا مكوّناً جديداً في نظام التصميم:
+// لا تتكرّر خارج هذه الشاشة، وإضافتها هناك تُثقل المكتبة بما لا يُعاد
+// استعماله.
+class _WarehouseCard extends StatelessWidget {
+  const _WarehouseCard({
+    required this.warehouse,
+    required this.onTap,
+    required this.onProfile,
   });
 
-  final AppIcons icon;
-  final String label;
-  final String value;
+  final WarehousePicker warehouse;
+  final VoidCallback onTap;
+  final VoidCallback onProfile;
+
+  /// «يقبل خلال ٢–٣ أيام» — نطاقٌ إن حدّده المستودع، وإلا متوسطه الفعلي.
+  ///
+  /// النطاق التزامٌ أعلنه، والمتوسط قياسٌ لما فعل — والأول أصدق وعداً
+  /// حين يوجد.
+  String? get _speedLine {
+    final min = warehouse.minAcceptanceDays;
+    final max = warehouse.maxAcceptanceDays;
+    if (min != null && max != null) {
+      return 'يقبل الطلب خلال ${_days(min)}–${_days(max)} يوم';
+    }
+
+    final avg = warehouse.avgAcceptanceDays;
+    if (avg != null && avg > 0) return 'متوسط القبول ${_days(avg)} يوم';
+    return null;
+  }
+
+  static String _days(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
   @override
   Widget build(BuildContext context) {
-    final tk = context.tokens;
     final cs = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
-      decoration: BoxDecoration(
-        color: tk.brandSurfaceSubtle,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    final tk = context.tokens;
+
+    return AppCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppIcon(icon, size: 12, color: cs.primary),
-          const SizedBox(width: 4),
-          Text(
-            '$label: $value',
-            style: context.text.labelSmall?.copyWith(color: cs.primary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Center(
+                  child: AppIcon(
+                    AppIcons.warehouse,
+                    size: 22,
+                    color: cs.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      warehouse.name,
+                      style: context.text.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${warehouse.governorate} — ${warehouse.city}',
+                      style: context.text.labelSmall?.copyWith(color: tk.hint),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // العملة تُعلَن على البطاقة: أسعار المستودع كلّها بها بلا
+              // تحويل، وهو فرقٌ يُغيّر قرار الشراء قبل فتح الكتالوج.
+              _Pill(label: warehouse.pricingCurrency),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _meta(
+                context,
+                AppIcons.mapPin,
+                // «يخدم كل المناطق» التزامٌ أضعف من عددٍ صريح، والفرق
+                // يهمّ الصيدلي فيُقال كما هو.
+                warehouse.servesAllAreas
+                    ? 'يخدم كل المناطق'
+                    : 'يخدم ${warehouse.serviceAreaCount} مدينة',
+              ),
+              if (_speedLine case final speed?)
+                _meta(context, AppIcons.clock, speed),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+          Divider(height: 1, color: cs.outline),
+          const SizedBox(height: AppSpacing.sm),
+
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: 'تصفّح الكتالوج',
+                  icon: Icons.inventory_2_outlined,
+                  compact: true,
+                  onPressed: onTap,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              AppButton(
+                label: 'الملف',
+                icon: Icons.info_outline,
+                fullWidth: false,
+                compact: true,
+                variant: AppButtonVariant.tonal,
+                onPressed: onProfile,
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _meta(BuildContext context, AppIcons icon, String text) {
+    final tk = context.tokens;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppIcon(icon, size: 14, color: tk.hint),
+        const SizedBox(width: 4),
+        Text(text, style: context.text.labelSmall?.copyWith(color: tk.hint)),
+      ],
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Text(label, style: context.text.labelSmall),
     );
   }
 }

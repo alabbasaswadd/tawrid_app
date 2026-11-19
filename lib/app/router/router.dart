@@ -119,7 +119,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // فارغةً ورسائلَ رفضٍ متكرّرة.
       final phMustChange =
           phState is SessionAuthenticated && phState.mustChangePassword;
-      final whMustChange = whState is WarehouseSessionAuthenticated &&
+      final whMustChange =
+          whState is WarehouseSessionAuthenticated &&
           whState.mustChangePassword;
       if (phMustChange || whMustChange) {
         return loc == TRoutes.forcePasswordChange
@@ -168,7 +169,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         TRoutes.phConversations,
       };
       // المسارات ذات المعرّف لا تدخل المجموعة الثابتة أعلاه، فتُفحص بالنمط.
-      final isPhDetailRoute = (loc.startsWith('/warehouses/') ||
+      final isPhDetailRoute =
+          (loc.startsWith('/warehouses/') ||
               loc.startsWith('/offers/') ||
               loc.startsWith('/orders/') ||
               loc.startsWith('/tenders/')) &&
@@ -289,9 +291,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: TRoutes.phListingDetailPattern,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, state) => PhListingDetailPage(
-          listingId: state.pathParameters['listingId']!,
-        ),
+        builder: (_, state) =>
+            PhListingDetailPage(listingId: state.pathParameters['listingId']!),
       ),
 
       // Warehouse listings — top-level, pushes over the shell (no nav bar)
@@ -428,9 +429,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       // كاتالوج المستودعات — «من يبيعه الآن وبكم؟»، يُفتح من الرئيسية
       // ومن الكتالوج الوطني معاً.
       GoRoute(
+        path: TRoutes.phWarehouseCatalogOfPattern,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => PhWarehouseCatalogPage(
+          initialWarehouseId: state.pathParameters['warehouseId'],
+          initialWarehouseName: state.uri.queryParameters['name'],
+        ),
+      ),
+      // المدخل يفتح المستودعات لا الأدوية: سؤال الصيدلي الأول «من
+      // يخدمني؟»، وكتالوج كلٍّ منها خلف بطاقته.
+      GoRoute(
         path: TRoutes.phWarehouseCatalog,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, _) => const PhWarehouseCatalogPage(),
+        builder: (_, _) => const PhWarehousesPage(),
       ),
 
       // بحث الأسعار المقارن — عروض وتسعير مباشر معاً، ومنه تُبنى السلّة.
@@ -443,8 +454,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           warehouseId: state.uri.queryParameters['warehouseId'],
           warehouseName: state.uri.queryParameters['warehouseName'],
           catalogItemId: state.uri.queryParameters['catalogItemId'],
-          includeAlternatives:
-              state.uri.queryParameters['alternatives'] == '1',
+          includeAlternatives: state.uri.queryParameters['alternatives'] == '1',
         ),
       ),
 
@@ -500,7 +510,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           requestId: state.pathParameters['requestId']!,
         ),
       ),
-
 
       // تفاصيل طلبية التوريد — المسار والأصناف والفاتورة ومشاركة PDF
       GoRoute(

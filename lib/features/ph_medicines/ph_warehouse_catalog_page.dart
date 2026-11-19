@@ -27,7 +27,16 @@ import 'package:tawrid_app/shared/widgets/quantity_dialog.dart';
 // سوقٌ حيّ (من يبيعه الآن وبكم وبأي بونص؟). جمعُهما في شاشة كان يدفن
 // الثاني خلف مبدّل، ويجعل زرّ الفلاتر واحداً لمجموعتي فلاتر مختلفتين.
 class PhWarehouseCatalogPage extends ConsumerStatefulWidget {
-  const PhWarehouseCatalogPage({super.key});
+  const PhWarehouseCatalogPage({
+    this.initialWarehouseId,
+    this.initialWarehouseName,
+    super.key,
+  });
+
+  /// يحصر الشاشة بمستودع واحد — تُفتح به من بطاقته في قائمة المستودعات.
+  /// وفلتر المستودع يبقى مرفوعاً فلا يستطيع المستخدم توسيعها إلى غيره.
+  final String? initialWarehouseId;
+  final String? initialWarehouseName;
 
   @override
   ConsumerState<PhWarehouseCatalogPage> createState() =>
@@ -63,11 +72,16 @@ class _PhWarehouseCatalogPageState
       (_source != MedicineSearchSource.all ? 1 : 0) +
       (_sort != MedicineSearchSort.byDefault ? 1 : 0) +
       (_manufacturer.isNotEmpty ? 1 : 0) +
-      (_warehouseId != null ? 1 : 0);
+      (_warehouseId != null && !_scopedToWarehouse ? 1 : 0);
+
+  /// هل الشاشة محصورة بمستودع مُمرَّر من خارجها؟
+  bool get _scopedToWarehouse => widget.initialWarehouseId != null;
 
   @override
   void initState() {
     super.initState();
+    _warehouseId = widget.initialWarehouseId;
+    _warehouseName = widget.initialWarehouseName;
     _scroll.addListener(_onScroll);
     _runSearch(reset: true);
   }
@@ -111,7 +125,9 @@ class _PhWarehouseCatalogPageState
     }
 
     try {
-      final page = await ref.read(medicineSearchRepositoryProvider).search(
+      final page = await ref
+          .read(medicineSearchRepositoryProvider)
+          .search(
             name: query.isEmpty ? null : query,
             manufacturer: _manufacturer.isEmpty ? null : _manufacturer,
             warehouseId: _warehouseId,
@@ -201,9 +217,8 @@ class _PhWarehouseCatalogPageState
   }
 
   /// هويّة السطر القابل للشراء — صنف عرضٍ بعينه أو صنف تسعيرٍ مباشر.
-  static String _lineKey(MedicineSearchResult r) => r.isOffer
-      ? 'offer:${r.salesOfferItemId}'
-      : 'wh:${r.warehouseMedicineId}';
+  static String _lineKey(MedicineSearchResult r) =>
+      r.isOffer ? 'offer:${r.salesOfferItemId}' : 'wh:${r.warehouseMedicineId}';
 
   /// الكمية الافتراضية عند الإضافة: كمية العرض المعلنة — فالمستودع يعرض
   /// الصنف بكمية بعينها، والغالب أن الصيدلي يطلبها كما هي. والتسعير
@@ -241,8 +256,10 @@ class _PhWarehouseCatalogPageState
       if (r.isOffer) {
         await notifier.addOfferItem(r.salesOfferItemId!, quantity: qty);
       } else {
-        await notifier.addWarehouseMedicine(r.warehouseMedicineId!,
-            quantity: qty);
+        await notifier.addWarehouseMedicine(
+          r.warehouseMedicineId!,
+          quantity: qty,
+        );
       }
       if (!mounted) return;
       AppSnackbar.success(context, 'أُضيف «${r.medicineName}» إلى السلّة');
@@ -259,7 +276,10 @@ class _PhWarehouseCatalogPageState
 
     return Scaffold(
       appBar: InnerTopBar(
-        title: 'كاتالوج المستودعات',
+        title: _scopedToWarehouse
+            ? (_warehouseName ?? 'كتالوج المستودع')
+            : 'كاتالوج المستودعات',
+        subtitle: _scopedToWarehouse ? 'كتالوج المستودع' : null,
         trailing: CartButton(
           count: cartCount,
           onTap: () => context.push(TRoutes.phCart),
@@ -301,7 +321,10 @@ class _PhWarehouseCatalogPageState
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    if (_warehouseId != null) ...[
+                    // الشريحة تُخفى حين يكون المستودع نطاقَ الشاشة لا
+                    // فلتراً فيها: رفعُها يُحوّلها إلى شاشة أخرى بلا أن
+                    // يطلب المستخدم ذلك، والعنوان يبقى يقول غير ما يُعرض.
+                    if (_warehouseId != null && !_scopedToWarehouse) ...[
                       FilterChipCloseable(
                         label: _warehouseName ?? 'مستودع محدّد',
                         onRemove: () {
@@ -360,12 +383,16 @@ class _PhWarehouseCatalogPageState
       return const AppListSkeleton(variant: SkeletonVariant.row);
     }
     if (_error != null) {
-      return ErrorState(message: _error!, onRetry: () => _runSearch(reset: true));
+      return ErrorState(
+        message: _error!,
+        onRetry: () => _runSearch(reset: true),
+      );
     }
     if (_results.isEmpty) {
       return UiEmpty(
         message: 'لا أدوية متاحة',
-        description: 'لا مستودع في منطقتك سعّر هذا الدواء بعد — '
+        description:
+            'لا مستودع في منطقتك سعّر هذا الدواء بعد — '
             'جرّب بحثاً مختلفاً أو مسح الفلاتر.',
         actionLabel: _activeFilterCount > 0 ? 'مسح الفلاتر' : null,
         onAction: _activeFilterCount > 0 ? _clearFilters : null,
@@ -405,10 +432,12 @@ class _PhWarehouseCatalogPageState
                 context.push(TRoutes.phWarehouseProfile(r.supplyWarehouseId)),
             onComparePrices: r.catalogItemId == null
                 ? null
-                : () => context.push(TRoutes.phMedicineInWarehouses(
+                : () => context.push(
+                    TRoutes.phMedicineInWarehouses(
                       catalogItemId: r.catalogItemId!,
                       name: r.medicineName,
-                    )),
+                    ),
+                  ),
           ),
         );
       },
@@ -494,8 +523,9 @@ class _WhCatalogCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               r.manufacturerName,
-                              style: context.text.labelSmall
-                                  ?.copyWith(color: tk.hint),
+                              style: context.text.labelSmall?.copyWith(
+                                color: tk.hint,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -524,8 +554,7 @@ class _WhCatalogCard extends StatelessWidget {
                   if (r.isDerivedPrice)
                     Text(
                       'تقديري',
-                      style:
-                          context.text.labelSmall?.copyWith(color: tk.hint),
+                      style: context.text.labelSmall?.copyWith(color: tk.hint),
                     ),
                 ],
               ),
@@ -614,6 +643,7 @@ class _WhCatalogCard extends StatelessWidget {
     );
   }
 }
+
 // ── نتيجة ورقة فلاتر كاتالوج المستودعات ─────────────────────────────────
 // ── نتيجة ورقة فلاتر كاتالوج المستودعات ─────
 class _WhFilters {
@@ -630,6 +660,7 @@ class _WhFilters {
   final String? warehouseId;
   final String? warehouseName;
 }
+
 // ── ورقة فلاتر كاتالوج المستودعات ──────
 //
 // أربعة فلاتر في ورقة واحدة. الشكل السابق كان صفّاً مستقلاً لكل خيار —
@@ -652,11 +683,13 @@ class _WhFilterSheet extends ConsumerStatefulWidget {
   @override
   ConsumerState<_WhFilterSheet> createState() => _WhFilterSheetState();
 }
+
 class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
   late MedicineSearchSource _source = widget.source;
   late MedicineSearchSort _sort = widget.sort;
-  late String? _pickedMfr =
-      widget.manufacturer.isEmpty ? null : widget.manufacturer;
+  late String? _pickedMfr = widget.manufacturer.isEmpty
+      ? null
+      : widget.manufacturer;
   late String? _pickedWarehouseId = widget.warehouseId;
 
   List<String> _manufacturers = [];
@@ -673,8 +706,9 @@ class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
 
   Future<void> _loadManufacturers() async {
     try {
-      final list =
-          await ref.read(medicineCatalogRepositoryProvider).getManufacturers();
+      final list = await ref
+          .read(medicineCatalogRepositoryProvider)
+          .getManufacturers();
       if (!mounted) return;
       setState(() {
         _manufacturers = list;
@@ -688,8 +722,9 @@ class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
 
   Future<void> _loadWarehouses() async {
     try {
-      final list =
-          await ref.read(warehouseRepositoryProvider).getActiveWarehouses();
+      final list = await ref
+          .read(warehouseRepositoryProvider)
+          .getActiveWarehouses();
       if (!mounted) return;
       setState(() {
         _warehouses = list;
@@ -735,7 +770,8 @@ class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
             icon: AppIcons.warehouse,
             // المدينة والعملة في السطر نفسه: الصيدلي يختار مستودعاً
             // ليرى أسعاره، فعملته جزءٌ من القرار.
-            title: '${w.name} — ${w.city}'
+            title:
+                '${w.name} — ${w.city}'
                 ' · ${currencySymbol(w.pricingCurrency)}',
           ),
       ],
@@ -801,11 +837,11 @@ class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
                     onPressed: _isClean
                         ? null
                         : () => setState(() {
-                              _source = MedicineSearchSource.all;
-                              _sort = MedicineSearchSort.byDefault;
-                              _pickedMfr = null;
-                              _pickedWarehouseId = null;
-                            }),
+                            _source = MedicineSearchSource.all;
+                            _sort = MedicineSearchSort.byDefault;
+                            _pickedMfr = null;
+                            _pickedWarehouseId = null;
+                          }),
                     child: const Text('مسح الكل'),
                   ),
                 ],
@@ -904,6 +940,7 @@ class _WhFilterSheetState extends ConsumerState<_WhFilterSheet> {
     );
   }
 }
+
 // عنوان قسم داخل ورقة الفلاتر.
 class SheetLabel extends StatelessWidget {
   const SheetLabel(this.text);
@@ -911,10 +948,11 @@ class SheetLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Text(text, style: context.text.titleSmall),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: Text(text, style: context.text.titleSmall),
+  );
 }
+
 // صفّ يعرض الاختيار الحالي ويفتح قائمته — مطويّاً يشغل سطراً واحداً.
 class PickerRow extends StatelessWidget {
   const PickerRow({
@@ -1129,8 +1167,9 @@ class _OptionPickerSheetState extends State<_OptionPickerSheet> {
             if (widget.options.length > 4) ...[
               const SizedBox(height: AppSpacing.md),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.page,
+                ),
                 child: AppTextField(
                   controller: _search,
                   hint: widget.searchHint,
@@ -1184,8 +1223,9 @@ class _OptionPickerSheetState extends State<_OptionPickerSheet> {
                             child: Text(
                               'لا نتائج مطابقة',
                               textAlign: TextAlign.center,
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: tk.hint),
+                              style: context.text.bodySmall?.copyWith(
+                                color: tk.hint,
+                              ),
                             ),
                           ),
                       ],

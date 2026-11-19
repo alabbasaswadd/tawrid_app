@@ -32,7 +32,8 @@ class PhWarehouseProfilePage extends ConsumerStatefulWidget {
       _PhWarehouseProfilePageState();
 }
 
-class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage> {
+class _PhWarehouseProfilePageState
+    extends ConsumerState<PhWarehouseProfilePage> {
   WarehouseProfile? _profile;
   List<SalesOfferSummary> _offers = const [];
   WarehouseAnnouncement? _announcement;
@@ -56,8 +57,9 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
       _error = null;
     });
     try {
-      final profile =
-          await ref.read(warehouseRepositoryProvider).getProfile(widget.warehouseId);
+      final profile = await ref
+          .read(warehouseRepositoryProvider)
+          .getProfile(widget.warehouseId);
       final offers = await ref
           .read(salesOfferRepositoryProvider)
           .getAvailableOffers(warehouseId: widget.warehouseId, limit: 30);
@@ -87,12 +89,14 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
           .read(phConversationRepositoryProvider)
           .openConversation(otherPartyId: p.id);
       if (!mounted) return;
-      context.push(TRoutes.phConversationDetail(
-        conv.id,
-        conv.otherPartyName,
-        partyId: conv.otherPartyId,
-        partyType: conv.otherPartyType,
-      ));
+      context.push(
+        TRoutes.phConversationDetail(
+          conv.id,
+          conv.otherPartyName,
+          partyId: conv.otherPartyId,
+          partyType: conv.otherPartyType,
+        ),
+      );
     } catch (e) {
       if (mounted) AppSnackbar.error(context, ApiException.from(e).message);
     }
@@ -119,7 +123,11 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.x3l),
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.x3l,
+      ),
       children: [
         if (_announcement != null && _announcement!.isActive) ...[
           Container(
@@ -137,17 +145,22 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_announcement!.title, style: context.text.titleSmall),
+                      Text(
+                        _announcement!.title,
+                        style: context.text.titleSmall,
+                      ),
                       Text(
                         _announcement!.discountLabel,
-                        style: context.text.bodySmall
-                            ?.copyWith(color: context.colors.primary),
+                        style: context.text.bodySmall?.copyWith(
+                          color: context.colors.primary,
+                        ),
                       ),
                       if (_announcement!.body != null)
                         Text(
                           _announcement!.body!,
-                          style: context.text.bodySmall
-                              ?.copyWith(color: tk.hint),
+                          style: context.text.bodySmall?.copyWith(
+                            color: tk.hint,
+                          ),
                         ),
                     ],
                   ),
@@ -174,7 +187,9 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                         Text(
                           '${p.governorate} - ${p.city} · '
                           'يعمل على توريد منذ ${p.createdOn.year}',
-                          style: context.text.bodySmall?.copyWith(color: tk.hint),
+                          style: context.text.bodySmall?.copyWith(
+                            color: tk.hint,
+                          ),
                         ),
                       ],
                     ),
@@ -188,8 +203,11 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                       shape: BoxShape.circle,
                     ),
                     child: Center(
-                      child: AppIcon(AppIcons.warehouse,
-                          size: 26, color: context.colors.primary),
+                      child: AppIcon(
+                        AppIcons.warehouse,
+                        size: 26,
+                        color: context.colors.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -200,9 +218,10 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
               Row(
                 children: [
                   StatusBadge(
-                      label: 'معتمد على المنصّة',
-                      tone: StatusTone.success,
-                      icon: Icons.verified_outlined),
+                    label: 'معتمد على المنصّة',
+                    tone: StatusTone.success,
+                    icon: Icons.verified_outlined,
+                  ),
                   const SizedBox(width: AppSpacing.xs),
                   StatusBadge(label: p.code, tone: StatusTone.neutral),
                 ],
@@ -215,19 +234,21 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                 text: p.servesAllAreas
                     ? 'يخدم كل المناطق — لم يحدّد مدناً بعينها'
                     : 'يغطي: ${p.serviceAreas.take(3).join('، ')}'
-                        '${p.serviceAreas.length > 3 ? ' — ${p.serviceAreas.length} مدن' : ''}',
+                          '${p.serviceAreas.length > 3 ? ' — ${p.serviceAreas.length} مدن' : ''}',
               ),
               _Line(icon: Icons.phone_outlined, text: p.phone),
               _Line(
                 icon: Icons.sell_outlined,
-                text: '${p.activeOffersCount} '
+                text:
+                    '${p.activeOffersCount} '
                     '${p.activeOffersCount == 1 ? 'عرض ساري' : 'عروض سارية'}',
               ),
               // عملة أسعاره — تُقال صراحةً لأن المنصّة لا تحوّل: أرقام هذا
               // المستودع كلها بها، وقد تخالف عملة صيدلية الزائر.
               _Line(
                 icon: Icons.payments_outlined,
-                text: 'يسعّر بـ${currencyName(p.pricingCurrency)}'
+                text:
+                    'يسعّر بـ${currencyName(p.pricingCurrency)}'
                     ' (${currencySymbol(p.pricingCurrency)})',
               ),
 
@@ -318,9 +339,10 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              for (final area in _areasExpanded
-                  ? p.serviceAreas
-                  : p.serviceAreas.take(_areasPreview))
+              for (final area
+                  in _areasExpanded
+                      ? p.serviceAreas
+                      : p.serviceAreas.take(_areasPreview))
                 Chip(
                   label: Text(area, style: context.text.bodySmall),
                   visualDensity: VisualDensity.compact,
@@ -341,7 +363,10 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
         ],
 
         const SizedBox(height: AppSpacing.lg),
-        Text('عروضه السارية (${_offers.length})', style: context.text.titleLarge),
+        Text(
+          'عروضه السارية (${_offers.length})',
+          style: context.text.titleLarge,
+        ),
         const SizedBox(height: AppSpacing.sm),
         if (_offers.isEmpty)
           Text(
@@ -349,7 +374,7 @@ class _PhWarehouseProfilePageState extends ConsumerState<PhWarehouseProfilePage>
                 // الفارق بين العدّاد والقائمة يعني أن عروضه الحالية لا تستهدف
                 // منطقة هذه الصيدلية — نقولها صراحةً بدل إظهار «لا عروض».
                 ? 'لديه ${p.activeOffersCount} عرض ساري، لكن لا شيء منها يستهدف '
-                    'منطقتك حالياً.'
+                      'منطقتك حالياً.'
                 : 'لا عروض سارية من هذا المستودع حالياً.',
             style: context.text.bodySmall?.copyWith(color: tk.hint),
           )
@@ -381,7 +406,9 @@ class _StatChip extends StatelessWidget {
     final tk = context.tokens;
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -389,13 +416,18 @@ class _StatChip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style:
-                  context.text.bodySmall?.copyWith(color: tk.hint, fontSize: 11)),
+          Text(
+            label,
+            style: context.text.bodySmall?.copyWith(
+              color: tk.hint,
+              fontSize: 11,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(value,
-              style: context.text.titleSmall
-                  ?.copyWith(color: cs.onSurface)),
+          Text(
+            value,
+            style: context.text.titleSmall?.copyWith(color: cs.onSurface),
+          ),
         ],
       ),
     );
@@ -417,10 +449,12 @@ class _Line extends StatelessWidget {
           Icon(icon, size: 15, color: tk.hint),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(text,
-                style: context.text.bodySmall?.copyWith(color: tk.hint),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+            child: Text(
+              text,
+              style: context.text.bodySmall?.copyWith(color: tk.hint),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
